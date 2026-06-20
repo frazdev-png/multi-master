@@ -13,10 +13,16 @@ function clearAllCookies(res: NextResponse) {
   }
 }
 
+function buildRedirectUrl(request: NextRequest, path: string): string {
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || request.nextUrl.protocol.replace(":", "")
+  const host = request.headers.get("host") || request.nextUrl.host
+  return `${proto}://${host}${path}`
+}
+
 export async function POST(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("redirect")
   const dest = raw || "/auth/admin-login"
-  const res = NextResponse.redirect(new URL(dest, request.url))
+  const res = NextResponse.redirect(buildRedirectUrl(request, dest))
   clearAllCookies(res)
   return res
 }
@@ -24,7 +30,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("redirect")
   const dest = raw || "/auth/admin-login"
-  const res = NextResponse.redirect(new URL(dest, request.url))
+  const res = NextResponse.redirect(buildRedirectUrl(request, dest))
   clearAllCookies(res)
   return res
 }

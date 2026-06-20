@@ -1,5 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+function redirectUrl(request: NextRequest, path: string): string {
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || request.nextUrl.protocol.replace(":", "")
+  const host = request.headers.get("host") || request.nextUrl.host
+  return `${proto}://${host}${path}`
+}
+
 function clearAdminCookies(res: NextResponse) {
   res.cookies.set("admin_token", "", {
     httpOnly: false,
@@ -27,25 +33,21 @@ export async function middleware(request: NextRequest) {
   const isCustomerRoute = pathname.startsWith("/customer")
   const wantedRole = request.nextUrl.searchParams.get("role")
 
-  // Handle admin API routes
   if (isAdminApiRoute) {
     return NextResponse.next()
   }
 
-  // Handle customer routes with cookie-based authentication
   if (isCustomerRoute) {
     const authToken = request.cookies.get("auth_token")?.value
     const userRole = request.cookies.get("user_role")?.value
     const adminToken = request.cookies.get("admin_token")?.value
 
     if (!authToken) {
-      const loginUrl = new URL("/auth/login?role=customer", request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(redirectUrl(request, "/auth/login?role=customer"))
     }
 
     if (userRole !== "customer") {
-      const loginUrl = new URL("/auth/login?role=customer", request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(redirectUrl(request, "/auth/login?role=customer"))
     }
 
     const res = NextResponse.next()
@@ -61,42 +63,35 @@ export async function middleware(request: NextRequest) {
     const userRole = request.cookies.get("user_role")?.value
 
     if (adminToken && userRole !== "admin") {
-      const loginUrl = new URL("/auth/admin-login", request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(redirectUrl(request, "/auth/admin-login"))
     }
 
     if (authToken && userRole !== "admin" && !adminToken) {
-      const loginUrl = new URL("/auth/admin-login", request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(redirectUrl(request, "/auth/admin-login"))
     }
 
     if (!adminToken && !(authToken && userRole === "admin")) {
-      const loginUrl = new URL("/auth/admin-login", request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(redirectUrl(request, "/auth/admin-login"))
     }
 
-    // Token exists, allow access
     return NextResponse.next()
   }
 
-  // Handle seller routes with cookie-based authentication
   if (isSellerRoute) {
     const authToken = request.cookies.get("auth_token")?.value
     const userRole = request.cookies.get("user_role")?.value
     const adminToken = request.cookies.get("admin_token")?.value
 
     if (!authToken) {
-      const loginUrl = new URL("/auth/login?role=seller", request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(redirectUrl(request, "/auth/login?role=seller"))
     }
 
     if (userRole === "admin") {
-      return NextResponse.redirect(new URL("/admin-panel", request.url))
+      return NextResponse.redirect(redirectUrl(request, "/admin-panel"))
     }
 
     if (userRole !== "seller") {
-      const loginUrl = new URL("/auth/login?role=seller", request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(redirectUrl(request, "/auth/login?role=seller"))
     }
 
     const res = NextResponse.next()
@@ -106,7 +101,6 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
-  // Redirect authenticated users away from auth pages
   if (isAuthRoute) {
     const authToken = request.cookies.get("auth_token")?.value
     const userRole = request.cookies.get("user_role")?.value
@@ -116,8 +110,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
 
-    // Allow switching roles by explicitly visiting a role-specific login.
-    // Example: currently logged in as customer, but visiting /auth/login?role=seller should not redirect to '/'.
     if (pathname === "/auth/login" && wantedRole && userRole && wantedRole !== userRole) {
       return NextResponse.next()
     }
@@ -127,21 +119,20 @@ export async function middleware(request: NextRequest) {
     }
 
     if (adminToken && userRole === "admin") {
-      return NextResponse.redirect(new URL("/admin-panel", request.url))
+      return NextResponse.redirect(redirectUrl(request, "/admin-panel"))
     }
 
     if (authToken) {
       if (userRole === "admin") {
-        return NextResponse.redirect(new URL("/admin-panel", request.url))
+        return NextResponse.redirect(redirectUrl(request, "/admin-panel"))
       }
       if (userRole === "seller") {
-        return NextResponse.redirect(new URL("/seller", request.url))
+        return NextResponse.redirect(redirectUrl(request, "/seller"))
       }
       if (userRole === "customer") {
-        return NextResponse.redirect(new URL("/customer", request.url))
+        return NextResponse.redirect(redirectUrl(request, "/customer"))
       }
     }
-
   }
 
   return NextResponse.next()

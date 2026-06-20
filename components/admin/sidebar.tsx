@@ -109,7 +109,7 @@ export function AdminSidebar() {
 
         <div className="p-4 border-t border-border">
           <a 
-            href="/api/auth/logout"
+            href="/api/auth/logout?redirect=/auth/admin-login"
             className="flex items-center justify-center md:justify-start gap-3 w-full px-4 py-3 text-danger hover:bg-muted rounded-lg transition-colors"
           >
             <LogOut size={20} />

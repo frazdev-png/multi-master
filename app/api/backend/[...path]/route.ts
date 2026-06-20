@@ -16,22 +16,20 @@ async function proxy(request: NextRequest, context: RouteContext) {
   const url = new URL(request.url)
   const targetUrl = `${baseUrl}/api/${targetPath}${url.search}`
 
-  const headers = new Headers(request.headers)
-  headers.delete("host")
-  headers.delete("content-length")
-
   const cookieStore = await cookies()
   const authToken = cookieStore.get("auth_token")?.value
   const adminToken = cookieStore.get("admin_token")?.value
   const tokenToUse = targetPath.startsWith("admin/") ? (adminToken || authToken) : authToken
 
+  const headers: Record<string, string> = {}
   if (tokenToUse) {
-    headers.set("Authorization", `Bearer ${tokenToUse}`)
+    headers["Authorization"] = `Bearer ${tokenToUse}`
   }
 
   let body: BodyInit | undefined
   if (request.method !== "GET" && request.method !== "HEAD") {
     const contentType = request.headers.get("content-type") || ""
+    headers["Content-Type"] = contentType
     if (/multipart\/form-data/i.test(contentType)) {
       const ab = await request.arrayBuffer()
       body = new Uint8Array(ab)
@@ -49,7 +47,7 @@ async function proxy(request: NextRequest, context: RouteContext) {
     })
   } catch {
     return NextResponse.json(
-      { success: false, error: `Backend unavailable. Start PHP API server at ${baseUrl}` },
+      { success: false, error: `Backend unavailable at ${targetUrl}` },
       {
         status: 503,
         headers: {

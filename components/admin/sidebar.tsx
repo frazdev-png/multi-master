@@ -108,15 +108,13 @@ export function AdminSidebar() {
         </nav>
 
         <div className="p-4 border-t border-border">
-          <button 
+          <a 
+            href="/api/auth/logout"
             className="flex items-center justify-center md:justify-start gap-3 w-full px-4 py-3 text-danger hover:bg-muted rounded-lg transition-colors"
-            onClick={() => {
-              window.location.href = "/api/auth/logout"
-            }}
           >
             <LogOut size={20} />
             <span className="font-medium">Logout</span>
-          </button>
+          </a>
         </div>
       </aside>
     </>

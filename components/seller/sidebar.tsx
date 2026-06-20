@@ -24,10 +24,6 @@ export function SellerSidebar({ isMobileMenuOpen, onMobileMenuClose }: SellerSid
   const { settings } = useRealtime()
   const pathname = usePathname()
 
-  const handleLogout = () => {
-    window.location.href = "/api/auth/logout?redirect=/auth/login%3Frole%3Dseller"
-  }
-
   const menuItems = [
     { href: "/seller", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/seller/products", icon: Package, label: "Products" },
@@ -110,10 +106,10 @@ export function SellerSidebar({ isMobileMenuOpen, onMobileMenuClose }: SellerSid
         </nav>
 
         <div className="p-4 border-t border-border">
-          <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 text-danger hover:bg-muted rounded-lg transition-colors">
+          <a href="/api/auth/logout?redirect=/auth/login%3Frole%3Dseller" className="flex items-center gap-3 w-full px-4 py-3 text-danger hover:bg-muted rounded-lg transition-colors">
             <LogOut size={20} />
             <span className="font-medium">Logout</span>
-          </button>
+          </a>
         </div>
       </aside>
     </>

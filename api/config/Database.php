@@ -330,6 +330,11 @@ class Database {
             $ensureColumn('sellers', 'is_approved', 'is_approved TINYINT(1) NOT NULL DEFAULT 0');
             $ensureColumn('sellers', 'commission_rate', 'commission_rate DECIMAL(5,2) NOT NULL DEFAULT 10.00');
             $ensureColumn('sellers', 'store_address', 'store_address TEXT');
+            $ensureColumn('sellers', 'tax_number', 'tax_number VARCHAR(50) NULL');
+            $ensureColumn('sellers', 'cnic_document_url', 'cnic_document_url VARCHAR(255) DEFAULT NULL');
+            $ensureColumn('sellers', 'bank_name', 'bank_name VARCHAR(100) DEFAULT NULL');
+            $ensureColumn('sellers', 'account_number', 'account_number VARCHAR(50) DEFAULT NULL');
+            $ensureColumn('sellers', 'account_holder_name', 'account_holder_name VARCHAR(255) DEFAULT NULL');
 
             $ensureColumn('sellers', 'promo_code_used', 'promo_code_used VARCHAR(20) NULL');
             $ensureColumn('sellers', 'promo_exempt_guarantee', 'promo_exempt_guarantee TINYINT(1) NOT NULL DEFAULT 0');

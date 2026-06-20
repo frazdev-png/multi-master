@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Package,
@@ -23,11 +23,9 @@ interface SellerSidebarProps {
 export function SellerSidebar({ isMobileMenuOpen, onMobileMenuClose }: SellerSidebarProps) {
   const { settings } = useRealtime()
   const pathname = usePathname()
-  const router = useRouter()
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" })
-    router.push("/auth/login?role=seller")
+  const handleLogout = () => {
+    window.location.href = "/api/auth/logout?redirect=/auth/login%3Frole%3Dseller"
   }
 
   const menuItems = [

@@ -228,6 +228,9 @@ export default function SellerSettingsPage() {
       store_address: storeSettings.storeAddress,
       tax_number: storeSettings.taxId,
       business_name: storeSettings.storeDescription,
+      business_type: storeSettings.businessType,
+      pan_number: storeSettings.panNumber,
+      gst_number: storeSettings.gstNumber,
     })
   }
 
@@ -240,6 +243,8 @@ export default function SellerSettingsPage() {
       bank_name: paymentSettings.bankName,
       account_number: paymentSettings.accountNumber,
       account_holder_name: paymentSettings.accountHolderName,
+      ifsc_code: paymentSettings.ifscCode,
+      upi_id: paymentSettings.upiId,
     })
   }
 
@@ -429,10 +434,38 @@ export default function SellerSettingsPage() {
                           <AvatarImage src={profile.avatarUrl || "/images/seller-avatar.jpg"} />
                           <AvatarFallback>{(profile.fullName || "U").slice(0, 1)}</AvatarFallback>
                         </Avatar>
-                        <Button variant="outline" className="w-full">
-                          <Upload className="mr-2 h-4 w-4" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          id="avatar-upload"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            const formData = new FormData()
+                            formData.append("type", "chat")
+                            formData.append("file", file)
+                            try {
+                              const uploadRes = await fetch("/api/backend/settings/upload", {
+                                method: "POST",
+                                body: formData,
+                              })
+                              const uploadData = await uploadRes.json().catch(() => null)
+                              if (uploadRes.ok && uploadData?.success && uploadData?.url) {
+                                await putProfile({ avatar_url: uploadData.url })
+                                setProfile((p) => ({ ...p, avatarUrl: uploadData.url }))
+                              } else {
+                                setSaveError(uploadData?.message || "Upload failed")
+                              }
+                            } catch {
+                              setSaveError("Upload failed")
+                            }
+                          }}
+                        />
+                        <label htmlFor="avatar-upload" className="w-full cursor-pointer inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+                          <Upload className="h-4 w-4" />
                           Upload Photo
-                        </Button>
+                        </label>
                         <p className="text-sm text-muted-foreground">JPG, PNG or GIF. Max 2MB</p>
                       </div>
                     </CardContent>

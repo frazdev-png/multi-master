@@ -335,6 +335,11 @@ class Database {
             $ensureColumn('sellers', 'promo_exempt_guarantee', 'promo_exempt_guarantee TINYINT(1) NOT NULL DEFAULT 0');
             $ensureColumn('sellers', 'guarantee_required', 'guarantee_required TINYINT(1) NOT NULL DEFAULT 1');
             $ensureColumn('sellers', 'guarantee_locked_amount', "guarantee_locked_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+            $ensureColumn('sellers', 'business_type', "business_type VARCHAR(50) NULL");
+            $ensureColumn('sellers', 'pan_number', "pan_number VARCHAR(50) NULL");
+            $ensureColumn('sellers', 'gst_number', "gst_number VARCHAR(50) NULL");
+            $ensureColumn('sellers', 'ifsc_code', "ifsc_code VARCHAR(50) NULL");
+            $ensureColumn('sellers', 'upi_id', "upi_id VARCHAR(100) NULL");
 
             $ensureTable('wishlist', "CREATE TABLE IF NOT EXISTS wishlist (user_id INT NOT NULL, product_id INT NOT NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, product_id)) ENGINE=InnoDB");
             $ensureTable('wallets', "CREATE TABLE IF NOT EXISTS wallets (user_id INT PRIMARY KEY, balance DECIMAL(10,2) NOT NULL DEFAULT 0.00, updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");

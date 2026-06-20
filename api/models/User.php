@@ -372,6 +372,11 @@ class User extends BaseModel {
                     'bank_name',
                     'account_number',
                     'account_holder_name',
+                    'business_type',
+                    'pan_number',
+                    'gst_number',
+                    'ifsc_code',
+                    'upi_id',
                 ] as $key
             ) {
                 if (array_key_exists($key, $data)) {

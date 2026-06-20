@@ -15,7 +15,7 @@ function clearAllCookies(res: NextResponse) {
 
 export async function POST(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("redirect")
-  const dest = raw || "/login"
+  const dest = raw || "/auth/admin-login"
   const res = NextResponse.redirect(new URL(dest, request.url))
   clearAllCookies(res)
   return res
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("redirect")
-  const dest = raw || "/login"
+  const dest = raw || "/auth/admin-login"
   const res = NextResponse.redirect(new URL(dest, request.url))
   clearAllCookies(res)
   return res

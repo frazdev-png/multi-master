@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   Package,
@@ -23,6 +23,12 @@ interface SellerSidebarProps {
 export function SellerSidebar({ isMobileMenuOpen, onMobileMenuClose }: SellerSidebarProps) {
   const { settings } = useRealtime()
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" })
+    router.push("/auth/login?role=seller")
+  }
 
   const menuItems = [
     { href: "/seller", icon: LayoutDashboard, label: "Dashboard" },
@@ -106,7 +112,7 @@ export function SellerSidebar({ isMobileMenuOpen, onMobileMenuClose }: SellerSid
         </nav>
 
         <div className="p-4 border-t border-border">
-          <button className="flex items-center gap-3 w-full px-4 py-3 text-danger hover:bg-muted rounded-lg transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 text-danger hover:bg-muted rounded-lg transition-colors">
             <LogOut size={20} />
             <span className="font-medium">Logout</span>
           </button>

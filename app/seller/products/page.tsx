@@ -251,11 +251,30 @@ export default function SellerProductsPage() {
       if (!selectedProduct) return
       setIsLoading(true)
       setError("")
+
+      let imageUrl = editForm.image_url
+      if (editImageFile) {
+        const formData = new FormData()
+        formData.append("type", "product")
+        formData.append("file", editImageFile)
+        const uploadRes = await fetch("/api/backend/settings/upload", {
+          method: "POST",
+          body: formData,
+        })
+        const uploadData = await uploadRes.json().catch(() => null)
+        if (!uploadRes.ok || !uploadData?.success || !uploadData?.url) {
+          throw new Error(uploadData?.message || uploadData?.error || "Failed to upload image")
+        }
+        imageUrl = String(uploadData.url)
+      }
+
       const payload: any = {
         name: editForm.name,
         price: Number(editForm.price),
         stock: Number(editForm.stock),
         category: editForm.category,
+        description: editForm.description,
+        image_url: imageUrl,
       }
       if (editForm.status === "Active") {
         payload.is_active = true
@@ -273,6 +292,8 @@ export default function SellerProductsPage() {
       }
       setShowEditModal(false)
       setSelectedProduct(null)
+      setEditImageFile(null)
+      setEditImagePreview("")
       await loadProducts()
     } catch (e: any) {
       setError(e?.message || "Failed to update product")
@@ -618,12 +639,9 @@ export default function SellerProductsPage() {
                           </svg>
                         )}
                       </span>
-                      <button
-                        type="button"
-                        className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
+                      <span className="inline-block bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700">
                         {addImageFile ? addImageFile.name : "Choose Image"}
-                      </button>
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -757,13 +775,48 @@ export default function SellerProductsPage() {
                     onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
                   ></textarea>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Product Image</label>
+                  <div className="mt-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="edit-product-image"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          setEditImageFile(file)
+                          const reader = new FileReader()
+                          reader.onload = () => setEditImagePreview(reader.result as string)
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                    />
+                    <label htmlFor="edit-product-image" className="flex items-center gap-3 cursor-pointer">
+                      <span className="inline-block h-16 w-16 rounded-md overflow-hidden bg-gray-100 border border-gray-300 flex items-center justify-center">
+                        {editImagePreview || selectedProduct?.image_url ? (
+                          <img src={editImagePreview || selectedProduct?.image_url || ""} alt="Preview" className="h-full w-full object-cover" />
+                        ) : (
+                          <svg className="h-8 w-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className="inline-block bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700">
+                        {editImageFile ? editImageFile.name : "Choose Image"}
+                      </span>
+                    </label>
+                  </div>
+                </div>
               </div>
               
               <div className="mt-6 flex justify-end space-x-3">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => { setShowEditModal(false); setEditImageFile(null); setEditImagePreview("") }}
                 >
                   Cancel
                 </Button>

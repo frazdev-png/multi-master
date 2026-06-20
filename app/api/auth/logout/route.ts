@@ -10,6 +10,11 @@ function clearCookie(res: NextResponse, name: string) {
   })
 }
 
+function redirectTo(dest: string): NextResponse {
+  const base = process.env.NEXT_PUBLIC_APP_URL || ""
+  return NextResponse.redirect(base + dest)
+}
+
 export async function POST() {
   const res = NextResponse.json({ success: true })
 
@@ -25,12 +30,9 @@ export async function POST() {
 export async function GET(request: NextRequest) {
   const raw = request.nextUrl.searchParams.get("redirect") || "/login"
   const [path, qs] = raw.split("?")
-  const dest = request.nextUrl.clone()
-  dest.pathname = path
-  dest.search = qs ? "?" + qs : ""
-  dest.searchParams.delete("redirect")
+  const dest = path + (qs ? "?" + qs : "")
 
-  const res = NextResponse.redirect(dest)
+  const res = redirectTo(dest)
 
   clearCookie(res, "auth_token")
   clearCookie(res, "user_role")

@@ -75,12 +75,7 @@ export function AdminPanelSidebar() {
   }
 
   const handleLogout = () => {
-    // Clear admin cookies
-    document.cookie = "admin_token=; path=/; max-age=0"
-    document.cookie = "admin_email=; path=/; max-age=0"
-
-    // Full page redirect to trigger middleware
-    window.location.href = "/auth/admin-login"
+    window.location.href = "/api/auth/logout"
   }
 
   const menuGroups: { label: string; items: MenuItem[] }[] = [

@@ -14,6 +14,19 @@ if (strpos($requestUri, $scriptName) === 0) {
     $requestUri = substr($requestUri, strlen($scriptName));
 }
 
+// Fix Authorization header for PHP built-in server
+if (!isset($_SERVER['HTTP_AUTHORIZATION']) && function_exists('getallheaders')) {
+    $headers = getallheaders();
+    if (is_array($headers)) {
+        foreach ($headers as $name => $value) {
+            if (strtolower((string)$name) === 'authorization') {
+                $_SERVER['HTTP_AUTHORIZATION'] = $value;
+                break;
+            }
+        }
+    }
+}
+
 // Forward to index.php
 $_SERVER['REQUEST_URI'] = $requestUri;
 $_SERVER['SCRIPT_NAME'] = '/index.php';

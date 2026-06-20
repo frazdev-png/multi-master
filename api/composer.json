@@ -1,0 +1,23 @@
+{
+    "name": "multi-vendor-ecommerce/backend",
+    "description": "Backend API for Multi-Vendor E-commerce System",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "cboden/ratchet": "^0.4.4",
+        "vlucas/phpdotenv": "^5.5",
+        "firebase/php-jwt": "^6.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+api/vendor/
+
+# Build output
+.next/
+out/
+dist/
+build/
+.turbo/
+.swc/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+.env*.local
+
+# API specific
+api/.env
+api/uploads/*.jpg
+api/uploads/*.jpeg
+api/uploads/*.png
+api/uploads/*.gif
+api/uploads/*.webp
+api/uploads/*.svg
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+api/storage/logs/
+
+# Cache
+.cache/
+.next/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Vercel
+.vercel
+
+# Coverage
+coverage/

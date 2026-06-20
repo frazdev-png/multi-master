@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Attractive dark and light color palette */
+:root {
+  /* Light mode */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0052cc;
+  --primary-foreground: #ffffff;
+  --secondary: #64748b;
+  --secondary-foreground: #ffffff;
+  --muted: #e2e8f0;
+  --muted-foreground: #64748b;
+  --accent: #00a8ff;
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #ffffff;
+  --ring: #0052cc;
+  --chart-1: oklch(0.65 0.22 260);
+  --chart-2: oklch(0.6 0.15 180);
+  --chart-3: oklch(0.55 0.18 40);
+  --chart-4: oklch(0.7 0.2 120);
+  --chart-5: oklch(0.68 0.18 300);
+  --radius: 0.625rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #0052cc;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #0052cc;
+}
+
+/* Enhanced dark mode with premium dark blue, slate, and cyan accents */
+.dark {
+  --background: #0a0e27;
+  --foreground: #f0f4f8;
+  --card: #141b2d;
+  --card-foreground: #f0f4f8;
+  --popover: #0a0e27;
+  --popover-foreground: #f0f4f8;
+  --primary: #2563eb;
+  --primary-foreground: #0a0e27;
+  --secondary: #94a3b8;
+  --secondary-foreground: #0a0e27;
+  --muted: #1e293b;
+  --muted-foreground: #cbd5e1;
+  --accent: #06dcff;
+  --accent-foreground: #0a0e27;
+  --destructive: #ef4444;
+  --destructive-foreground: #fecaca;
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #2563eb;
+  --chart-1: oklch(0.72 0.24 260);
+  --chart-2: oklch(0.68 0.18 190);
+  --chart-3: oklch(0.65 0.2 50);
+  --chart-4: oklch(0.75 0.2 130);
+  --chart-5: oklch(0.7 0.2 310);
+  --sidebar: #141b2d;
+  --sidebar-foreground: #f0f4f8;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #0a0e27;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f0f4f8;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #2563eb;
+}
+
+@theme inline {
+  --font-sans: "Inter", "Inter Fallback";
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 8px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+  }
+
+  h1 {
+    @apply text-4xl font-bold tracking-tight;
+  }
+
+  h2 {
+    @apply text-3xl font-bold tracking-tight;
+  }
+
+  h3 {
+    @apply text-xl font-semibold;
+  }
+}
+
+@layer components {
+  /* Premium button styles */
+  .btn-primary {
+    @apply px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:shadow-lg hover:shadow-primary/30 transition-all duration-200 shadow-md active:shadow-none;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-card text-foreground border border-border rounded-lg font-semibold hover:bg-muted transition-all duration-200;
+  }
+
+  .btn-outline {
+    @apply px-6 py-3 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary/5 transition-all duration-200;
+  }
+
+  /* Elevated card design with enhanced shadows */
+  .card {
+    @apply bg-card rounded-xl border border-border p-6 shadow-md hover:shadow-lg transition-all duration-300;
+  }
+
+  .input {
+    @apply w-full px-4 py-3 border border-border rounded-lg bg-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all;
+  }
+
+  /* Professional badge system */
+  .badge-primary {
+    @apply inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary;
+  }
+
+  .badge-success {
+    @apply inline-flex items-center rounded-full bg-green-50 dark:bg-green-950/40 px-3 py-1 text-sm font-semibold text-green-700 dark:text-green-400;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-950/40 px-3 py-1 text-sm font-semibold text-amber-700 dark:text-amber-400;
+  }
+
+  .badge-error {
+    @apply inline-flex items-center rounded-full bg-red-50 dark:bg-red-950/40 px-3 py-1 text-sm font-semibold text-red-700 dark:text-red-400;
+  }
+}

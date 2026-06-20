@@ -1,0 +1,37 @@
+REAL-TIME CHAT SYSTEM SETUP
+===========================
+
+1. DATABASE SETUP
+----------------
+mysql -u root -p < database/schema.sql
+
+2. BACKEND SETUP
+----------------
+cd api
+composer install
+php test.php  # Test database connection
+
+3. START SERVERS
+---------------
+Terminal 1: cd api && php -S localhost:8000 start_api.php
+Terminal 2: cd api && php start_websocket.php
+Terminal 3: npm install && npm start
+
+4. LOGIN
+--------
+URL: http://localhost:3000
+Admin: admin@example.com / admin123
+
+FEATURES:
+- Real-time messaging via WebSocket
+- Database-driven (no mock data)
+- Role-based chat (Admin/Seller/Customer)
+- Typing indicators & read receipts
+- Online/offline status
+
+PORTS:
+- API: 8000
+- WebSocket: 8080
+- Frontend: 3000
+
+QUICK START: Run start_chat_system.bat

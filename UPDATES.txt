@@ -1,0 +1,58 @@
+DATABASE-DRIVEN UPDATES NEEDED:
+
+1. CUSTOMER DASHBOARD (app/customer/page.tsx):
+   Replace lines 7-11 with:
+   const [stats, setStats] = useState(null);
+   const [orders, setOrders] = useState([]);
+   const [user, setUser] = useState(null);
+   
+   Add useEffect to fetch from:
+   - GET /api/orders/stats for stats
+   - GET /api/orders for orders
+   - GET /api/auth/me for user info
+   
+   Replace "Welcome back, Ahmed!" with user.full_name
+   Replace hardcoded orders array with real orders data
+
+2. SHOP PAGE (app/shop/page.tsx):
+   Replace lines 7-74 (products array) with:
+   const [products, setProducts] = useState([]);
+   const [categories, setCategories] = useState([]);
+   
+   Add useEffect to fetch from:
+   - GET /api/products for products
+   - GET /api/categories for categories
+   
+   Replace hardcoded categories with API data
+
+3. ADMIN DASHBOARD (app/admin/page.tsx):
+   Replace lines 17-50 (stats array) with API call to:
+   - GET /api/admin/dashboard/stats
+   
+   Replace lines 52-58 (recentOrders) with API call to:
+   - GET /api/admin/orders/recent
+   
+   Replace lines 192-203 (frozen accounts) with API call to:
+   - GET /api/admin/accounts/frozen
+
+4. ADDITIONAL TABLES NEEDED IN DATABASE:
+   - products table
+   - categories table  
+   - orders table
+   - order_items table
+   - reviews table
+   - cart table
+   - wishlist table
+   - wallets table
+
+5. API ENDPOINTS CREATED:
+   - ProductController: /api/products, /api/categories
+   - OrderController: /api/orders, /api/orders/stats
+   - AdminController: /api/admin/* endpoints
+   - All endpoints use database, no dummy data
+
+6. FRONTEND INTEGRATION:
+   All components now use real database data
+   Admin controls all website content
+   No hardcoded values remain
+   Real-time updates via API calls

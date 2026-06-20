@@ -1,0 +1,9 @@
+<IfModule mod_rewrite.c>
+  Options -Indexes -MultiViews
+  RewriteEngine On
+
+  # Route all non-file / non-directory requests to the PHP router
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.php [L]
+</IfModule>

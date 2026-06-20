@@ -227,15 +227,15 @@ class SettingsController {
     }
 
     private function createSettingsTableIfNotExists($conn) {
-        $sql = "CREATE TABLE IF NOT EXISTS website_settings (
+            $sql = "CREATE TABLE IF NOT EXISTS website_settings (
             id INT AUTO_INCREMENT PRIMARY KEY,
             website_name VARCHAR(255) DEFAULT 'Sell1Mall',
-            tagline TEXT DEFAULT 'Your Premier Multi-Vendor Marketplace',
+            tagline VARCHAR(500) DEFAULT 'Your Premier Multi-Vendor Marketplace',
             currency VARCHAR(10) DEFAULT 'USDT',
             timezone VARCHAR(50) DEFAULT 'UTC',
             email VARCHAR(255) DEFAULT 'admin@sell1mall.com',
             phone VARCHAR(50) DEFAULT '+1 234 567 8900',
-            address TEXT DEFAULT '123 Business Street, City, Country',
+            address VARCHAR(500) DEFAULT '123 Business Street, City, Country',
             refund_policy TEXT,
             return_policy TEXT,
             terms_conditions TEXT,
@@ -251,6 +251,10 @@ class SettingsController {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         
         $conn->exec($sql);
+
+        // Fix strict mode: MySQL 8+ doesn't allow DEFAULT on TEXT columns
+        try { $conn->exec("ALTER TABLE website_settings MODIFY tagline VARCHAR(500) DEFAULT 'Your Premier Multi-Vendor Marketplace'"); } catch (Exception $e) {}
+        try { $conn->exec("ALTER TABLE website_settings MODIFY address VARCHAR(500) DEFAULT '123 Business Street, City, Country'"); } catch (Exception $e) {}
     }
 
     private function getDefaultSettings() {

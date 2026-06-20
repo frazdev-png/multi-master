@@ -431,7 +431,7 @@ export default function SellerSettingsPage() {
                     <CardContent className="space-y-4">
                       <div className="flex flex-col items-center">
                         <Avatar className="h-24 w-24 mb-4">
-                          <AvatarImage src={profile.avatarUrl || "/images/seller-avatar.jpg"} />
+                          <AvatarImage src={profile.avatarUrl || ""} />
                           <AvatarFallback>{(profile.fullName || "U").slice(0, 1)}</AvatarFallback>
                         </Avatar>
                         <input

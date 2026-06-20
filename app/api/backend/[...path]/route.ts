@@ -10,21 +10,7 @@ type RouteContext = {
 }
 
 async function proxy(request: NextRequest, context: RouteContext) {
-  const configuredBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://127.0.0.1:8000"
-  const localDevBaseUrl = "http://127.0.0.1:8000"
-
-  let baseUrl = configuredBaseUrl
-  if (process.env.NODE_ENV !== "production") {
-    try {
-      const healthRes = await fetch(`${localDevBaseUrl}/api/health`, {
-        signal: AbortSignal.timeout(800),
-      })
-      if (healthRes.ok) {
-        baseUrl = localDevBaseUrl
-      }
-    } catch {
-    }
-  }
+  const baseUrl = "http://127.0.0.1:8000"
   const params = await (context.params as any)
   const targetPath = (params?.path || []).join("/")
   const url = new URL(request.url)

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { LayoutDashboard, Users, Store, Package, ShoppingCart, MessageSquare, Settings, LogOut, Menu, X } from "lucide-react"
 import { useRealtime } from "@/contexts/RealtimeContext"
@@ -9,6 +9,7 @@ import { useRealtime } from "@/contexts/RealtimeContext"
 export function AdminSidebar() {
   const { settings } = useRealtime()
   const pathname = usePathname()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
@@ -109,9 +110,9 @@ export function AdminSidebar() {
         <div className="p-4 border-t border-border">
           <button 
             className="flex items-center justify-center md:justify-start gap-3 w-full px-4 py-3 text-danger hover:bg-muted rounded-lg transition-colors"
-            onClick={() => {
-              // Add logout logic here
-              console.log('Logout clicked')
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" })
+              window.location.href = "/login"
             }}
           >
             <LogOut size={20} />

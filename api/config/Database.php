@@ -129,7 +129,7 @@ class Database {
 
             $ensureTable(
                 'wallet_transactions',
-                "CREATE TABLE IF NOT EXISTS wallet_transactions (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, direction VARCHAR(10) NOT NULL, amount DECIMAL(10,2) NOT NULL, currency VARCHAR(4) NOT NULL DEFAULT 'USDT', reference_type VARCHAR(50) NULL, reference_id INT NULL, description VARCHAR(255) NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_wallet_tx_user (user_id), INDEX idx_wallet_tx_ref (reference_type, reference_id), CONSTRAINT fk_wallet_tx_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB"
+                "CREATE TABLE IF NOT EXISTS wallet_transactions (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, type VARCHAR(30) NOT NULL DEFAULT 'admin_credit', direction VARCHAR(10) NOT NULL, amount DECIMAL(10,2) NOT NULL, pending_balance_after DECIMAL(10,2) NULL, available_balance_after DECIMAL(10,2) NULL, guarantee_balance_after DECIMAL(10,2) NULL, total_earnings_after DECIMAL(10,2) NULL, total_withdrawn_after DECIMAL(10,2) NULL, currency VARCHAR(4) NOT NULL DEFAULT 'USDT', reference_type VARCHAR(50) NULL, reference_id INT NULL, description VARCHAR(255) NULL, admin_id INT NULL, admin_name VARCHAR(255) NULL, note TEXT NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_wallet_tx_user (user_id), INDEX idx_wallet_tx_ref (reference_type, reference_id), INDEX idx_wallet_tx_type (type), CONSTRAINT fk_wallet_tx_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB"
             );
 
             $ensureTable(
@@ -368,10 +368,24 @@ class Database {
             $ensureColumn('sellers', 'upi_id', "upi_id VARCHAR(100) NULL");
 
             $ensureTable('wishlist', "CREATE TABLE IF NOT EXISTS wishlist (user_id INT NOT NULL, product_id INT NOT NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, product_id)) ENGINE=InnoDB");
-            $ensureTable('wallets', "CREATE TABLE IF NOT EXISTS wallets (user_id INT PRIMARY KEY, balance DECIMAL(10,2) NOT NULL DEFAULT 0.00, updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
+            $ensureTable('wallets', "CREATE TABLE IF NOT EXISTS wallets (user_id INT PRIMARY KEY, balance DECIMAL(10,2) NOT NULL DEFAULT 0.00, pending_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00, available_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00, guarantee_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00, total_earnings DECIMAL(10,2) NOT NULL DEFAULT 0.00, total_withdrawn DECIMAL(10,2) NOT NULL DEFAULT 0.00, updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
 
             $ensureColumn('wallets', 'balance', 'balance DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('wallets', 'pending_balance', 'pending_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('wallets', 'available_balance', 'available_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('wallets', 'guarantee_balance', 'guarantee_balance DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('wallets', 'total_earnings', 'total_earnings DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('wallets', 'total_withdrawn', 'total_withdrawn DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             $ensureColumn('wallets', 'updated_at', 'updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
+            $ensureColumn('wallet_transactions', 'type', "type VARCHAR(30) NOT NULL DEFAULT 'admin_credit'");
+            $ensureColumn('wallet_transactions', 'pending_balance_after', 'pending_balance_after DECIMAL(10,2) NULL');
+            $ensureColumn('wallet_transactions', 'available_balance_after', 'available_balance_after DECIMAL(10,2) NULL');
+            $ensureColumn('wallet_transactions', 'guarantee_balance_after', 'guarantee_balance_after DECIMAL(10,2) NULL');
+            $ensureColumn('wallet_transactions', 'total_earnings_after', 'total_earnings_after DECIMAL(10,2) NULL');
+            $ensureColumn('wallet_transactions', 'total_withdrawn_after', 'total_withdrawn_after DECIMAL(10,2) NULL');
+            $ensureColumn('wallet_transactions', 'admin_id', 'admin_id INT NULL');
+            $ensureColumn('wallet_transactions', 'admin_name', 'admin_name VARCHAR(255) NULL');
+            $ensureColumn('wallet_transactions', 'note', 'note TEXT NULL');
 
             $stmt = $conn->prepare("SHOW COLUMNS FROM users LIKE 'password'");
             $stmt->execute();

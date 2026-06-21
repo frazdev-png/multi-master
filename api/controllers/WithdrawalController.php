@@ -39,7 +39,7 @@ class WithdrawalController {
             if ($stmt->fetch(PDO::FETCH_ASSOC)) {
                 return;
             }
-            $stmt = $this->db->prepare("INSERT INTO wallets (user_id, balance, updated_at) VALUES (?, 0.00, NOW())");
+            $stmt = $this->db->prepare("INSERT INTO wallets (user_id, balance, pending_balance, available_balance, guarantee_balance, total_earnings, total_withdrawn, updated_at) VALUES (?, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NOW())");
             $stmt->execute([$userId]);
         } catch (Exception $e) {
         }
@@ -73,28 +73,40 @@ class WithdrawalController {
     private function getWalletBalance($userId) {
         $this->ensureWalletRow($userId);
         try {
-            $stmt = $this->db->prepare("SELECT COALESCE(balance, 0) as balance FROM wallets WHERE user_id = ? LIMIT 1");
+            $stmt = $this->db->prepare("SELECT COALESCE(available_balance, 0) as balance, COALESCE(guarantee_balance, 0) as locked, COALESCE(pending_balance, 0) as pending_balance, COALESCE(total_earnings, 0) as total_earnings, COALESCE(total_withdrawn, 0) as total_withdrawn FROM wallets WHERE user_id = ? LIMIT 1");
             $stmt->execute([$userId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            return (float)($row['balance'] ?? 0);
+            return [
+                'balance' => (float)($row['balance'] ?? 0),
+                'locked' => (float)($row['locked'] ?? 0),
+                'pending_balance' => (float)($row['pending_balance'] ?? 0),
+                'total_earnings' => (float)($row['total_earnings'] ?? 0),
+                'total_withdrawn' => (float)($row['total_withdrawn'] ?? 0),
+            ];
         } catch (Exception $e) {
-            return 0.0;
+            return ['balance' => 0.0, 'locked' => 0.0, 'pending_balance' => 0.0, 'total_earnings' => 0.0, 'total_withdrawn' => 0.0];
         }
     }
 
     private function computeWithdrawableBalance($sellerId) {
-        $balance = $this->getWalletBalance($sellerId);
-        $policy = $this->sellerGuaranteePolicy($sellerId);
+        $info = $this->getWalletBalance($sellerId);
+        $balance = $info['balance'];
+        $locked = $info['locked'];
 
-        $locked = 0.0;
+        $policy = $this->sellerGuaranteePolicy($sellerId);
+        $guaranteeLock = 0.0;
         if (!$policy['promo_exempt_guarantee'] && $policy['guarantee_required']) {
-            $locked = max(0.0, (float)$policy['guarantee_locked_amount']);
+            $guaranteeLock = max(0.0, (float)$policy['guarantee_locked_amount']);
         }
+        $totalLocked = max($locked, $guaranteeLock);
 
         return [
             'balance' => $balance,
-            'locked' => $locked,
-            'available' => max(0.0, $balance - $locked),
+            'locked' => $totalLocked,
+            'available' => max(0.0, $balance - $totalLocked),
+            'pending_balance' => $info['pending_balance'],
+            'total_earnings' => $info['total_earnings'],
+            'total_withdrawn' => $info['total_withdrawn'],
             'policy' => $policy,
         ];
     }
@@ -144,16 +156,21 @@ class WithdrawalController {
     private function getSellerWallet($user) {
         $info = $this->computeWithdrawableBalance($user['id']);
 
+        $tx = $this->db->prepare("SELECT wt.*, u.full_name as admin_full_name FROM wallet_transactions wt LEFT JOIN users u ON wt.admin_id = u.id WHERE wt.user_id = ? ORDER BY wt.created_at DESC LIMIT 100");
+        $tx->execute([$user['id']]);
+        $transactions = $tx->fetchAll(PDO::FETCH_ASSOC);
+
         header('Content-Type: application/json');
         echo json_encode([
             'wallet' => [
-                'balance' => $info['balance'],
-                'locked' => $info['locked'],
-                'available' => $info['available'],
+                'available_balance' => $info['balance'],
+                'pending_balance' => $info['pending_balance'],
+                'guarantee_balance' => $info['locked'],
+                'total_earnings' => $info['total_earnings'],
+                'total_withdrawn' => $info['total_withdrawn'],
                 'currency' => 'USDT',
-                'promo_exempt_guarantee' => $info['policy']['promo_exempt_guarantee'],
-                'promo_code_used' => $info['policy']['promo_code_used'],
             ],
+            'transactions' => $transactions,
         ]);
     }
 
@@ -386,10 +403,10 @@ class WithdrawalController {
                 $stmt->execute([$sellerId, $withdrawalId]);
                 $existingDebit = $stmt->fetch(PDO::FETCH_ASSOC);
                 if (!$existingDebit) {
-                    $stmt = $this->db->prepare("UPDATE wallets SET balance = balance - ?, updated_at = NOW() WHERE user_id = ?");
-                    $stmt->execute([$amount, $sellerId]);
+                    $stmt = $this->db->prepare("UPDATE wallets SET available_balance = available_balance - ?, balance = COALESCE(balance, 0) - ?, total_withdrawn = COALESCE(total_withdrawn, 0) + ?, updated_at = NOW() WHERE user_id = ?");
+                    $stmt->execute([$amount, $amount, $amount, $sellerId]);
 
-                    $stmt = $this->db->prepare("INSERT INTO wallet_transactions (user_id, direction, amount, currency, reference_type, reference_id, description, created_at) VALUES (?, 'debit', ?, 'USDT', 'withdrawal', ?, 'Withdrawal approved', NOW())");
+                    $stmt = $this->db->prepare("INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference_type, reference_id, created_at) VALUES (?, 'withdrawal', 'debit', ?, 'Withdrawal approved', 'withdrawal', ?, NOW())");
                     $stmt->execute([$sellerId, $amount, $withdrawalId]);
                 }
             }

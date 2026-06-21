@@ -151,6 +151,20 @@ class OrderController {
         $stmt = $this->db->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ? AND seller_id = ?");
         $stmt->execute([$status, (int)$orderId, $user['id']]);
 
+        if ($status === 'delivered') {
+            $stmt = $this->db->prepare("SELECT total_amount, seller_id FROM orders WHERE id = ?");
+            $stmt->execute([(int)$orderId]);
+            $order = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($order && $order['total_amount'] > 0) {
+                $sid = $order['seller_id'];
+                $amt = $order['total_amount'];
+                $this->db->prepare("UPDATE wallets SET pending_balance = GREATEST(pending_balance - ?, 0), available_balance = available_balance + ?, balance = COALESCE(balance, 0) + ?, total_earnings = COALESCE(total_earnings, 0) + ? WHERE user_id = ?")
+                    ->execute([$amt, $amt, $amt, $amt, $sid]);
+                $this->db->prepare("INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference_type, reference_id, created_at) VALUES (?, 'order_delivered', 'credit', ?, CONCAT('Order #', ?, ' delivered'), 'order', ?, NOW())")
+                    ->execute([$sid, $amt, (int)$orderId, (int)$orderId]);
+            }
+        }
+
         echo json_encode(['success' => true]);
     }
 
@@ -221,6 +235,20 @@ class OrderController {
 
         $stmt = $this->db->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?");
         $stmt->execute([$status, (int)$orderId]);
+
+        if ($status === 'delivered') {
+            $stmt = $this->db->prepare("SELECT total_amount, seller_id FROM orders WHERE id = ?");
+            $stmt->execute([(int)$orderId]);
+            $order = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($order && $order['total_amount'] > 0) {
+                $sid = $order['seller_id'];
+                $amt = $order['total_amount'];
+                $this->db->prepare("UPDATE wallets SET pending_balance = GREATEST(pending_balance - ?, 0), available_balance = available_balance + ?, balance = COALESCE(balance, 0) + ?, total_earnings = COALESCE(total_earnings, 0) + ? WHERE user_id = ?")
+                    ->execute([$amt, $amt, $amt, $amt, $sid]);
+                $this->db->prepare("INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference_type, reference_id, created_at) VALUES (?, 'order_delivered', 'credit', ?, CONCAT('Order #', ?, ' delivered'), 'order', ?, NOW())")
+                    ->execute([$sid, $amt, (int)$orderId, (int)$orderId]);
+            }
+        }
 
         echo json_encode(['success' => true]);
     }
@@ -458,6 +486,25 @@ class OrderController {
                 }
             }
             
+            // Update seller wallet: add order amount to pending_balance
+            foreach ($sellerItems as $sid => $sil) {
+                $sub = 0.0;
+                foreach ($sil as $it) {
+                    $q = (int)($it['quantity'] ?? 0);
+                    $u = (float)($it['unit_price'] ?? ($it['price'] ?? 0));
+                    if ($q > 0) $sub += ($q * $u);
+                }
+                if ($sub > 0) {
+                    $stmt = $this->db->prepare("SELECT user_id FROM wallets WHERE user_id = ? LIMIT 1");
+                    $stmt->execute([$sid]);
+                    if (!$stmt->fetch()) {
+                        $this->db->prepare("INSERT INTO wallets (user_id, pending_balance) VALUES (?, ?)")->execute([$sid, $sub]);
+                    } else {
+                        $this->db->prepare("UPDATE wallets SET pending_balance = pending_balance + ? WHERE user_id = ?")->execute([$sub, $sid]);
+                    }
+                }
+            }
+
             // Clear cart
             $stmt = $this->db->prepare("DELETE FROM cart WHERE user_id = ?");
             $stmt->execute([$user['id']]);

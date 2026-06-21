@@ -23,7 +23,8 @@ import {
   Menu,
   X,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Wallet
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
@@ -122,6 +123,7 @@ export function AdminPanelSidebar() {
         { href: "/admin-panel/roles", icon: Users2, label: "Roles & Permissions" },
         { href: "/admin-panel/subscribers", icon: Users, label: "Subscribers" },
         { href: "/admin-panel/deposits", icon: CreditCard, label: "Customer Deposits" },
+        { href: "/admin-panel/wallet", icon: Wallet, label: "Wallet Management" },
         { href: "/admin-panel/withdrawals", icon: CreditCard, label: "Withdrawals" },
         { href: "/admin-panel/earnings", icon: CreditCard, label: "Vendor Earnings" },
         { href: "/admin-panel/cache", icon: Database, label: "Clear Cache" },

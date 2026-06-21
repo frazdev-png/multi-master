@@ -199,7 +199,7 @@ $routes = [
     '/api/seller/orders/{id}/status' => ['controller' => 'OrderController', 'method' => 'handleRequest', 'http_method' => 'PUT'],
 
     // Seller withdrawals
-    '/api/seller/wallet' => ['controller' => 'WithdrawalController', 'method' => 'handleRequest', 'http_method' => 'GET'],
+    '/api/seller/wallet' => ['controller' => 'WalletController', 'method' => 'handleRequest', 'http_method' => 'GET'],
     '/api/seller/withdrawals' => ['controller' => 'WithdrawalController', 'method' => 'handleRequest', 'http_method' => ['GET', 'POST']],
 
     // Admin product/order/category/vendor management
@@ -222,6 +222,11 @@ $routes = [
     // Admin withdrawal management
     '/api/admin/withdrawals' => ['controller' => 'WithdrawalController', 'method' => 'handleRequest', 'http_method' => 'GET'],
     '/api/admin/withdrawals/{id}/decision' => ['controller' => 'WithdrawalController', 'method' => 'handleRequest', 'http_method' => 'PUT'],
+
+    // Admin wallet management
+    '/api/admin/wallet/sellers' => ['controller' => 'WalletController', 'method' => 'handleRequest', 'http_method' => 'GET'],
+    '/api/admin/wallet/seller/{id}' => ['controller' => 'WalletController', 'method' => 'handleRequest', 'http_method' => 'GET'],
+    '/api/admin/wallet/action' => ['controller' => 'WalletController', 'method' => 'handleRequest', 'http_method' => 'POST'],
 
     // Admin advanced: earnings, deposits, subscribers
     '/api/admin/earnings' => ['controller' => 'AdminController', 'method' => 'handleRequest', 'http_method' => 'GET'],

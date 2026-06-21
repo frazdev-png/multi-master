@@ -175,7 +175,7 @@ class WalletController {
         if (!$row || $row['pending_balance'] < $amount) {
             http_response_code(400); echo json_encode(['error' => 'Insufficient pending balance']); return;
         }
-        $this->db->prepare("UPDATE wallets SET pending_balance = pending_balance - ?, available_balance = available_balance + ?, balance = balance + ?, total_earnings = total_earnings + ? WHERE user_id = ?")->execute([$amount, $amount, $amount, $amount, $sellerId]);
+        $this->db->prepare("UPDATE wallets SET pending_balance = pending_balance - ?, available_balance = available_balance + ?, total_earnings = total_earnings + ? WHERE user_id = ?")->execute([$amount, $amount, $amount, $sellerId]);
         $this->recordTransaction($sellerId, 'funds_released', 'credit', $amount, $note, $admin['id'], $admin['full_name'] ?? $admin['email']);
         $this->emitRealtimeEvent('wallet_updated', $sellerId, ['action' => 'release_pending', 'amount' => $amount]);
         echo json_encode(['success' => true, 'message' => "Released $amount from pending balance"]);
@@ -190,7 +190,7 @@ class WalletController {
         if (!$row || $row['available_balance'] < $amount) {
             http_response_code(400); echo json_encode(['error' => 'Insufficient available balance']); return;
         }
-        $this->db->prepare("UPDATE wallets SET available_balance = available_balance - ?, pending_balance = pending_balance + ?, balance = balance - ? WHERE user_id = ?")->execute([$amount, $amount, $amount, $sellerId]);
+        $this->db->prepare("UPDATE wallets SET available_balance = available_balance - ?, pending_balance = pending_balance + ? WHERE user_id = ?")->execute([$amount, $amount, $sellerId]);
         $this->recordTransaction($sellerId, 'hold', 'debit', $amount, $note, $admin['id'], $admin['full_name'] ?? $admin['email']);
         $this->emitRealtimeEvent('wallet_updated', $sellerId, ['action' => 'hold_funds', 'amount' => $amount]);
         echo json_encode(['success' => true, 'message' => "Held $amount from available balance"]);

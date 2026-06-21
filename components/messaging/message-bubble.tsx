@@ -14,7 +14,7 @@ export function MessageBubble({ content, timestamp, isOwn, senderName, onDelete 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-4`}>
       <div
-        className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+        className={`relative max-w-[85%] sm:max-w-[70%] lg:max-w-md px-3 sm:px-4 py-2 rounded-lg ${
           isOwn ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
         }`}
       >

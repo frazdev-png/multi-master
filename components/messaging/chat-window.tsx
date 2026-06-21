@@ -88,7 +88,7 @@ export function ChatWindow({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
         {error ? (
           <div className="text-sm text-red-600">{error}</div>
         ) : isLoading ? (
@@ -104,8 +104,8 @@ export function ChatWindow({
       </div>
 
       {/* Input */}
-      <div className="bg-card border-t border-border p-4">
-        <div className="flex gap-3">
+      <div className="bg-card border-t border-border p-2 sm:p-4">
+        <div className="flex gap-2 sm:gap-3">
           <input
             type="text"
             value={inputValue}

@@ -173,42 +173,60 @@ class ChatController {
     }
 
     // Non-admin users (customers/sellers) can ONLY communicate with admin.
-    // No other non-admin participant beside themselves is allowed.
     private function isAllowedConversation($conversationId, $user) {
         $role = strtolower((string)($user['role'] ?? ''));
-        // Admin is always allowed
         if ($role === 'admin') return true;
 
         try {
+            $userId = (int)$user['id'];
+            $conversationId = (int)$conversationId;
+
+            // Try conversation_participants first
             $stmt = $this->db->prepare("
                 SELECT u.id, u.role FROM conversation_participants cp
                 JOIN users u ON cp.user_id = u.id
                 WHERE cp.conversation_id = ?
             ");
-            $stmt->execute([(int)$conversationId]);
+            $stmt->execute([$conversationId]);
             $participants = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $hasAdmin = false;
-            $otherNonAdminCount = 0;
-
-            foreach ($participants as $p) {
-                $r = strtolower((string)($p['role'] ?? ''));
-                $pid = (int)($p['id'] ?? 0);
-
-                if ($r === 'admin') {
-                    $hasAdmin = true;
-                } elseif ($pid !== (int)$user['id']) {
-                    $otherNonAdminCount++;
+            if (!empty($participants)) {
+                $hasAdmin = false;
+                $otherNonAdmin = false;
+                foreach ($participants as $p) {
+                    $r = strtolower((string)($p['role'] ?? ''));
+                    $pid = (int)($p['id'] ?? 0);
+                    if ($r === 'admin') {
+                        $hasAdmin = true;
+                    } elseif ($pid !== $userId) {
+                        $otherNonAdmin = true;
+                    }
                 }
+                return $hasAdmin && !$otherNonAdmin;
             }
 
-            // Must have an admin AND no other non-admin participants besides self
-            return $hasAdmin && $otherNonAdminCount === 0;
+            // Fallback to legacy user1_id/user2_id columns
+            if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
+                $stmt = $this->db->prepare("
+                    SELECT user1_id, user2_id FROM conversations WHERE id = ?
+                ");
+                $stmt->execute([$conversationId]);
+                $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$conv) return false;
+
+                $otherId = ((int)$conv['user1_id'] === $userId) ? (int)$conv['user2_id'] : (int)$conv['user1_id'];
+                if (!$otherId) return false;
+
+                $stmt = $this->db->prepare("SELECT role FROM users WHERE id = ?");
+                $stmt->execute([$otherId]);
+                $other = $stmt->fetch(PDO::FETCH_ASSOC);
+                return $other && strtolower((string)($other['role'] ?? '')) === 'admin';
+            }
+
+            return false;
         } catch (Exception $e) {
             return false;
         }
-
-        return false;
     }
 
     public function conversations() {

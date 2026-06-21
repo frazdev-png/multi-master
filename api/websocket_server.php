@@ -415,7 +415,10 @@ class Chat implements MessageComponentInterface {
         $role = $participant ? strtolower((string)($participant['role'] ?? '')) : '';
 
         if ($role !== 'admin') {
-            // Ensure admin exists AND no other non-admin user besides sender
+            $fromUserId = (int)$fromUserId;
+            $conversationId = (int)$conversationId;
+
+            // Try conversation_participants first
             $stmt = $this->db->prepare("
                 SELECT u.id, u.role FROM conversation_participants cp
                 JOIN users u ON cp.user_id = u.id
@@ -423,19 +426,36 @@ class Chat implements MessageComponentInterface {
             ");
             $stmt->execute([$conversationId]);
             $participants = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $hasAdmin = false;
-            $otherNonAdmin = false;
-            foreach ($participants as $p) {
-                $r = strtolower((string)($p['role'] ?? ''));
-                $pid = (int)($p['id'] ?? 0);
-                if ($r === 'admin') {
-                    $hasAdmin = true;
-                } elseif ($pid !== (int)$fromUserId) {
-                    $otherNonAdmin = true;
+
+            if (!empty($participants)) {
+                $hasAdmin = false;
+                $otherNonAdmin = false;
+                foreach ($participants as $p) {
+                    $r = strtolower((string)($p['role'] ?? ''));
+                    $pid = (int)($p['id'] ?? 0);
+                    if ($r === 'admin') {
+                        $hasAdmin = true;
+                    } elseif ($pid !== $fromUserId) {
+                        $otherNonAdmin = true;
+                    }
                 }
-            }
-            if (!$hasAdmin || $otherNonAdmin) {
-                throw new Exception('Not authorized for this conversation');
+                if (!$hasAdmin || $otherNonAdmin) {
+                    throw new Exception('Not authorized for this conversation');
+                }
+            } else {
+                // Fallback to legacy user1_id/user2_id
+                $stmt = $this->db->prepare("SELECT user1_id, user2_id FROM conversations WHERE id = ?");
+                $stmt->execute([$conversationId]);
+                $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$conv) throw new Exception('Not authorized for this conversation');
+
+                $otherId = ((int)$conv['user1_id'] === $fromUserId) ? (int)$conv['user2_id'] : (int)$conv['user1_id'];
+                $stmt = $this->db->prepare("SELECT role FROM users WHERE id = ?");
+                $stmt->execute([$otherId]);
+                $other = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$other || strtolower((string)($other['role'] ?? '')) !== 'admin') {
+                    throw new Exception('Not authorized for this conversation');
+                }
             }
         }
         

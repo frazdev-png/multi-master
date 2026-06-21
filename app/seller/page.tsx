@@ -11,6 +11,7 @@ export default function SellerDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>("")
+  const [me, setMe] = useState<any>(null)
   const [orders, setOrders] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
 
@@ -30,10 +31,15 @@ export default function SellerDashboard() {
         setIsLoading(true)
         setError("")
 
-        const [ordersRes, productsRes] = await Promise.all([
+        const [meRes, ordersRes, productsRes] = await Promise.all([
+          fetch("/api/backend/auth/me"),
           fetch("/api/backend/seller/orders?limit=20"),
           fetch("/api/backend/seller/products?limit=200"),
         ])
+
+        const meData = await meRes.json().catch(() => null)
+        if (!meRes.ok) throw new Error(meData?.error || "Failed to load user")
+        if (!cancelled) setMe(meData?.user || null)
 
         const ordersData = await ordersRes.json().catch(() => null)
         const productsData = await productsRes.json().catch(() => null)
@@ -129,7 +135,7 @@ export default function SellerDashboard() {
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-auto">
           <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Seller Dashboard{me?.full_name ? ` — ${me.full_name}` : ""}</h1>
             <p className="text-muted-foreground text-sm sm:text-base">Monitor your store performance and sales</p>
           </div>
 

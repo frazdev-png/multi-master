@@ -74,10 +74,11 @@ export default function CustomerDashboard() {
     <>
       <CustomerNavbar />
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        <div className="mb-12">
-          <h1 className="text-3xl font-bold mb-2">Welcome back{me?.full_name ? `, ${me.full_name}` : ""}!</h1>
-          <p className="text-muted-foreground">Manage your account and view your purchases</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div className="mb-8 sm:mb-12">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1">Customer Dashboard</h1>
+          <p className="text-base sm:text-lg text-muted-foreground mb-2">Welcome back{me?.full_name ? `, ${me.full_name}` : ""}!</p>
+          <p className="text-sm text-muted-foreground">Manage your account and view your purchases</p>
         </div>
 
         {error ? (

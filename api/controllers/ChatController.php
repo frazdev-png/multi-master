@@ -172,6 +172,44 @@ class ChatController {
         return false;
     }
 
+    // Customers and sellers can ONLY communicate with admin.
+    private function isAllowedConversation($conversationId, $user) {
+        $role = strtolower((string)($user['role'] ?? ''));
+        // Admin is always allowed
+        if ($role === 'admin') return true;
+
+        // Customers/sellers are only allowed if an admin is also a participant
+        try {
+            $stmt = $this->db->prepare("
+                SELECT 1 FROM conversation_participants cp
+                JOIN users u ON cp.user_id = u.id
+                WHERE cp.conversation_id = ? AND u.role = 'admin'
+                LIMIT 1
+            ");
+            $stmt->execute([(int)$conversationId]);
+            if ($stmt->fetch(PDO::FETCH_NUM)) return true;
+        } catch (Exception $e) {}
+
+        // Legacy check (user1_id/user2_id columns)
+        if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
+            try {
+                $stmt = $this->db->prepare("
+                    SELECT 1 FROM conversations c
+                    JOIN users u1 ON c.user1_id = u1.id
+                    JOIN users u2 ON c.user2_id = u2.id
+                    WHERE c.id = ? AND (u1.role = 'admin' OR u2.role = 'admin')
+                    LIMIT 1
+                ");
+                $stmt->execute([(int)$conversationId]);
+                return (bool)$stmt->fetch(PDO::FETCH_NUM);
+            } catch (Exception $e) {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
     public function conversations() {
         $method = $_SERVER['REQUEST_METHOD'];
         
@@ -197,6 +235,12 @@ class ChatController {
         }
 
         if (!$this->isUserInConversation($conversationId, $user['id'])) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Not authorized to delete this conversation']);
+            return;
+        }
+
+        if (!$this->isAllowedConversation($conversationId, $user)) {
             http_response_code(403);
             echo json_encode(['error' => 'Not authorized to delete this conversation']);
             return;
@@ -329,6 +373,14 @@ class ChatController {
             }
 
             $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Filter: customers/sellers can only see conversations with admin
+            $userRole = strtolower((string)($user['role'] ?? ''));
+            if ($userRole !== 'admin') {
+                $conversations = array_values(array_filter($conversations, function ($c) {
+                    return strtolower((string)($c['other_user_role'] ?? '')) === 'admin';
+                }));
+            }
 
             header('Content-Type: application/json');
             echo json_encode(['conversations' => $conversations]);
@@ -486,6 +538,12 @@ class ChatController {
             echo json_encode(['error' => 'Not authorized to view this conversation']);
             return;
         }
+
+        if (!$this->isAllowedConversation($conversationId, $user)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Not authorized to view this conversation']);
+            return;
+        }
         
         $onlineSelect = $this->hasUserColumn('is_online') ? 'u.is_online as is_online,' : '0 as is_online,';
         $lastSeenSelect = $this->hasUserColumn('last_seen') ? 'u.last_seen as last_seen' : 'NULL as last_seen';
@@ -574,6 +632,12 @@ class ChatController {
             echo json_encode(['error' => 'Not authorized to view this conversation']);
             return;
         }
+
+        if (!$this->isAllowedConversation($conversationId, $user)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Not authorized to view this conversation']);
+            return;
+        }
         
         $messageBodyExpr = $this->hasMessageColumn('content') ? 'm.content' : ($this->hasMessageColumn('message') ? 'm.message' : "''");
         $messageTypeExpr = $this->hasMessageColumn('message_type') ? 'm.message_type' : "'text'";
@@ -657,6 +721,12 @@ class ChatController {
         
         try {
             if (!$this->isUserInConversation($conversationId, $user['id'])) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized for this conversation']);
+                return;
+            }
+
+            if (!$this->isAllowedConversation($conversationId, $user)) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Not authorized for this conversation']);
                 return;
@@ -808,6 +878,12 @@ class ChatController {
                 return;
             }
 
+            if (!$this->isAllowedConversation($conversationId, $user)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized to delete this message']);
+                return;
+            }
+
             $this->db->beginTransaction();
 
             try {
@@ -889,6 +965,12 @@ class ChatController {
                 return;
             }
 
+            if (!$this->isAllowedConversation($conversationId, $user)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Not authorized']);
+                return;
+            }
+
             $bodyColumn = $this->hasMessageColumn('content') ? 'content' : ($this->hasMessageColumn('message') ? 'message' : null);
             if (!$bodyColumn) {
                 throw new Exception('Messages table is missing content column');
@@ -944,6 +1026,12 @@ class ChatController {
             }
 
             if (!$this->isUserInConversation($message['conversation_id'], $user['id'])) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Message not found or not authorized']);
+                return;
+            }
+
+            if (!$this->isAllowedConversation($message['conversation_id'], $user)) {
                 http_response_code(404);
                 echo json_encode(['error' => 'Message not found or not authorized']);
                 return;
@@ -1159,6 +1247,12 @@ class ChatController {
         }
 
         if (!$this->isUserInConversation($conversationId, $user['id'])) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Not authorized for this conversation']);
+            return;
+        }
+
+        if (!$this->isAllowedConversation($conversationId, $user)) {
             http_response_code(403);
             echo json_encode(['error' => 'Not authorized for this conversation']);
             return;

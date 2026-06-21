@@ -403,6 +403,29 @@ class Chat implements MessageComponentInterface {
         if ($stmt->rowCount() === 0) {
             throw new Exception('Not authorized for this conversation');
         }
+
+        // Verify conversation includes admin (customer/seller can only chat with admin)
+        $stmt = $this->db->prepare("
+            SELECT u.role FROM conversation_participants cp
+            JOIN users u ON cp.user_id = u.id
+            WHERE cp.conversation_id = ? AND cp.user_id = ?
+        ");
+        $stmt->execute([$conversationId, $fromUserId]);
+        $participant = $stmt->fetch();
+        $role = $participant ? strtolower((string)($participant['role'] ?? '')) : '';
+
+        if ($role !== 'admin') {
+            $stmt = $this->db->prepare("
+                SELECT 1 FROM conversation_participants cp
+                JOIN users u ON cp.user_id = u.id
+                WHERE cp.conversation_id = ? AND u.role = 'admin'
+                LIMIT 1
+            ");
+            $stmt->execute([$conversationId]);
+            if (!$stmt->fetch(PDO::FETCH_NUM)) {
+                throw new Exception('Not authorized for this conversation');
+            }
+        }
         
         $bodyColumn = $this->messagesHasContentColumn() ? 'content' : ($this->messagesHasMessageColumn() ? 'message' : null);
         if (!$bodyColumn) {

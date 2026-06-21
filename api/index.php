@@ -248,6 +248,9 @@ $routes = [
     '/api/settings' => ['controller' => 'SettingsController', 'method' => 'getSettings', 'http_method' => 'GET'],
     '/api/settings/update' => ['controller' => 'SettingsController', 'method' => 'updateSettings', 'http_method' => 'POST'],
     '/api/settings/upload' => ['controller' => 'SettingsController', 'method' => 'uploadAsset', 'http_method' => 'POST'],
+
+    // Admin image extraction from product page URLs
+    '/api/admin/extract-image' => ['controller' => 'ExtractImageController', 'method' => 'handleRequest', 'http_method' => 'POST'],
 ];
 
 // Handle static files in uploads directory

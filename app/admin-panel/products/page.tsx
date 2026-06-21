@@ -114,25 +114,7 @@ export default function ProductsManagement() {
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [editImagePreview, setEditImagePreview] = useState("")
 
-  function isValidImageUrl(url: string): boolean {
-    if (url.startsWith("data:image/")) return true
-    try {
-      const u = new URL(url)
-      return u.protocol === "http:" || u.protocol === "https:"
-    } catch {
-      return false
-    }
-  }
-
-  function isDirectImageUrl(url: string): boolean {
-    try {
-      const u = new URL(url)
-      const path = u.pathname.toLowerCase()
-      return /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(path) || /^https:\/\/(?:.*\.)?(?:i\.)?(?:imgur|unsplash|cloudinary|shopify|s3\.amazonaws)\.com\//i.test(url)
-    } catch {
-      return false
-    }
-  }
+  const [extracting, setExtracting] = useState(false)
 
   async function uploadImage(file: File): Promise<string> {
     const formData = new FormData()
@@ -142,6 +124,17 @@ export default function ProductsManagement() {
     const data = await res.json().catch(() => null)
     if (!res.ok || !data?.url) throw new Error(data?.error || "Upload failed")
     return data.url
+  }
+
+  async function extractImageFromUrl(url: string): Promise<string | null> {
+    const res = await fetch("/api/backend/admin/extract-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data?.image_url) return null
+    return data.image_url
   }
 
   function openFilePicker(setFile: (f: File | null) => void, setPreview: (u: string) => void) {
@@ -162,18 +155,18 @@ export default function ProductsManagement() {
   const handleCreateProduct = async () => {
     try {
       setIsLoading(true)
+      setExtracting(true)
       setError("")
 
       let imageUrl = newProduct.image_url?.trim() || ""
 
       if (addImageFile) {
         imageUrl = await uploadImage(addImageFile)
-      }
-
-      if (imageUrl && !isValidImageUrl(imageUrl)) {
-        setError("Image URL must start with http:// or https://, or be a valid data URI")
-        setIsLoading(false)
-        return
+      } else if (imageUrl && !imageUrl.startsWith("data:image/")) {
+        const extracted = await extractImageFromUrl(imageUrl)
+        if (extracted) {
+          imageUrl = extracted
+        }
       }
 
       const priceNumber = Number(String(newProduct.price || "").replace(/[^0-9.]/g, ""))
@@ -196,7 +189,7 @@ export default function ProductsManagement() {
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
-        throw new Error(data?.error || "Failed to create product")
+        throw new Error(data?.error || data?.error || "Failed to create product")
       }
 
       setIsAddDialogOpen(false)
@@ -208,6 +201,7 @@ export default function ProductsManagement() {
       setError(e?.message || "Failed to create product")
     } finally {
       setIsLoading(false)
+      setExtracting(false)
     }
   }
 
@@ -307,18 +301,18 @@ export default function ProductsManagement() {
     if (!editingProduct) return
     try {
       setIsLoading(true)
+      setExtracting(true)
       setError("")
       let imageUrl = (editingProduct.image || "").trim()
 
       if (editImageFile) {
         imageUrl = await uploadImage(editImageFile)
         setEditingProduct({...editingProduct, image: imageUrl})
-      }
-
-      if (imageUrl && imageUrl !== "/placeholder.svg" && !isValidImageUrl(imageUrl)) {
-        setError("Image URL must start with http:// or https://, or be a valid data URI")
-        setIsLoading(false)
-        return
+      } else if (imageUrl && imageUrl !== "/placeholder.svg" && !imageUrl.startsWith("data:image/")) {
+        const extracted = await extractImageFromUrl(imageUrl)
+        if (extracted) {
+          imageUrl = extracted
+        }
       }
       const priceNumber = Number(String(editingProduct.price || "").replace(/[^0-9.]/g, ""))
       const body: any = {
@@ -662,8 +656,8 @@ export default function ProductsManagement() {
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleSaveEdit}>
-                  Save Changes
+                <Button onClick={handleSaveEdit} disabled={isLoading}>
+                  {extracting ? "Extracting image..." : isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </div>
@@ -729,7 +723,7 @@ export default function ProductsManagement() {
                 Cancel
               </Button>
               <Button onClick={handleCreateProduct} disabled={isLoading}>
-                {isLoading ? "Saving..." : "Create"}
+                {extracting ? "Extracting image..." : isLoading ? "Saving..." : "Create"}
               </Button>
             </div>
           </div>

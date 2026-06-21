@@ -48,7 +48,7 @@ export default function MessagingPage() {
   const [errorMessages, setErrorMessages] = useState("")
 
   const [isNewChatOpen, setIsNewChatOpen] = useState(false)
-  const [recipientRole, setRecipientRole] = useState<"seller" | "admin">("seller")
+  const [recipientRole, setRecipientRole] = useState<"seller" | "admin" | "customer">("admin")
   const [recipientSearch, setRecipientSearch] = useState("")
   const [recipients, setRecipients] = useState<RecipientUser[]>([])
   const [isLoadingRecipients, setIsLoadingRecipients] = useState(false)
@@ -100,7 +100,7 @@ export default function MessagingPage() {
   }, [loadMeAndConversations])
 
   const loadRecipients = useCallback(
-    async (role: "seller" | "admin", search: string) => {
+    async (role: "seller" | "admin" | "customer", search: string) => {
       try {
         setIsLoadingRecipients(true)
         setErrorRecipients("")
@@ -335,20 +335,26 @@ export default function MessagingPage() {
 
             <div className="p-4 space-y-3">
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={recipientRole === "seller" ? "btn-primary px-3 py-2 text-sm" : "btn-secondary px-3 py-2 text-sm"}
-                  onClick={() => setRecipientRole("seller")}
-                >
-                  Sellers
-                </button>
-                <button
-                  type="button"
-                  className={recipientRole === "admin" ? "btn-primary px-3 py-2 text-sm" : "btn-secondary px-3 py-2 text-sm"}
-                  onClick={() => setRecipientRole("admin")}
-                >
-                  Admin
-                </button>
+                {me?.role === "admin" ? (
+                  <>
+                    <button
+                      type="button"
+                      className={recipientRole === "seller" ? "btn-primary px-3 py-2 text-sm" : "btn-secondary px-3 py-2 text-sm"}
+                      onClick={() => setRecipientRole("seller")}
+                    >
+                      Sellers
+                    </button>
+                    <button
+                      type="button"
+                      className={recipientRole === "customer" ? "btn-primary px-3 py-2 text-sm" : "btn-secondary px-3 py-2 text-sm"}
+                      onClick={() => setRecipientRole("customer")}
+                    >
+                      Customers
+                    </button>
+                  </>
+                ) : (
+                  <div className="text-sm text-muted-foreground flex items-center">Chat with Admin</div>
+                )}
                 <input
                   className="input flex-1"
                   placeholder="Search by name/email"

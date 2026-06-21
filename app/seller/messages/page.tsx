@@ -20,9 +20,12 @@ interface Conversation {
   other_user_email: string
   other_user_avatar?: string
   other_user_online?: number | boolean
+  other_user_role?: string
   last_message?: string
   last_message_at?: string
   unread_count?: number
+  status?: string
+  subject?: string | null
 }
 
 interface ChatMessage {
@@ -31,9 +34,12 @@ interface ChatMessage {
   sender_id: number
   content: string
   message_type?: string
+  attachment_url?: string | null
+  attachment_type?: string | null
   created_at: string
   sender_name?: string
   sender_avatar?: string
+  sender_role?: string
   is_read?: boolean
 }
 
@@ -49,6 +55,8 @@ export default function SellerMessagesPage() {
   const [replyText, setReplyText] = useState("")
   const [showReplyBox, setShowReplyBox] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const toggleMobileMenu = () => {
@@ -258,6 +266,11 @@ export default function SellerMessagesPage() {
                               </div>
                             </div>
                             <div className="flex gap-2 items-center">
+                              {conv.status && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${conv.status === 'open' ? 'bg-green-100 text-green-700' : conv.status === 'under_review' ? 'bg-yellow-100 text-yellow-700' : conv.status === 'resolved' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                                  {conv.status.replace("_", " ")}
+                                </span>
+                              )}
                               {Number(conv.unread_count || 0) > 0 ? (
                                 <Badge variant="secondary" className="text-xs">
                                   {conv.unread_count} new
@@ -289,6 +302,11 @@ export default function SellerMessagesPage() {
                         <div>
                           <CardTitle className="text-lg">{selectedConversation.other_user_name}</CardTitle>
                           <p className="text-sm text-muted-foreground">{selectedConversation.other_user_email}</p>
+                          {selectedConversation.status && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedConversation.status === 'open' ? 'bg-green-100 text-green-700' : selectedConversation.status === 'under_review' ? 'bg-yellow-100 text-yellow-700' : selectedConversation.status === 'resolved' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {selectedConversation.status.replace("_", " ")}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -316,6 +334,7 @@ export default function SellerMessagesPage() {
                           <div className="space-y-2">
                             {threadMessages.map((m) => {
                               const isMine = me?.id != null && Number(m.sender_id) === Number(me.id)
+                              const isImg = m.attachment_url && /\.(jpg|jpeg|png|gif|webp)$/i.test(m.attachment_url)
                               return (
                                 <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                                   <div
@@ -323,7 +342,19 @@ export default function SellerMessagesPage() {
                                       isMine ? "bg-primary text-primary-foreground" : "bg-background border"
                                     }`}
                                   >
-                                    <div>{m.content}</div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className={`text-[11px] font-medium ${isMine ? "opacity-90" : "text-muted-foreground"}`}>{m.sender_name || (m.sender_role === 'admin' ? 'Admin' : 'User')}</span>
+                                    </div>
+                                    {m.attachment_url && isImg ? (
+                                      <div className="space-y-1">
+                                        {m.content && <div>{m.content}</div>}
+                                        <img src={m.attachment_url} alt="Attachment" className="max-w-full rounded cursor-pointer" style={{ maxHeight: 200 }} onClick={() => window.open(m.attachment_url!, "_blank")} />
+                                      </div>
+                                    ) : m.attachment_url ? (
+                                      <a href={m.attachment_url} target="_blank" className="flex items-center gap-2 underline">{m.content || "View attachment"}</a>
+                                    ) : (
+                                      <div>{m.content}</div>
+                                    )}
                                     <div className={`mt-1 text-[11px] ${isMine ? "opacity-80" : "text-muted-foreground"}`}>
                                       {formatTime(m.created_at)}
                                     </div>
@@ -352,9 +383,42 @@ export default function SellerMessagesPage() {
                               className="min-h-[100px]"
                             />
                             <div className="flex gap-2">
-                              <Button variant="outline" size="sm">
+                              <input type="file" ref={fileInputRef} onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (!file || !selectedConversation) return
+                                setUploadingFile(true)
+                                try {
+                                  const fd = new FormData()
+                                  fd.append("file", file)
+                                  fd.append("conversation_id", String(selectedConversation.conversation_id))
+                                  fd.append("content", file.name)
+                                  const upRes = await fetch("/api/backend/messages/upload", { method: "POST", body: fd })
+                                  const upData = await upRes.json()
+                                  if (!upRes.ok) throw new Error(upData.error)
+                                  const at = upData.attachment_type
+                                  const msgRes = await fetch("/api/backend/messages", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      conversation_id: selectedConversation.conversation_id,
+                                      content: file.name,
+                                      message_type: at === "image" ? "image" : "file",
+                                      attachment_url: upData.attachment_url,
+                                      attachment_type: at,
+                                    }),
+                                  })
+                                  const msgData = await msgRes.json()
+                                  if (!msgRes.ok) throw new Error(msgData.error)
+                                  if (msgData?.message) {
+                                    setThreadMessages((prev) => [...prev, msgData.message])
+                                    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 0)
+                                  }
+                                } catch (e: any) { setError(e.message) }
+                                finally { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = "" }
+                              }} className="hidden" accept="image/*,.pdf,.doc,.docx" />
+                              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}>
                                 <Paperclip className="mr-2 h-4 w-4" />
-                                Attach File
+                                {uploadingFile ? "Uploading..." : "Attach File"}
                               </Button>
                               <div className="flex-1"></div>
                               <Button variant="outline" onClick={() => setShowReplyBox(false)}>

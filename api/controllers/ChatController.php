@@ -31,6 +31,13 @@ class ChatController {
             $this->db->exec("CREATE TABLE IF NOT EXISTS conversation_participants (id INT AUTO_INCREMENT PRIMARY KEY, conversation_id INT NOT NULL, user_id INT NOT NULL, last_read_message_id INT NOT NULL DEFAULT 0, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_conversation_user (conversation_id, user_id), KEY idx_cp_user (user_id), KEY idx_cp_conversation (conversation_id)) ENGINE=InnoDB");
             $this->db->exec("CREATE TABLE IF NOT EXISTS messages (id INT AUTO_INCREMENT PRIMARY KEY, conversation_id INT NOT NULL, sender_id INT NOT NULL, content TEXT NOT NULL, message_type VARCHAR(20) NOT NULL DEFAULT 'text', created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, KEY idx_messages_conversation (conversation_id), KEY idx_messages_sender (sender_id)) ENGINE=InnoDB");
             $this->db->exec("CREATE TABLE IF NOT EXISTS message_reads (message_id INT NOT NULL, user_id INT NOT NULL, read_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (message_id, user_id), KEY idx_mr_user (user_id)) ENGINE=InnoDB");
+            $this->db->exec("CREATE TABLE IF NOT EXISTS conversation_audit_log (id INT AUTO_INCREMENT PRIMARY KEY, conversation_id INT NOT NULL, action VARCHAR(50) NOT NULL, old_status VARCHAR(20) NULL, new_status VARCHAR(20) NULL, admin_id INT NULL, admin_name VARCHAR(255) NULL, reason TEXT NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, KEY idx_cal_conversation (conversation_id)) ENGINE=InnoDB");
+
+            // Add new columns if not exist
+            try { $this->db->exec("ALTER TABLE conversations ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'open'"); } catch (Exception $e) {}
+            try { $this->db->exec("ALTER TABLE conversations ADD COLUMN subject VARCHAR(255) NULL"); } catch (Exception $e) {}
+            try { $this->db->exec("ALTER TABLE messages ADD COLUMN attachment_url VARCHAR(500) NULL"); } catch (Exception $e) {}
+            try { $this->db->exec("ALTER TABLE messages ADD COLUMN attachment_type VARCHAR(50) NULL"); } catch (Exception $e) {}
 
             self::$chatSchemaEnsured = true;
         } catch (Exception $e) {
@@ -244,16 +251,22 @@ class ChatController {
             $lastSeenSelect = $this->hasUserColumn('last_seen') ? 'u.last_seen as other_user_last_seen,' : 'NULL as other_user_last_seen,';
             $lastMessageExpr = $this->hasMessageColumn('content') ? 'm.content' : ($this->hasMessageColumn('message') ? 'm.message' : "''");
 
+            $statusSelect = $this->hasConversationColumn('status') ? 'c.status,' : "'open' as status,";
+            $subjectSelect = $this->hasConversationColumn('subject') ? 'c.subject,' : 'NULL as subject,';
+
             if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
                 $stmt = $this->db->prepare("
                     SELECT
                         c.id as conversation_id,
                         c.created_at,
                         c.updated_at,
+                        {$statusSelect}
+                        {$subjectSelect}
                         u.id as other_user_id,
                         u.full_name as other_user_name,
                         u.email as other_user_email,
                         u.avatar_url as other_user_avatar,
+                        u.role as other_user_role,
                         {$onlineSelect}
                         {$lastSeenSelect}
                         {$lastMessageExpr} as last_message,
@@ -280,10 +293,13 @@ class ChatController {
                         c.id as conversation_id,
                         c.created_at,
                         c.updated_at,
+                        {$statusSelect}
+                        {$subjectSelect}
                         u.id as other_user_id,
                         u.full_name as other_user_name,
                         u.email as other_user_email,
                         u.avatar_url as other_user_avatar,
+                        u.role as other_user_role,
                         {$onlineSelect}
                         {$lastSeenSelect}
                         {$lastMessageExpr} as last_message,
@@ -333,6 +349,7 @@ class ChatController {
         
         $data = json_decode(file_get_contents('php://input'), true);
         $recipientId = $data['recipient_id'] ?? null;
+        $subject = $data['subject'] ?? '';
         
         if (!$recipientId) {
             http_response_code(400);
@@ -351,12 +368,24 @@ class ChatController {
             
             // Check if recipient exists
             $recipientActiveWhere = $this->hasUserColumn('is_active') ? ' AND is_active = 1' : '';
-            $stmt = $this->db->prepare("SELECT id FROM users WHERE id = ?{$recipientActiveWhere}");
+            $stmt = $this->db->prepare("SELECT id, role FROM users WHERE id = ?{$recipientActiveWhere}");
             $stmt->execute([$recipientId]);
+            $recipient = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($stmt->rowCount() === 0) {
+            if (!$recipient) {
                 http_response_code(404);
                 echo json_encode(['error' => 'Recipient not found']);
+                return;
+            }
+
+            // Role-based restrictions: customers/sellers can only chat with admin
+            $userRole = strtolower((string)($user['role'] ?? ''));
+            $recipientRole = strtolower((string)($recipient['role'] ?? ''));
+            $isAdmin = $userRole === 'admin';
+
+            if (!$isAdmin && $recipientRole !== 'admin') {
+                http_response_code(403);
+                echo json_encode(['error' => 'You can only start conversations with Admin']);
                 return;
             }
             
@@ -395,11 +424,22 @@ class ChatController {
             
             // Create new conversation
             if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
-                $stmt = $this->db->prepare("INSERT INTO conversations (user1_id, user2_id) VALUES (?, ?)");
-                $stmt->execute([(int)$user['id'], (int)$recipientId]);
+                $hasSubject = $this->hasConversationColumn('subject');
+                if ($hasSubject && $subject) {
+                    $stmt = $this->db->prepare("INSERT INTO conversations (user1_id, user2_id, subject) VALUES (?, ?, ?)");
+                    $stmt->execute([(int)$user['id'], (int)$recipientId, $subject]);
+                } else {
+                    $stmt = $this->db->prepare("INSERT INTO conversations (user1_id, user2_id) VALUES (?, ?)");
+                    $stmt->execute([(int)$user['id'], (int)$recipientId]);
+                }
                 $conversationId = $this->db->lastInsertId();
             } else {
-                $this->db->exec("INSERT INTO conversations () VALUES ()");
+                $hasSubject = $this->hasConversationColumn('subject');
+                if ($hasSubject && $subject) {
+                    $this->db->prepare("INSERT INTO conversations (subject) VALUES (?)")->execute([$subject]);
+                } else {
+                    $this->db->exec("INSERT INTO conversations () VALUES ()");
+                }
                 $conversationId = $this->db->lastInsertId();
             }
             
@@ -449,6 +489,10 @@ class ChatController {
         
         $onlineSelect = $this->hasUserColumn('is_online') ? 'u.is_online as is_online,' : '0 as is_online,';
         $lastSeenSelect = $this->hasUserColumn('last_seen') ? 'u.last_seen as last_seen' : 'NULL as last_seen';
+        $statusSelect = $this->hasConversationColumn('status') ? 'c.status,' : "'open' as status,";
+        $subjectSelect = $this->hasConversationColumn('subject') ? 'c.subject,' : 'NULL as subject,';
+
+        $roleSelect = $this->hasUserColumn('role') ? 'u.role as other_user_role,' : "'customer' as other_user_role,";
 
         if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
             $stmt = $this->db->prepare("
@@ -456,10 +500,13 @@ class ChatController {
                     c.id as conversation_id,
                     c.created_at,
                     c.updated_at,
+                    {$statusSelect}
+                    {$subjectSelect}
                     u.id as user_id,
                     u.full_name,
                     u.email,
                     u.avatar_url,
+                    {$roleSelect}
                     {$onlineSelect}
                     {$lastSeenSelect}
                 FROM conversations c
@@ -475,10 +522,13 @@ class ChatController {
                     c.id as conversation_id,
                     c.created_at,
                     c.updated_at,
+                    {$statusSelect}
+                    {$subjectSelect}
                     u.id as user_id,
                     u.full_name,
                     u.email,
                     u.avatar_url,
+                    u.role as other_user_role,
                     {$onlineSelect}
                     {$lastSeenSelect}
                 FROM conversations c
@@ -527,6 +577,8 @@ class ChatController {
         
         $messageBodyExpr = $this->hasMessageColumn('content') ? 'm.content' : ($this->hasMessageColumn('message') ? 'm.message' : "''");
         $messageTypeExpr = $this->hasMessageColumn('message_type') ? 'm.message_type' : "'text'";
+        $attachmentUrlExpr = $this->hasMessageColumn('attachment_url') ? 'm.attachment_url,' : 'NULL as attachment_url,';
+        $attachmentTypeExpr = $this->hasMessageColumn('attachment_type') ? 'm.attachment_type' : 'NULL as attachment_type';
 
         // Get messages
         $stmt = $this->db->prepare("
@@ -536,9 +588,12 @@ class ChatController {
                 m.sender_id,
                 {$messageBodyExpr} as content,
                 {$messageTypeExpr} as message_type,
+                {$attachmentUrlExpr}
+                {$attachmentTypeExpr},
                 m.created_at,
                 u.full_name as sender_name, 
                 u.avatar_url as sender_avatar,
+                u.role as sender_role,
                 (SELECT COUNT(*) > 0 FROM message_reads mr 
                  WHERE mr.message_id = m.id AND mr.user_id = ?) as is_read
             FROM messages m
@@ -585,10 +640,18 @@ class ChatController {
         $conversationId = $data['conversation_id'] ?? null;
         $content = $data['content'] ?? '';
         $messageType = $data['message_type'] ?? 'text';
+        $attachmentUrl = $data['attachment_url'] ?? null;
+        $attachmentType = $data['attachment_type'] ?? null;
         
-        if (!$conversationId || !$content) {
+        if (!$conversationId) {
             http_response_code(400);
-            echo json_encode(['error' => 'Conversation ID and content are required']);
+            echo json_encode(['error' => 'Conversation ID is required']);
+            return;
+        }
+
+        if (!$content && !$attachmentUrl) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Content or attachment is required']);
             return;
         }
         
@@ -614,6 +677,18 @@ class ChatController {
                 $params[] = $messageType;
             }
 
+            if ($this->hasMessageColumn('attachment_url') && $attachmentUrl) {
+                $columns[] = 'attachment_url';
+                $placeholders[] = '?';
+                $params[] = $attachmentUrl;
+            }
+
+            if ($this->hasMessageColumn('attachment_type') && $attachmentType) {
+                $columns[] = 'attachment_type';
+                $placeholders[] = '?';
+                $params[] = $attachmentType;
+            }
+
             $sql = "INSERT INTO messages (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
@@ -622,6 +697,8 @@ class ChatController {
             // Get the full message with user details
             $messageBodyExpr = $this->hasMessageColumn('content') ? 'm.content' : ($this->hasMessageColumn('message') ? 'm.message' : "''");
             $messageTypeExpr = $this->hasMessageColumn('message_type') ? 'm.message_type' : "'text'";
+            $attachmentUrlExpr = $this->hasMessageColumn('attachment_url') ? 'm.attachment_url,' : 'NULL as attachment_url,';
+            $attachmentTypeExpr = $this->hasMessageColumn('attachment_type') ? 'm.attachment_type' : 'NULL as attachment_type';
             $stmt = $this->db->prepare("
                 SELECT
                     m.id,
@@ -629,9 +706,12 @@ class ChatController {
                     m.sender_id,
                     {$messageBodyExpr} as content,
                     {$messageTypeExpr} as message_type,
+                    {$attachmentUrlExpr}
+                    {$attachmentTypeExpr},
                     m.created_at,
                     u.full_name as sender_name,
-                    u.avatar_url as sender_avatar
+                    u.avatar_url as sender_avatar,
+                    u.role as sender_role
                 FROM messages m
                 JOIN users u ON m.sender_id = u.id
                 WHERE m.id = ?
@@ -654,6 +734,19 @@ class ChatController {
             ");
             $stmt->execute([$conversationId, $user['id']]);
             $participants = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            // Notify other participants via realtime events
+            foreach ($participants as $participantId) {
+                $this->createRealtimeEvent('new_message', $participantId, [
+                    'conversation_id' => $conversationId,
+                    'message_id' => $messageId,
+                    'sender_id' => $user['id'],
+                    'sender_name' => $user['full_name'] ?? $user['email'],
+                    'sender_role' => $user['role'] ?? '',
+                    'has_attachment' => $attachmentUrl ? true : false,
+                    'attachment_type' => $attachmentType,
+                ]);
+            }
             
             http_response_code(201);
             header('Content-Type: application/json');
@@ -886,6 +979,235 @@ class ChatController {
         }
     }
 
+    private function createRealtimeEvent($eventType, $targetUserId, $payload) {
+        try {
+            $stmt = $this->db->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'realtime_events' LIMIT 1");
+            $stmt->execute();
+            if (!$stmt->fetch(PDO::FETCH_NUM)) return;
+        } catch (Exception $e) { return; }
+
+        try {
+            $this->db->prepare("INSERT INTO realtime_events (event_type, target_role, target_user_id, payload, created_at) VALUES (?, NULL, ?, ?, NOW())")
+                ->execute([$eventType, $targetUserId, json_encode($payload)]);
+        } catch (Exception $e) {}
+    }
+
+    public function updateConversationStatus() {
+        $user = $this->auth->authenticate('admin');
+
+        if (!$this->guardChatSchema()) { return; }
+
+        $conversationId = $this->getIdFromUrl();
+        if (!$conversationId) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Conversation ID is required']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $status = $data['status'] ?? '';
+        $reason = $data['reason'] ?? '';
+
+        $validStatuses = ['open', 'under_review', 'resolved', 'closed'];
+        if (!in_array($status, $validStatuses)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid status. Valid: ' . implode(', ', $validStatuses)]);
+            return;
+        }
+
+        try {
+            $stmt = $this->db->prepare("SELECT status FROM conversations WHERE id = ?");
+            $stmt->execute([$conversationId]);
+            $conv = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$conv) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Conversation not found']);
+                return;
+            }
+
+            $oldStatus = $conv['status'] ?? 'open';
+
+            $this->db->prepare("UPDATE conversations SET status = ? WHERE id = ?")
+                ->execute([$status, $conversationId]);
+
+            // Audit log
+            $this->db->prepare("INSERT INTO conversation_audit_log (conversation_id, action, old_status, new_status, admin_id, admin_name, reason) VALUES (?, ?, ?, ?, ?, ?, ?)")
+                ->execute([$conversationId, 'status_change', $oldStatus, $status, $user['id'], $user['full_name'] ?? $user['email'], $reason]);
+
+            // Notify participants
+            $stmt = $this->db->prepare("SELECT user_id FROM conversation_participants WHERE conversation_id = ? AND user_id != ?");
+            $stmt->execute([$conversationId, $user['id']]);
+            $participants = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($participants as $participantId) {
+                $this->createRealtimeEvent('conversation_status', $participantId, [
+                    'conversation_id' => $conversationId,
+                    'old_status' => $oldStatus,
+                    'new_status' => $status,
+                    'reason' => $reason,
+                    'admin_name' => $user['full_name'] ?? $user['email'],
+                ]);
+            }
+
+            http_response_code(200);
+            echo json_encode(['success' => true, 'message' => 'Conversation status updated', 'status' => $status]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
+    public function adminGetAllConversations() {
+        $user = $this->auth->authenticate('admin');
+
+        if (!$this->guardChatSchema()) { return; }
+
+        $search = trim($_GET['search'] ?? '');
+        $status = trim($_GET['status'] ?? '');
+
+        try {
+            $onlineSelect = $this->hasUserColumn('is_online') ? 'u.is_online as other_user_online,' : '0 as other_user_online,';
+            $lastSeenSelect = $this->hasUserColumn('last_seen') ? 'u.last_seen as other_user_last_seen,' : 'NULL as other_user_last_seen,';
+            $lastMessageExpr = $this->hasMessageColumn('content') ? 'm.content' : ($this->hasMessageColumn('message') ? 'm.message' : "''");
+            $statusSelect = $this->hasConversationColumn('status') ? 'c.status,' : "'open' as status,";
+            $subjectSelect = $this->hasConversationColumn('subject') ? 'c.subject,' : 'NULL as subject,';
+
+            $sql = "
+                SELECT 
+                    c.id as conversation_id,
+                    c.created_at,
+                    c.updated_at,
+                    {$statusSelect}
+                    {$subjectSelect}
+                    u.id as other_user_id,
+                    u.full_name as other_user_name,
+                    u.email as other_user_email,
+                    u.avatar_url as other_user_avatar,
+                    u.role as other_user_role,
+                    {$onlineSelect}
+                    {$lastSeenSelect}
+                    {$lastMessageExpr} as last_message,
+                    m.created_at as last_message_at,
+                    m.sender_id as last_message_sender_id,
+                    (SELECT COUNT(*) FROM messages m2 
+                     WHERE m2.conversation_id = c.id 
+                     AND m2.id > cp.last_read_message_id
+                     AND m2.sender_id != ?) as unread_count
+                FROM conversations c
+                JOIN conversation_participants cp ON c.id = cp.conversation_id
+                JOIN conversation_participants cp2 ON c.id = cp2.conversation_id
+                JOIN users u ON cp2.user_id = u.id
+                LEFT JOIN messages m ON (
+                    m.id = (
+                        SELECT id FROM messages 
+                        WHERE conversation_id = c.id 
+                        ORDER BY created_at DESC 
+                        LIMIT 1
+                    )
+                )
+                WHERE cp.user_id = ? AND cp2.user_id != ?
+            ";
+            $params = [$user['id'], $user['id'], $user['id']];
+
+            if ($search !== '') {
+                $sql .= " AND (u.full_name LIKE ? OR u.email LIKE ? OR u.role LIKE ?)";
+                $p = "%$search%";
+                $params[] = $p;
+                $params[] = $p;
+                $params[] = $p;
+            }
+
+            if ($status !== '' && $this->hasConversationColumn('status')) {
+                $sql .= " AND c.status = ?";
+                $params[] = $status;
+            }
+
+            $sql .= " ORDER BY m.created_at DESC";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            header('Content-Type: application/json');
+            echo json_encode(['conversations' => $conversations]);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
+    public function uploadAttachment() {
+        $user = $this->auth->authenticate();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            return;
+        }
+
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            http_response_code(400);
+            echo json_encode(['error' => 'File upload failed']);
+            return;
+        }
+
+        $conversationId = $_POST['conversation_id'] ?? null;
+        if (!$conversationId) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Conversation ID is required']);
+            return;
+        }
+
+        if (!$this->isUserInConversation($conversationId, $user['id'])) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Not authorized for this conversation']);
+            return;
+        }
+
+        $file = $_FILES['file'];
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        $maxSize = 10 * 1024 * 1024; // 10MB
+
+        if (!in_array($file['type'], $allowedTypes)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'File type not allowed. Allowed: jpg, png, gif, webp, pdf, doc, docx']);
+            return;
+        }
+
+        if ($file['size'] > $maxSize) {
+            http_response_code(400);
+            echo json_encode(['error' => 'File too large. Max 10MB']);
+            return;
+        }
+
+        $uploadDir = __DIR__ . '/../uploads/chat/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = 'chat_' . $conversationId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $destPath = $uploadDir . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to save file']);
+            return;
+        }
+
+        $attachmentUrl = '/uploads/chat/' . $filename;
+        $attachmentType = strpos($file['type'], 'image/') === 0 ? 'image' : 'document';
+        $content = $_POST['content'] ?? '';
+
+        http_response_code(200);
+        echo json_encode([
+            'success' => true,
+            'attachment_url' => $attachmentUrl,
+            'attachment_type' => $attachmentType,
+            'filename' => $file['name'],
+        ]);
+    }
+
     private function getIdFromUrl() {
         $requestPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         if (!$requestPath) return null;
@@ -904,7 +1226,14 @@ class ChatController {
         
         // Parse the request to determine which method to call
         if (strpos($requestUri, '/api/conversations') !== false) {
-            if (preg_match('/\/api\/conversations\/(\d+)\/messages/', $requestUri, $matches)) {
+            if (preg_match('/\/api\/conversations\/(\d+)\/status/', $requestUri, $matches)) {
+                if ($method === 'PUT') {
+                    $this->updateConversationStatus();
+                } else {
+                    http_response_code(405);
+                    echo json_encode(['error' => 'Method not allowed']);
+                }
+            } elseif (preg_match('/\/api\/conversations\/(\d+)\/messages/', $requestUri, $matches)) {
                 $this->getMessages();
             } elseif (preg_match('/\/api\/conversations\/(\d+)/', $requestUri, $matches)) {
                 if ($method === 'DELETE') {
@@ -915,6 +1244,10 @@ class ChatController {
             } else {
                 $this->conversations();
             }
+        } elseif (strpos($requestUri, '/api/admin/conversations') !== false) {
+            $this->adminGetAllConversations();
+        } elseif ($requestUri === '/api/messages/upload') {
+            $this->uploadAttachment();
         } elseif (strpos($requestUri, '/api/messages') !== false) {
             if (preg_match('/\/api\/messages\/(\d+)\/read/', $requestUri, $matches)) {
                 $this->markAsRead();

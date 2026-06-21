@@ -167,7 +167,10 @@ $routes = [
     '/api/conversations' => ['controller' => 'ChatController', 'method' => 'conversations', 'http_method' => ['GET', 'POST']],
     '/api/conversations/{id}' => ['controller' => 'ChatController', 'method' => 'getConversation', 'http_method' => ['GET', 'DELETE']],
     '/api/conversations/{id}/messages' => ['controller' => 'ChatController', 'method' => 'getMessages', 'http_method' => 'GET'],
+    '/api/conversations/{id}/status' => ['controller' => 'ChatController', 'method' => 'handleRequest', 'http_method' => 'PUT'],
+    '/api/admin/conversations' => ['controller' => 'ChatController', 'method' => 'handleRequest', 'http_method' => 'GET'],
     '/api/messages' => ['controller' => 'ChatController', 'method' => 'sendMessage', 'http_method' => 'POST'],
+    '/api/messages/upload' => ['controller' => 'ChatController', 'method' => 'handleRequest', 'http_method' => 'POST'],
     '/api/messages/{id}' => ['controller' => 'ChatController', 'method' => 'handleRequest', 'http_method' => ['PUT', 'DELETE']],
     '/api/messages/{id}/read' => ['controller' => 'ChatController', 'method' => 'markAsRead', 'http_method' => 'POST'],
     

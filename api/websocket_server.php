@@ -474,6 +474,13 @@ class Chat implements MessageComponentInterface {
         if (!$conversationId) {
             return;
         }
+
+        // Verify user is a participant
+        $stmt = $this->db->prepare("SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?");
+        $stmt->execute([$conversationId, $fromUserId]);
+        if (!$stmt->fetch(PDO::FETCH_NUM)) {
+            return;
+        }
         
         $typingData = [
             'type' => 'typing',
@@ -489,6 +496,17 @@ class Chat implements MessageComponentInterface {
         $messageId = $data['message_id'] ?? null;
         
         if (!$messageId) {
+            return;
+        }
+
+        // Verify user is a participant of the conversation
+        $stmt = $this->db->prepare("
+            SELECT cp.conversation_id FROM messages m
+            JOIN conversation_participants cp ON m.conversation_id = cp.conversation_id
+            WHERE m.id = ? AND cp.user_id = ?
+        ");
+        $stmt->execute([$messageId, $fromUserId]);
+        if (!$stmt->fetch(PDO::FETCH_NUM)) {
             return;
         }
         

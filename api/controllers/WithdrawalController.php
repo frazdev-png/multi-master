@@ -163,12 +163,12 @@ class WithdrawalController {
         header('Content-Type: application/json');
         echo json_encode([
             'wallet' => [
-                'available_balance' => $info['balance'],
+                'available_balance' => max(0.0, $info['balance'] - $info['locked']),
+                'raw_available_balance' => $info['balance'],
                 'pending_balance' => $info['pending_balance'],
                 'guarantee_balance' => $info['locked'],
                 'total_earnings' => $info['total_earnings'],
                 'total_withdrawn' => $info['total_withdrawn'],
-                'withdrawable_balance' => $info['available'],
                 'currency' => 'USDT',
             ],
             'transactions' => $transactions,

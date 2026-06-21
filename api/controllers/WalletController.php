@@ -145,7 +145,7 @@ class WalletController {
     private function adminAddGuarantee($admin, $sellerId, $amount, $note) {
         if ($amount <= 0) { http_response_code(400); echo json_encode(['error' => 'Amount must be positive']); return; }
         $this->ensureWalletRow($sellerId);
-        $this->db->prepare("UPDATE wallets SET guarantee_balance = guarantee_balance + ? WHERE user_id = ?")->execute([$amount, $sellerId]);
+        $this->db->prepare("UPDATE wallets SET guarantee_balance = guarantee_balance + ?, available_balance = GREATEST(available_balance - ?, 0) WHERE user_id = ?")->execute([$amount, $amount, $sellerId]);
         $this->recordTransaction($sellerId, 'guarantee_add', 'credit', $amount, $note, $admin['id'], $admin['full_name'] ?? $admin['email']);
         $this->emitRealtimeEvent('wallet_updated', $sellerId, ['action' => 'add_guarantee', 'amount' => $amount]);
         echo json_encode(['success' => true, 'message' => "Added $amount to guarantee balance"]);
@@ -160,7 +160,7 @@ class WalletController {
         if (!$row || $row['guarantee_balance'] < $amount) {
             http_response_code(400); echo json_encode(['error' => 'Insufficient guarantee balance']); return;
         }
-        $this->db->prepare("UPDATE wallets SET guarantee_balance = guarantee_balance - ? WHERE user_id = ?")->execute([$amount, $sellerId]);
+        $this->db->prepare("UPDATE wallets SET guarantee_balance = guarantee_balance - ?, available_balance = available_balance + ? WHERE user_id = ?")->execute([$amount, $amount, $sellerId]);
         $this->recordTransaction($sellerId, 'guarantee_remove', 'debit', $amount, $note, $admin['id'], $admin['full_name'] ?? $admin['email']);
         $this->emitRealtimeEvent('wallet_updated', $sellerId, ['action' => 'remove_guarantee', 'amount' => $amount]);
         echo json_encode(['success' => true, 'message' => "Removed $amount from guarantee balance"]);

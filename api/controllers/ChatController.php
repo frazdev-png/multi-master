@@ -336,6 +336,20 @@ class ChatController {
                 ");
                 $stmt->execute([$user['id'], $user['id'], $user['id']]);
             } else {
+                $userRole = strtolower((string)($user['role'] ?? ''));
+                $extraCondition = '';
+                $extraParams = [];
+                // Non-admin users: ALL other participants must be admin
+                if ($userRole !== 'admin') {
+                    $extraCondition = "AND NOT EXISTS (
+                        SELECT 1 FROM conversation_participants cp3
+                        JOIN users u3 ON cp3.user_id = u3.id
+                        WHERE cp3.conversation_id = c.id
+                        AND cp3.user_id != ?
+                        AND LOWER(u3.role) NOT IN ('admin')
+                    )";
+                    $extraParams = [$user['id']];
+                }
                 $stmt = $this->db->prepare("
                     SELECT 
                         c.id as conversation_id,
@@ -370,21 +384,16 @@ class ChatController {
                         )
                     )
                     WHERE cp.user_id = ? AND cp2.user_id != ?
+                    {$extraCondition}
                     ORDER BY m.created_at DESC
                 ");
 
-                $stmt->execute([$user['id'], $user['id'], $user['id']]);
+                $allParams = [$user['id'], $user['id'], $user['id']];
+                foreach ($extraParams as $ep) { $allParams[] = $ep; }
+                $stmt->execute($allParams);
             }
 
             $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Filter: customers/sellers can only see conversations with admin
-            $userRole = strtolower((string)($user['role'] ?? ''));
-            if ($userRole !== 'admin') {
-                $conversations = array_values(array_filter($conversations, function ($c) {
-                    return strtolower((string)($c['other_user_role'] ?? '')) === 'admin';
-                }));
-            }
 
             header('Content-Type: application/json');
             echo json_encode(['conversations' => $conversations]);

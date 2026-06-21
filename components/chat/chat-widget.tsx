@@ -188,53 +188,6 @@ export function ChatWidget() {
     }
   }, [])
 
-  const startChatWithAdmin = useCallback(async () => {
-    try {
-      setError("")
-      setIsLoading(true)
-      // Find admin user
-      const usersRes = await fetch("/api/backend/users?role=admin&limit=1")
-      const usersData = await usersRes.json().catch(() => null)
-      if (!usersRes.ok || !usersData?.users?.length) {
-        throw new Error(usersData?.error || "No admin found")
-      }
-      const admin = usersData.users[0]
-
-      // Create conversation with admin
-      const convRes = await fetch("/api/backend/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipient_id: admin.id }),
-      })
-      const convData = await convRes.json().catch(() => null)
-      if (!convRes.ok) {
-        throw new Error(convData?.error || "Failed to create conversation")
-      }
-
-      const convId = Number(convData?.conversation_id)
-      if (!convId) throw new Error("Conversation was not created")
-
-      // Add to chat users and select it
-      const newUser: ChatUser = {
-        id: String(admin.id),
-        conversationId: convId,
-        name: admin.full_name || admin.name || admin.email || "Admin",
-        avatar: admin.avatar_url || undefined,
-        role: "admin",
-        isOnline: false,
-      }
-
-      setChatUsers((prev) => [newUser, ...prev])
-      setSelectedUser(newUser)
-      setShowInbox(false)
-      await loadMessages(convId)
-    } catch (e: any) {
-      setError(e?.message || "Failed to start chat with admin")
-    } finally {
-      setIsLoading(false)
-    }
-  }, [loadMessages])
-
   const loadMessages = useCallback(async (conversationId: number) => {
     try {
       setIsLoading(true)
@@ -272,6 +225,50 @@ export function ChatWidget() {
       setIsLoading(false)
     }
   }, [])
+
+  const startChatWithAdmin = useCallback(async () => {
+    try {
+      setError("")
+      setIsLoading(true)
+      const usersRes = await fetch("/api/backend/users?role=admin&limit=1")
+      const usersData = await usersRes.json().catch(() => null)
+      if (!usersRes.ok || !usersData?.users?.length) {
+        throw new Error(usersData?.error || "No admin found")
+      }
+      const admin = usersData.users[0]
+
+      const convRes = await fetch("/api/backend/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient_id: admin.id }),
+      })
+      const convData = await convRes.json().catch(() => null)
+      if (!convRes.ok) {
+        throw new Error(convData?.error || "Failed to create conversation")
+      }
+
+      const convId = Number(convData?.conversation_id)
+      if (!convId) throw new Error("Conversation was not created")
+
+      const newUser: ChatUser = {
+        id: String(admin.id),
+        conversationId: convId,
+        name: admin.full_name || admin.name || admin.email || "Admin",
+        avatar: admin.avatar_url || undefined,
+        role: "admin",
+        isOnline: false,
+      }
+
+      setChatUsers((prev) => [newUser, ...prev])
+      setSelectedUser(newUser)
+      setShowInbox(false)
+      await loadMessages(convId)
+    } catch (e: any) {
+      setError(e?.message || "Failed to start chat with admin")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [loadMessages])
 
   const connectWebSocket = useCallback(async () => {
     if (wsRef.current) return

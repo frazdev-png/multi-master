@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ConversationListView, type ConversationItemProps } from "@/components/messaging/conversation-list"
 import { ChatWindow, type MessagingMessage } from "@/components/messaging/chat-window"
+import { cn } from "@/lib/utils"
 
 type RecipientUser = {
   id: number
@@ -46,6 +47,7 @@ export default function MessagingPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [errorConversations, setErrorConversations] = useState("")
   const [errorMessages, setErrorMessages] = useState("")
+  const [showSidebar, setShowSidebar] = useState(true)
 
   const [isNewChatOpen, setIsNewChatOpen] = useState(false)
   const [recipientRole, setRecipientRole] = useState<"seller" | "admin" | "customer">("admin")
@@ -209,6 +211,7 @@ export default function MessagingPage() {
     async (id: string) => {
       const cid = Number(id)
       setSelectedConversationId(cid)
+      setShowSidebar(false)
       await loadMessages(cid)
       setConversations((prev) => prev.map((c) => (Number(c.conversation_id) === cid ? { ...c, unread_count: 0 } : c)))
     },
@@ -290,35 +293,50 @@ export default function MessagingPage() {
     [loadMessages, selectedConversationId],
   )
 
+  const handleBackToSidebar = useCallback(() => {
+    setShowSidebar(true)
+  }, [])
+
   return (
     <div className="flex h-screen bg-background">
-      <ConversationListView
-        conversations={conversationItems}
-        selectedId={selectedConversationId ? String(selectedConversationId) : null}
-        isLoading={isLoadingConversations}
-        error={errorConversations}
-        onSelect={handleSelect}
-        onRefresh={loadMeAndConversations}
-        headerActions={
-          <button
-            className="btn-primary px-3 py-2 text-sm"
-            onClick={() => setIsNewChatOpen(true)}
-            type="button"
-          >
-            New Chat
-          </button>
-        }
-      />
-      <ChatWindow
-        title={selectedConversation?.other_user_name}
-        status={selectedConversation ? (selectedConversation.other_user_online ? "Online" : "Offline") : undefined}
-        messages={uiMessages}
-        isLoading={isLoadingMessages}
-        error={errorMessages}
-        canSend={Boolean(selectedConversationId)}
-        onSend={handleSend}
-        onDelete={selectedConversationId ? handleDeleteConversation : undefined}
-      />
+      <div className={cn(
+        "w-full sm:w-80 sm:flex sm:flex-col",
+        selectedConversationId && !showSidebar ? "hidden sm:flex" : "flex flex-col"
+      )}>
+        <ConversationListView
+          conversations={conversationItems}
+          selectedId={selectedConversationId ? String(selectedConversationId) : null}
+          isLoading={isLoadingConversations}
+          error={errorConversations}
+          onSelect={handleSelect}
+          onRefresh={loadMeAndConversations}
+          headerActions={
+            <button
+              className="btn-primary px-3 py-2 text-sm"
+              onClick={() => setIsNewChatOpen(true)}
+              type="button"
+            >
+              New Chat
+            </button>
+          }
+        />
+      </div>
+      <div className={cn(
+        "flex-1 flex flex-col",
+        showSidebar && selectedConversationId ? "hidden sm:flex" : "flex"
+      )}>
+        <ChatWindow
+          title={selectedConversation?.other_user_name}
+          status={selectedConversation ? (selectedConversation.other_user_online ? "Online" : "Offline") : undefined}
+          messages={uiMessages}
+          isLoading={isLoadingMessages}
+          error={errorMessages}
+          canSend={Boolean(selectedConversationId)}
+          onSend={handleSend}
+          onDelete={selectedConversationId ? handleDeleteConversation : undefined}
+          onBack={selectedConversationId ? handleBackToSidebar : undefined}
+        />
+      </div>
 
       {isNewChatOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

@@ -22,6 +22,7 @@ export function ChatWindow({
   canSend,
   onSend,
   onDelete,
+  onBack,
 }: {
   title?: string
   status?: string
@@ -31,6 +32,7 @@ export function ChatWindow({
   canSend: boolean
   onSend: (content: string) => Promise<void> | void
   onDelete?: () => void
+  onBack?: () => void
 }) {
   const [inputValue, setInputValue] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -55,12 +57,24 @@ export function ChatWindow({
     <div className="flex-1 flex flex-col bg-background">
       {/* Header */}
       <div className="bg-card border-b border-border p-4 flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-foreground">{title || "Select a conversation"}</h3>
-          <p className="text-xs text-muted-foreground">{status || (title ? "" : "Choose a chat from the left")}</p>
+        <div className="flex items-center gap-3 min-w-0">
+          {onBack && (
+            <button
+              className="sm:hidden p-1 hover:bg-muted rounded-lg transition-colors shrink-0"
+              onClick={onBack}
+              type="button"
+              aria-label="Back to conversations"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+          )}
+          <div className="min-w-0">
+            <h3 className="font-semibold text-foreground truncate">{title || "Select a conversation"}</h3>
+            <p className="text-xs text-muted-foreground">{status || (title ? "" : "Choose a chat from the left")}</p>
+          </div>
         </div>
         {title && onDelete && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               className="p-2 hover:bg-muted rounded-lg transition-colors"
               onClick={onDelete}

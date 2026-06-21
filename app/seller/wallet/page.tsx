@@ -17,6 +17,7 @@ type WalletData = {
   guarantee_balance: number
   total_earnings: number
   total_withdrawn: number
+  withdrawable_balance?: number
   currency: string
 }
 
@@ -254,7 +255,10 @@ export default function SellerWalletPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Withdrawal</DialogTitle>
-            <DialogDescription>Available balance: {formatCurrency(wallet?.available_balance || 0)} USDT</DialogDescription>
+            <DialogDescription>
+              Withdrawable: {formatCurrency(wallet?.withdrawable_balance ?? wallet?.available_balance ?? 0)} USDT
+              {wallet?.guarantee_balance ? ` (${formatCurrency(wallet.guarantee_balance)} locked in guarantee)` : ""}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -281,7 +285,7 @@ export default function SellerWalletPage() {
             </div>
             <div>
               <label className="text-sm font-medium">Amount (USDT)</label>
-              <Input type="number" step="0.01" min="0" value={withdrawForm.amount} onChange={(e) => setWithdrawForm({ ...withdrawForm, amount: e.target.value })} placeholder="0.00" />
+              <Input type="number" step="0.01" min="0" max={wallet?.withdrawable_balance ?? wallet?.available_balance ?? 0} value={withdrawForm.amount} onChange={(e) => setWithdrawForm({ ...withdrawForm, amount: e.target.value })} placeholder="0.00" />
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowWithdrawDialog(false)}>Cancel</Button>

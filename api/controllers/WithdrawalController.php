@@ -168,6 +168,7 @@ class WithdrawalController {
                 'guarantee_balance' => $info['locked'],
                 'total_earnings' => $info['total_earnings'],
                 'total_withdrawn' => $info['total_withdrawn'],
+                'withdrawable_balance' => $info['available'],
                 'currency' => 'USDT',
             ],
             'transactions' => $transactions,

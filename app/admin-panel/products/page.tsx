@@ -109,10 +109,27 @@ export default function ProductsManagement() {
     }
   }
 
+  function isValidImageUrl(url: string): boolean {
+    if (url.startsWith("data:image/")) return true
+    try {
+      const u = new URL(url)
+      return u.protocol === "http:" || u.protocol === "https:"
+    } catch {
+      return false
+    }
+  }
+
   const handleCreateProduct = async () => {
     try {
       setIsLoading(true)
       setError("")
+
+      const imageUrl = newProduct.image_url?.trim() || ""
+      if (imageUrl && !isValidImageUrl(imageUrl)) {
+        setError("Image URL must start with http:// or https://, or be a valid data URI")
+        setIsLoading(false)
+        return
+      }
 
       const priceNumber = Number(String(newProduct.price || "").replace(/[^0-9.]/g, ""))
 
@@ -123,8 +140,8 @@ export default function ProductsManagement() {
         stock: Number(newProduct.stock ?? 0),
       }
 
-      if (newProduct.image_url && newProduct.image_url.trim() !== "") {
-        body.image_url = newProduct.image_url.trim()
+      if (imageUrl) {
+        body.image_url = imageUrl
       }
 
       const res = await fetch("/api/backend/admin/products", {
@@ -244,6 +261,12 @@ export default function ProductsManagement() {
     try {
       setIsLoading(true)
       setError("")
+      const imageUrl = (editingProduct.image || "").trim()
+      if (imageUrl && imageUrl !== "/placeholder.svg" && !isValidImageUrl(imageUrl)) {
+        setError("Image URL must start with http:// or https://, or be a valid data URI")
+        setIsLoading(false)
+        return
+      }
       const priceNumber = Number(String(editingProduct.price || "").replace(/[^0-9.]/g, ""))
       const body: any = {
         name: editingProduct.name,
@@ -251,8 +274,8 @@ export default function ProductsManagement() {
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
         stock: Number(editingProduct.stock ?? 0),
       }
-      if (editingProduct.image && editingProduct.image !== "/placeholder.svg") {
-        body.image_url = editingProduct.image
+      if (imageUrl && imageUrl !== "/placeholder.svg") {
+        body.image_url = imageUrl
       }
 
       const res = await fetch(`/api/backend/admin/products/${editingProduct.id}`, {

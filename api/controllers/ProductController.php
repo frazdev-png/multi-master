@@ -508,6 +508,34 @@ class ProductController {
         }
         $description = $data['description'] ?? null;
         $imageUrl = $data['image_url'] ?? null;
+        if ($imageUrl !== null && $imageUrl !== '') {
+            if (strlen($imageUrl) > 65535) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
+                return;
+            }
+            $allowedSchemes = ['http://', 'https://', 'data:image/'];
+            $valid = false;
+            foreach ($allowedSchemes as $scheme) {
+                if (stripos($imageUrl, $scheme) === 0) {
+                    $valid = true;
+                    break;
+                }
+            }
+            if (!$valid) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Image URL must start with http://, https://, or be a valid data URI']);
+                return;
+            }
+            if (preg_match('/^https?:\/\//i', $imageUrl)) {
+                $parsed = parse_url($imageUrl);
+                if (!isset($parsed['scheme'], $parsed['host'])) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Image URL is not a valid URL']);
+                    return;
+                }
+            }
+        }
         $isActive = isset($data['is_active']) ? (int)(!!$data['is_active']) : 1;
 
         $columns = ['seller_id', 'name', 'price'];
@@ -582,6 +610,38 @@ class ProductController {
             http_response_code(404);
             echo json_encode(['error' => 'Product not found']);
             return;
+        }
+
+        if (array_key_exists('image_url', $data)) {
+            $imageUrl = $data['image_url'];
+            if ($imageUrl !== null && $imageUrl !== '') {
+                if (strlen($imageUrl) > 65535) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
+                    return;
+                }
+                $allowedSchemes = ['http://', 'https://', 'data:image/'];
+                $valid = false;
+                foreach ($allowedSchemes as $scheme) {
+                    if (stripos($imageUrl, $scheme) === 0) {
+                        $valid = true;
+                        break;
+                    }
+                }
+                if (!$valid) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Image URL must start with http://, https://, or be a valid data URI']);
+                    return;
+                }
+                if (preg_match('/^https?:\/\//i', $imageUrl)) {
+                    $parsed = parse_url($imageUrl);
+                    if (!isset($parsed['scheme'], $parsed['host'])) {
+                        http_response_code(400);
+                        echo json_encode(['error' => 'Image URL is not a valid URL']);
+                        return;
+                    }
+                }
+            }
         }
 
         $fields = [];
@@ -750,6 +810,34 @@ class ProductController {
 
         $description = $data['description'] ?? null;
         $imageUrl = $data['image_url'] ?? null;
+        if ($imageUrl !== null && $imageUrl !== '') {
+            if (strlen($imageUrl) > 65535) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
+                return;
+            }
+            $allowedSchemes = ['http://', 'https://', 'data:image/'];
+            $valid = false;
+            foreach ($allowedSchemes as $scheme) {
+                if (stripos($imageUrl, $scheme) === 0) {
+                    $valid = true;
+                    break;
+                }
+            }
+            if (!$valid) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Image URL must start with http://, https://, or be a valid data URI']);
+                return;
+            }
+            if (preg_match('/^https?:\/\//i', $imageUrl)) {
+                $parsed = parse_url($imageUrl);
+                if (!isset($parsed['scheme'], $parsed['host'])) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Image URL is not a valid URL']);
+                    return;
+                }
+            }
+        }
         $isActive = isset($data['is_active']) ? (int)(!!$data['is_active']) : 1;
 
         $columns = ['seller_id', 'name', 'price', 'stock'];
@@ -806,6 +894,38 @@ class ProductController {
 
     private function updateAdminProduct($user, $productId) {
         $data = $this->getJsonBody();
+
+        if (array_key_exists('image_url', $data)) {
+            $imageUrl = $data['image_url'];
+            if ($imageUrl !== null && $imageUrl !== '') {
+                if (strlen($imageUrl) > 65535) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
+                    return;
+                }
+                $allowedSchemes = ['http://', 'https://', 'data:image/'];
+                $valid = false;
+                foreach ($allowedSchemes as $scheme) {
+                    if (stripos($imageUrl, $scheme) === 0) {
+                        $valid = true;
+                        break;
+                    }
+                }
+                if (!$valid) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Image URL must start with http://, https://, or be a valid data URI']);
+                    return;
+                }
+                if (preg_match('/^https?:\/\//i', $imageUrl)) {
+                    $parsed = parse_url($imageUrl);
+                    if (!isset($parsed['scheme'], $parsed['host'])) {
+                        http_response_code(400);
+                        echo json_encode(['error' => 'Image URL is not a valid URL']);
+                        return;
+                    }
+                }
+            }
+        }
 
         $fields = [];
         $params = [];

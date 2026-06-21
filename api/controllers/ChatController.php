@@ -172,41 +172,38 @@ class ChatController {
         return false;
     }
 
-    // Customers and sellers can ONLY communicate with admin.
-    // Any conversation with BOTH a customer AND seller participant is blocked.
+    // Non-admin users (customers/sellers) can ONLY communicate with admin.
+    // No other non-admin participant beside themselves is allowed.
     private function isAllowedConversation($conversationId, $user) {
         $role = strtolower((string)($user['role'] ?? ''));
         // Admin is always allowed
         if ($role === 'admin') return true;
 
-        // Customers/sellers are only allowed if:
-        // 1. An admin is a participant AND
-        // 2. The conversation does NOT contain BOTH a customer AND a seller
         try {
-            // Check all participant roles in this conversation
             $stmt = $this->db->prepare("
-                SELECT u.role FROM conversation_participants cp
+                SELECT u.id, u.role FROM conversation_participants cp
                 JOIN users u ON cp.user_id = u.id
                 WHERE cp.conversation_id = ?
             ");
             $stmt->execute([(int)$conversationId]);
-            $roles = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $participants = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $hasAdmin = false;
-            $hasCustomer = false;
-            $hasSeller = false;
-            foreach ($roles as $r) {
-                $r = strtolower((string)$r);
-                if ($r === 'admin') $hasAdmin = true;
-                if ($r === 'customer') $hasCustomer = true;
-                if ($r === 'seller' || $r === 'vendor') $hasSeller = true;
+            $otherNonAdminCount = 0;
+
+            foreach ($participants as $p) {
+                $r = strtolower((string)($p['role'] ?? ''));
+                $pid = (int)($p['id'] ?? 0);
+
+                if ($r === 'admin') {
+                    $hasAdmin = true;
+                } elseif ($pid !== (int)$user['id']) {
+                    $otherNonAdminCount++;
+                }
             }
 
-            // Block if customer AND seller are both in the conversation
-            if ($hasCustomer && $hasSeller) return false;
-
-            // Allow only if admin is present
-            return $hasAdmin;
+            // Must have an admin AND no other non-admin participants besides self
+            return $hasAdmin && $otherNonAdminCount === 0;
         } catch (Exception $e) {
             return false;
         }

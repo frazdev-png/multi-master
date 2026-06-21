@@ -415,14 +415,26 @@ class Chat implements MessageComponentInterface {
         $role = $participant ? strtolower((string)($participant['role'] ?? '')) : '';
 
         if ($role !== 'admin') {
+            // Ensure admin exists AND no other non-admin user besides sender
             $stmt = $this->db->prepare("
-                SELECT 1 FROM conversation_participants cp
+                SELECT u.id, u.role FROM conversation_participants cp
                 JOIN users u ON cp.user_id = u.id
-                WHERE cp.conversation_id = ? AND u.role = 'admin'
-                LIMIT 1
+                WHERE cp.conversation_id = ?
             ");
             $stmt->execute([$conversationId]);
-            if (!$stmt->fetch(PDO::FETCH_NUM)) {
+            $participants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $hasAdmin = false;
+            $otherNonAdmin = false;
+            foreach ($participants as $p) {
+                $r = strtolower((string)($p['role'] ?? ''));
+                $pid = (int)($p['id'] ?? 0);
+                if ($r === 'admin') {
+                    $hasAdmin = true;
+                } elseif ($pid !== (int)$fromUserId) {
+                    $otherNonAdmin = true;
+                }
+            }
+            if (!$hasAdmin || $otherNonAdmin) {
                 throw new Exception('Not authorized for this conversation');
             }
         }

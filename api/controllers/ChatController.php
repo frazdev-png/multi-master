@@ -303,6 +303,13 @@ class ChatController {
             $subjectSelect = $this->hasConversationColumn('subject') ? 'c.subject,' : 'NULL as subject,';
 
             if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
+                $userRole = strtolower((string)($user['role'] ?? ''));
+                $legacyCondition = '';
+                $legacyParams = [];
+                // Non-admin users: other user must be admin
+                if ($userRole !== 'admin') {
+                    $legacyCondition = " AND u.role = 'admin'";
+                }
                 $stmt = $this->db->prepare("
                     SELECT
                         c.id as conversation_id,
@@ -331,7 +338,8 @@ class ChatController {
                             LIMIT 1
                         )
                     )
-                    WHERE c.user1_id = ? OR c.user2_id = ?
+                    WHERE (c.user1_id = ? OR c.user2_id = ?)
+                    {$legacyCondition}
                     ORDER BY COALESCE(m.created_at, c.updated_at, c.created_at) DESC
                 ");
                 $stmt->execute([$user['id'], $user['id'], $user['id']]);
@@ -1177,42 +1185,81 @@ class ChatController {
             $statusSelect = $this->hasConversationColumn('status') ? 'c.status,' : "'open' as status,";
             $subjectSelect = $this->hasConversationColumn('subject') ? 'c.subject,' : 'NULL as subject,';
 
-            $sql = "
-                SELECT 
-                    c.id as conversation_id,
-                    c.created_at,
-                    c.updated_at,
-                    {$statusSelect}
-                    {$subjectSelect}
-                    u.id as other_user_id,
-                    u.full_name as other_user_name,
-                    u.email as other_user_email,
-                    u.avatar_url as other_user_avatar,
-                    u.role as other_user_role,
-                    {$onlineSelect}
-                    {$lastSeenSelect}
-                    {$lastMessageExpr} as last_message,
-                    m.created_at as last_message_at,
-                    m.sender_id as last_message_sender_id,
-                    (SELECT COUNT(*) FROM messages m2 
-                     WHERE m2.conversation_id = c.id 
-                     AND m2.id > cp.last_read_message_id
-                     AND m2.sender_id != ?) as unread_count
-                FROM conversations c
-                JOIN conversation_participants cp ON c.id = cp.conversation_id
-                JOIN conversation_participants cp2 ON c.id = cp2.conversation_id
-                JOIN users u ON cp2.user_id = u.id
-                LEFT JOIN messages m ON (
-                    m.id = (
-                        SELECT id FROM messages 
-                        WHERE conversation_id = c.id 
-                        ORDER BY created_at DESC 
-                        LIMIT 1
+            // If legacy columns exist, use them directly — covers ALL conversations
+            if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
+                $sql = "
+                    SELECT 
+                        c.id as conversation_id,
+                        c.created_at,
+                        c.updated_at,
+                        {$statusSelect}
+                        {$subjectSelect}
+                        u.id as other_user_id,
+                        u.full_name as other_user_name,
+                        u.email as other_user_email,
+                        u.avatar_url as other_user_avatar,
+                        u.role as other_user_role,
+                        {$onlineSelect}
+                        {$lastSeenSelect}
+                        {$lastMessageExpr} as last_message,
+                        m.created_at as last_message_at,
+                        m.sender_id as last_message_sender_id,
+                        0 as unread_count
+                    FROM conversations c
+                    JOIN users u ON u.id = (CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END)
+                    LEFT JOIN messages m ON (
+                        m.id = (
+                            SELECT id FROM messages 
+                            WHERE conversation_id = c.id 
+                            ORDER BY created_at DESC 
+                            LIMIT 1
+                        )
                     )
-                )
-                WHERE cp.user_id = ? AND cp2.user_id != ?
-            ";
-            $params = [$user['id'], $user['id'], $user['id']];
+                    WHERE c.user1_id = ? OR c.user2_id = ?
+                ";
+                $params = [$user['id'], $user['id'], $user['id']];
+            } else {
+                $sql = "
+                    SELECT 
+                        c.id as conversation_id,
+                        c.created_at,
+                        c.updated_at,
+                        {$statusSelect}
+                        {$subjectSelect}
+                        u.id as other_user_id,
+                        u.full_name as other_user_name,
+                        u.email as other_user_email,
+                        u.avatar_url as other_user_avatar,
+                        u.role as other_user_role,
+                        {$onlineSelect}
+                        {$lastSeenSelect}
+                        {$lastMessageExpr} as last_message,
+                        m.created_at as last_message_at,
+                        m.sender_id as last_message_sender_id,
+                        (SELECT COUNT(*) FROM messages m2 
+                         WHERE m2.conversation_id = c.id 
+                         AND m2.id > cp.last_read_message_id
+                         AND m2.sender_id != ?) as unread_count
+                    FROM conversations c
+                    JOIN conversation_participants cp ON c.id = cp.conversation_id
+                    JOIN conversation_participants cp2 ON c.id = cp2.conversation_id
+                    JOIN users u ON cp2.user_id = u.id
+                    LEFT JOIN messages m ON (
+                        m.id = (
+                            SELECT id FROM messages 
+                            WHERE conversation_id = c.id 
+                            ORDER BY created_at DESC 
+                            LIMIT 1
+                        )
+                    )
+                    WHERE cp.user_id = ?
+                    AND cp2.user_id = (
+                        SELECT COALESCE(MIN(cp3.user_id), 0) FROM conversation_participants cp3
+                        WHERE cp3.conversation_id = c.id AND cp3.user_id != ?
+                    )
+                ";
+                $params = [$user['id'], $user['id'], $user['id']];
+            }
 
             if ($search !== '') {
                 $sql .= " AND (u.full_name LIKE ? OR u.email LIKE ? OR u.role LIKE ?)";
@@ -1227,7 +1274,7 @@ class ChatController {
                 $params[] = $status;
             }
 
-            $sql .= " ORDER BY m.created_at DESC";
+            $sql .= " ORDER BY COALESCE(m.created_at, c.updated_at, c.created_at) DESC";
 
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);

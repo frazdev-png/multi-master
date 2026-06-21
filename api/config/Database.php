@@ -311,7 +311,7 @@ class Database {
             }
 
             $ensureColumn('categories', 'description', 'description TEXT');
-            $ensureColumn('categories', 'image_url', 'image_url VARCHAR(255) DEFAULT NULL');
+            $ensureColumn('categories', 'image_url', 'image_url TEXT DEFAULT NULL');
             $ensureColumn('categories', 'is_active', 'is_active TINYINT(1) NOT NULL DEFAULT 1');
             $ensureColumn('categories', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
             $ensureColumn('categories', 'updated_at', 'updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');

@@ -109,6 +109,11 @@ export default function ProductsManagement() {
     }
   }
 
+  const [addImageFile, setAddImageFile] = useState<File | null>(null)
+  const [addImagePreview, setAddImagePreview] = useState("")
+  const [editImageFile, setEditImageFile] = useState<File | null>(null)
+  const [editImagePreview, setEditImagePreview] = useState("")
+
   function isValidImageUrl(url: string): boolean {
     if (url.startsWith("data:image/")) return true
     try {
@@ -119,12 +124,52 @@ export default function ProductsManagement() {
     }
   }
 
+  function isDirectImageUrl(url: string): boolean {
+    try {
+      const u = new URL(url)
+      const path = u.pathname.toLowerCase()
+      return /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(path) || /^https:\/\/(?:.*\.)?(?:i\.)?(?:imgur|unsplash|cloudinary|shopify|s3\.amazonaws)\.com\//i.test(url)
+    } catch {
+      return false
+    }
+  }
+
+  async function uploadImage(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append("type", "product")
+    formData.append("file", file)
+    const res = await fetch("/api/backend/settings/upload", { method: "POST", body: formData })
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data?.url) throw new Error(data?.error || "Upload failed")
+    return data.url
+  }
+
+  function openFilePicker(setFile: (f: File | null) => void, setPreview: (u: string) => void) {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = "image/*"
+    input.onchange = () => {
+      const file = input.files?.[0]
+      if (!file) return
+      setFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => setPreview(e.target?.result as string)
+      reader.readAsDataURL(file)
+    }
+    input.click()
+  }
+
   const handleCreateProduct = async () => {
     try {
       setIsLoading(true)
       setError("")
 
-      const imageUrl = newProduct.image_url?.trim() || ""
+      let imageUrl = newProduct.image_url?.trim() || ""
+
+      if (addImageFile) {
+        imageUrl = await uploadImage(addImageFile)
+      }
+
       if (imageUrl && !isValidImageUrl(imageUrl)) {
         setError("Image URL must start with http:// or https://, or be a valid data URI")
         setIsLoading(false)
@@ -156,6 +201,8 @@ export default function ProductsManagement() {
 
       setIsAddDialogOpen(false)
       setNewProduct({ name: "", price: "", stock: 0, description: "", image_url: "" })
+      setAddImageFile(null)
+      setAddImagePreview("")
       await loadProducts()
     } catch (e: any) {
       setError(e?.message || "Failed to create product")
@@ -261,7 +308,13 @@ export default function ProductsManagement() {
     try {
       setIsLoading(true)
       setError("")
-      const imageUrl = (editingProduct.image || "").trim()
+      let imageUrl = (editingProduct.image || "").trim()
+
+      if (editImageFile) {
+        imageUrl = await uploadImage(editImageFile)
+        setEditingProduct({...editingProduct, image: imageUrl})
+      }
+
       if (imageUrl && imageUrl !== "/placeholder.svg" && !isValidImageUrl(imageUrl)) {
         setError("Image URL must start with http:// or https://, or be a valid data URI")
         setIsLoading(false)
@@ -572,6 +625,32 @@ export default function ProductsManagement() {
                   />
                 </div>
                 <div className="col-span-2">
+                  <label className="text-sm font-medium text-muted-foreground">Image</label>
+                  <div className="flex gap-2 items-start">
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        placeholder="Paste image URL..."
+                        value={editingProduct.image || ""}
+                        onChange={(e) => setEditingProduct({...editingProduct, image: e.target.value})}
+                      />
+                      <p className="text-xs text-muted-foreground">Or click "Upload Image" to select from your device</p>
+                    </div>
+                    <Button type="button" variant="outline" onClick={() => openFilePicker(setEditImageFile, setEditImagePreview)}>
+                      Upload Image
+                    </Button>
+                  </div>
+                  {(editImagePreview || editingProduct.image) && (
+                    <div className="mt-2 relative w-32 h-32 border rounded-md overflow-hidden bg-muted">
+                      <img
+                        src={editImagePreview || editingProduct.image || "/placeholder.svg"}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg" }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="col-span-2">
                   <label className="text-sm font-medium text-muted-foreground">Description</label>
                   <Input
                     value={editingProduct.description}
@@ -617,9 +696,27 @@ export default function ProductsManagement() {
                   onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Image URL</label>
-                <Input value={newProduct.image_url} onChange={(e) => setNewProduct({ ...newProduct, image_url: e.target.value })} />
+              <div className="col-span-2">
+                <label className="text-sm font-medium text-muted-foreground">Image</label>
+                <div className="flex gap-2 items-start">
+                  <div className="flex-1 space-y-1">
+                    <Input placeholder="Paste image URL..." value={newProduct.image_url} onChange={(e) => setNewProduct({ ...newProduct, image_url: e.target.value })} />
+                    <p className="text-xs text-muted-foreground">Or click "Upload Image" to select from your device</p>
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => openFilePicker(setAddImageFile, setAddImagePreview)}>
+                    Upload Image
+                  </Button>
+                </div>
+                {(addImagePreview || newProduct.image_url) && (
+                  <div className="mt-2 relative w-32 h-32 border rounded-md overflow-hidden bg-muted">
+                    <img
+                      src={addImagePreview || newProduct.image_url}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { if (!addImagePreview) (e.currentTarget as HTMLImageElement).src = "/placeholder.svg" }}
+                    />
+                  </div>
+                )}
               </div>
               <div className="col-span-2">
                 <label className="text-sm font-medium text-muted-foreground">Description</label>

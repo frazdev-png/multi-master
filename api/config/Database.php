@@ -271,6 +271,27 @@ class Database {
             $ensureColumn('products', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
             $ensureColumn('products', 'updated_at', 'updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
 
+            // Migrate image_url from VARCHAR(255) to TEXT for long external URLs
+            try {
+                $stmt = $conn->prepare("SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'products' AND column_name = 'image_url' LIMIT 1");
+                $stmt->execute();
+                $colInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($colInfo && $colInfo['DATA_TYPE'] === 'varchar' && (int)$colInfo['CHARACTER_MAXIMUM_LENGTH'] <= 255) {
+                    $conn->exec("ALTER TABLE products MODIFY COLUMN image_url TEXT DEFAULT NULL");
+                }
+            } catch (Exception $e) {
+            }
+
+            try {
+                $stmt = $conn->prepare("SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'categories' AND column_name = 'image_url' LIMIT 1");
+                $stmt->execute();
+                $colInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($colInfo && $colInfo['DATA_TYPE'] === 'varchar' && (int)$colInfo['CHARACTER_MAXIMUM_LENGTH'] <= 255) {
+                    $conn->exec("ALTER TABLE categories MODIFY COLUMN image_url TEXT DEFAULT NULL");
+                }
+            } catch (Exception $e) {
+            }
+
             $stmt = $conn->prepare("SHOW COLUMNS FROM products LIKE 'vendor_id'");
             $stmt->execute();
             $hasVendorId = (bool)$stmt->fetch(PDO::FETCH_ASSOC);

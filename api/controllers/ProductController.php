@@ -514,7 +514,7 @@ class ProductController {
                 echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
                 return;
             }
-            $allowedSchemes = ['http://', 'https://', 'data:image/'];
+            $allowedSchemes = ['http://', 'https://', 'data:image/', '/uploads/'];
             $valid = false;
             foreach ($allowedSchemes as $scheme) {
                 if (stripos($imageUrl, $scheme) === 0) {
@@ -620,7 +620,7 @@ class ProductController {
                     echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
                     return;
                 }
-                $allowedSchemes = ['http://', 'https://', 'data:image/'];
+                $allowedSchemes = ['http://', 'https://', 'data:image/', '/uploads/'];
                 $valid = false;
                 foreach ($allowedSchemes as $scheme) {
                     if (stripos($imageUrl, $scheme) === 0) {
@@ -816,7 +816,7 @@ class ProductController {
                 echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
                 return;
             }
-            $allowedSchemes = ['http://', 'https://', 'data:image/'];
+            $allowedSchemes = ['http://', 'https://', 'data:image/', '/uploads/'];
             $valid = false;
             foreach ($allowedSchemes as $scheme) {
                 if (stripos($imageUrl, $scheme) === 0) {
@@ -903,7 +903,7 @@ class ProductController {
                     echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
                     return;
                 }
-                $allowedSchemes = ['http://', 'https://', 'data:image/'];
+                $allowedSchemes = ['http://', 'https://', 'data:image/', '/uploads/'];
                 $valid = false;
                 foreach ($allowedSchemes as $scheme) {
                     if (stripos($imageUrl, $scheme) === 0) {

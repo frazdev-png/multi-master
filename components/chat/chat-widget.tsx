@@ -174,7 +174,7 @@ export function ChatWidget() {
         conversationId: Number(c.conversation_id),
         name: c.other_user_name || "User",
         avatar: c.other_user_avatar || undefined,
-        role: "customer",
+        role: (c as any).other_user_role || "customer",
         isOnline: Boolean(c.other_user_online),
         lastMessage: c.last_message || "",
         unreadCount: Number(c.unread_count || 0),
@@ -187,6 +187,53 @@ export function ChatWidget() {
       setIsLoading(false)
     }
   }, [])
+
+  const startChatWithAdmin = useCallback(async () => {
+    try {
+      setError("")
+      setIsLoading(true)
+      // Find admin user
+      const usersRes = await fetch("/api/backend/users?role=admin&limit=1")
+      const usersData = await usersRes.json().catch(() => null)
+      if (!usersRes.ok || !usersData?.users?.length) {
+        throw new Error(usersData?.error || "No admin found")
+      }
+      const admin = usersData.users[0]
+
+      // Create conversation with admin
+      const convRes = await fetch("/api/backend/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient_id: admin.id }),
+      })
+      const convData = await convRes.json().catch(() => null)
+      if (!convRes.ok) {
+        throw new Error(convData?.error || "Failed to create conversation")
+      }
+
+      const convId = Number(convData?.conversation_id)
+      if (!convId) throw new Error("Conversation was not created")
+
+      // Add to chat users and select it
+      const newUser: ChatUser = {
+        id: String(admin.id),
+        conversationId: convId,
+        name: admin.full_name || admin.name || admin.email || "Admin",
+        avatar: admin.avatar_url || undefined,
+        role: "admin",
+        isOnline: false,
+      }
+
+      setChatUsers((prev) => [newUser, ...prev])
+      setSelectedUser(newUser)
+      setShowInbox(false)
+      await loadMessages(convId)
+    } catch (e: any) {
+      setError(e?.message || "Failed to start chat with admin")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [loadMessages])
 
   const loadMessages = useCallback(async (conversationId: number) => {
     try {
@@ -284,8 +331,22 @@ export function ChatWidget() {
             image_url: msgType === "image" ? String(data.content || "") : undefined,
           }
 
-          setChatUsers((prev) =>
-            prev.map((u) => {
+          setChatUsers((prev) => {
+            const exists = prev.some((u) => u.conversationId === incomingConversationId)
+            if (!exists) {
+              // New conversation — add it
+              const newUser: ChatUser = {
+                id: String(data.sender_id),
+                conversationId: incomingConversationId,
+                name: String(data.sender_name || "User"),
+                role: String(data.sender_role || "customer") as ChatUser["role"],
+                isOnline: false,
+                lastMessage: incoming.text,
+                unreadCount: 1,
+              }
+              return [newUser, ...prev]
+            }
+            return prev.map((u) => {
               if (u.conversationId !== incomingConversationId) return u
               const shouldCountUnread = selectedConversationIdRef.current !== incomingConversationId
               return {
@@ -294,7 +355,7 @@ export function ChatWidget() {
                 unreadCount: shouldCountUnread ? (u.unreadCount || 0) + 1 : 0,
               }
             })
-          )
+          })
 
           if (selectedConversationIdRef.current === incomingConversationId) {
             setMessages((prev) => [...prev, incoming])
@@ -639,10 +700,13 @@ export function ChatWidget() {
                   "border-r border-border bg-muted/20 w-full",
                   selectedUser && !showInbox ? "hidden" : "block"
                 )}>
-                  <div className="p-3 border-b border-border bg-background/50">
+                  <div className="p-3 border-b border-border bg-background/50 flex items-center justify-between">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Conversations ({chatUsers.length})
                     </p>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs gap-1 px-2" onClick={startChatWithAdmin}>
+                      + New
+                    </Button>
                   </div>
                   <ScrollArea className="h-[calc(100%-45px)]">
                     <div className="py-1">
@@ -659,9 +723,14 @@ export function ChatWidget() {
                           <p className="mt-1 text-xs text-muted-foreground/70">
                             Messages will appear here when you contact support or a seller.
                           </p>
-                          <Button variant="outline" size="sm" className="mt-4" onClick={loadConversations}>
-                            Refresh
-                          </Button>
+                          <div className="flex gap-2 justify-center mt-4">
+                            <Button variant="outline" size="sm" onClick={loadConversations}>
+                              Refresh
+                            </Button>
+                            <Button variant="default" size="sm" onClick={startChatWithAdmin}>
+                              Contact Admin
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         chatUsers.map((user) => (

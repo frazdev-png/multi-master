@@ -66,7 +66,6 @@ export default function ProductsManagement() {
     price: "",
     stock: 0,
     description: "",
-    image_url: "",
   })
 
   const loadProducts = async () => {
@@ -114,8 +113,6 @@ export default function ProductsManagement() {
   const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [editImagePreview, setEditImagePreview] = useState("")
 
-  const [extracting, setExtracting] = useState(false)
-
   async function uploadImage(file: File): Promise<string> {
     const formData = new FormData()
     formData.append("type", "product")
@@ -124,17 +121,6 @@ export default function ProductsManagement() {
     const data = await res.json().catch(() => null)
     if (!res.ok || !data?.url) throw new Error(data?.error || "Upload failed")
     return data.url
-  }
-
-  async function extractImageFromUrl(url: string): Promise<string | null> {
-    const res = await fetch("/api/backend/admin/extract-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    })
-    const data = await res.json().catch(() => null)
-    if (!res.ok || !data?.image_url) return null
-    return data.image_url
   }
 
   function openFilePicker(setFile: (f: File | null) => void, setPreview: (u: string) => void) {
@@ -155,31 +141,24 @@ export default function ProductsManagement() {
   const handleCreateProduct = async () => {
     try {
       setIsLoading(true)
-      setExtracting(true)
       setError("")
 
-      let imageUrl = newProduct.image_url?.trim() || ""
-
-      if (addImageFile) {
-        imageUrl = await uploadImage(addImageFile)
-      } else if (imageUrl && !imageUrl.startsWith("data:image/")) {
-        const extracted = await extractImageFromUrl(imageUrl)
-        if (extracted) {
-          imageUrl = extracted
-        }
+      if (!addImageFile) {
+        setError("Please select an image to upload")
+        setIsLoading(false)
+        return
       }
+
+      const imageUrl = await uploadImage(addImageFile)
 
       const priceNumber = Number(String(newProduct.price || "").replace(/[^0-9.]/g, ""))
 
       const body: any = {
         name: newProduct.name,
         description: newProduct.description,
+        image_url: imageUrl,
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
         stock: Number(newProduct.stock ?? 0),
-      }
-
-      if (imageUrl) {
-        body.image_url = imageUrl
       }
 
       const res = await fetch("/api/backend/admin/products", {
@@ -193,7 +172,7 @@ export default function ProductsManagement() {
       }
 
       setIsAddDialogOpen(false)
-      setNewProduct({ name: "", price: "", stock: 0, description: "", image_url: "" })
+      setNewProduct({ name: "", price: "", stock: 0, description: "" })
       setAddImageFile(null)
       setAddImagePreview("")
       await loadProducts()
@@ -201,7 +180,6 @@ export default function ProductsManagement() {
       setError(e?.message || "Failed to create product")
     } finally {
       setIsLoading(false)
-      setExtracting(false)
     }
   }
 
@@ -301,19 +279,13 @@ export default function ProductsManagement() {
     if (!editingProduct) return
     try {
       setIsLoading(true)
-      setExtracting(true)
       setError("")
-      let imageUrl = (editingProduct.image || "").trim()
 
+      let imageUrl = (editingProduct.image || "").trim()
       if (editImageFile) {
         imageUrl = await uploadImage(editImageFile)
-        setEditingProduct({...editingProduct, image: imageUrl})
-      } else if (imageUrl && imageUrl !== "/placeholder.svg" && !imageUrl.startsWith("data:image/")) {
-        const extracted = await extractImageFromUrl(imageUrl)
-        if (extracted) {
-          imageUrl = extracted
-        }
       }
+
       const priceNumber = Number(String(editingProduct.price || "").replace(/[^0-9.]/g, ""))
       const body: any = {
         name: editingProduct.name,
@@ -620,18 +592,13 @@ export default function ProductsManagement() {
                 </div>
                 <div className="col-span-2">
                   <label className="text-sm font-medium text-muted-foreground">Image</label>
-                  <div className="flex gap-2 items-start">
-                    <div className="flex-1 space-y-1">
-                      <Input
-                        placeholder="Paste image URL..."
-                        value={editingProduct.image || ""}
-                        onChange={(e) => setEditingProduct({...editingProduct, image: e.target.value})}
-                      />
-                      <p className="text-xs text-muted-foreground">Or click "Upload Image" to select from your device</p>
-                    </div>
+                  <div className="flex items-center gap-3">
                     <Button type="button" variant="outline" onClick={() => openFilePicker(setEditImageFile, setEditImagePreview)}>
-                      Upload Image
+                      {editImageFile ? "Change Image" : "Upload Image"}
                     </Button>
+                    {editImageFile && (
+                      <span className="text-sm text-muted-foreground">{editImageFile.name}</span>
+                    )}
                   </div>
                   {(editImagePreview || editingProduct.image) && (
                     <div className="mt-2 relative w-32 h-32 border rounded-md overflow-hidden bg-muted">
@@ -657,7 +624,7 @@ export default function ProductsManagement() {
                   Cancel
                 </Button>
                 <Button onClick={handleSaveEdit} disabled={isLoading}>
-                  {extracting ? "Extracting image..." : isLoading ? "Saving..." : "Save Changes"}
+                  {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </div>
@@ -692,23 +659,17 @@ export default function ProductsManagement() {
               </div>
               <div className="col-span-2">
                 <label className="text-sm font-medium text-muted-foreground">Image</label>
-                <div className="flex gap-2 items-start">
-                  <div className="flex-1 space-y-1">
-                    <Input placeholder="Paste image URL..." value={newProduct.image_url} onChange={(e) => setNewProduct({ ...newProduct, image_url: e.target.value })} />
-                    <p className="text-xs text-muted-foreground">Or click "Upload Image" to select from your device</p>
-                  </div>
+                <div className="flex items-center gap-3">
                   <Button type="button" variant="outline" onClick={() => openFilePicker(setAddImageFile, setAddImagePreview)}>
-                    Upload Image
+                    {addImageFile ? "Change Image" : "Upload Image"}
                   </Button>
+                  {addImageFile && (
+                    <span className="text-sm text-muted-foreground">{addImageFile.name}</span>
+                  )}
                 </div>
-                {(addImagePreview || newProduct.image_url) && (
+                {addImagePreview && (
                   <div className="mt-2 relative w-32 h-32 border rounded-md overflow-hidden bg-muted">
-                    <img
-                      src={addImagePreview || newProduct.image_url}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { if (!addImagePreview) (e.currentTarget as HTMLImageElement).src = "/placeholder.svg" }}
-                    />
+                    <img src={addImagePreview} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>
@@ -723,7 +684,7 @@ export default function ProductsManagement() {
                 Cancel
               </Button>
               <Button onClick={handleCreateProduct} disabled={isLoading}>
-                {extracting ? "Extracting image..." : isLoading ? "Saving..." : "Create"}
+                {isLoading ? "Saving..." : "Create"}
               </Button>
             </div>
           </div>

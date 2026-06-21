@@ -173,38 +173,42 @@ class ChatController {
     }
 
     // Customers and sellers can ONLY communicate with admin.
+    // Any conversation with BOTH a customer AND seller participant is blocked.
     private function isAllowedConversation($conversationId, $user) {
         $role = strtolower((string)($user['role'] ?? ''));
         // Admin is always allowed
         if ($role === 'admin') return true;
 
-        // Customers/sellers are only allowed if an admin is also a participant
+        // Customers/sellers are only allowed if:
+        // 1. An admin is a participant AND
+        // 2. The conversation does NOT contain BOTH a customer AND a seller
         try {
+            // Check all participant roles in this conversation
             $stmt = $this->db->prepare("
-                SELECT 1 FROM conversation_participants cp
+                SELECT u.role FROM conversation_participants cp
                 JOIN users u ON cp.user_id = u.id
-                WHERE cp.conversation_id = ? AND u.role = 'admin'
-                LIMIT 1
+                WHERE cp.conversation_id = ?
             ");
             $stmt->execute([(int)$conversationId]);
-            if ($stmt->fetch(PDO::FETCH_NUM)) return true;
-        } catch (Exception $e) {}
+            $roles = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Legacy check (user1_id/user2_id columns)
-        if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
-            try {
-                $stmt = $this->db->prepare("
-                    SELECT 1 FROM conversations c
-                    JOIN users u1 ON c.user1_id = u1.id
-                    JOIN users u2 ON c.user2_id = u2.id
-                    WHERE c.id = ? AND (u1.role = 'admin' OR u2.role = 'admin')
-                    LIMIT 1
-                ");
-                $stmt->execute([(int)$conversationId]);
-                return (bool)$stmt->fetch(PDO::FETCH_NUM);
-            } catch (Exception $e) {
-                return false;
+            $hasAdmin = false;
+            $hasCustomer = false;
+            $hasSeller = false;
+            foreach ($roles as $r) {
+                $r = strtolower((string)$r);
+                if ($r === 'admin') $hasAdmin = true;
+                if ($r === 'customer') $hasCustomer = true;
+                if ($r === 'seller' || $r === 'vendor') $hasSeller = true;
             }
+
+            // Block if customer AND seller are both in the conversation
+            if ($hasCustomer && $hasSeller) return false;
+
+            // Allow only if admin is present
+            return $hasAdmin;
+        } catch (Exception $e) {
+            return false;
         }
 
         return false;

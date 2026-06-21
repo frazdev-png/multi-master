@@ -43,6 +43,7 @@ class UserController {
     public function getUsers() {
         // Authenticate user
         $user = $this->auth->authenticate();
+        $userRole = strtolower((string)($user['role'] ?? ''));
         
         $search = $_GET['search'] ?? '';
         $role = $_GET['role'] ?? null;
@@ -67,16 +68,20 @@ class UserController {
             ";
             $params = [$user['id']];
             
+            // CUSTOMER/SELLER: can ONLY search for admin
+            // ADMIN: can search for any role
+            if ($userRole !== 'admin') {
+                $sql .= " AND role = 'admin'";
+            } else if ($role && in_array($role, ['admin', 'seller', 'customer'])) {
+                $sql .= " AND role = ?";
+                $params[] = $role;
+            }
+            
             if (!empty($search)) {
                 $sql .= " AND (full_name LIKE ? OR email LIKE ?)";
                 $searchParam = "%{$search}%";
                 $params[] = $searchParam;
                 $params[] = $searchParam;
-            }
-            
-            if ($role && in_array($role, ['admin', 'seller', 'customer'])) {
-                $sql .= " AND role = ?";
-                $params[] = $role;
             }
             
             if ($this->hasUserColumn('is_online')) {

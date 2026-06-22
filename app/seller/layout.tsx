@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { StatusBanner } from "@/components/seller/status-banner"
 
 export default async function SellerLayout({
   children,
@@ -25,6 +26,7 @@ export default async function SellerLayout({
 
   return (
     <div className="min-h-screen bg-background">
+      <StatusBanner />
       {children}
     </div>
   )

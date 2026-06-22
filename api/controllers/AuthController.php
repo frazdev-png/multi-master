@@ -215,6 +215,10 @@ class AuthController {
         if (!$user) {
             $this->sendError('Invalid email or password', 401);
         }
+
+        if (isset($user['is_active']) && (int)$user['is_active'] === 0) {
+            $this->sendError('Your account has been suspended. Please contact admin.', 403);
+        }
         
         // Generate JWT token
         $token = AuthMiddleware::generateToken($user['id'], $user['role']);

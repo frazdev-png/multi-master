@@ -254,6 +254,11 @@ $routes = [
     // Users endpoint for finding users to chat with
     '/api/users' => ['controller' => 'UserController', 'method' => 'getUsers', 'http_method' => 'GET'],
     
+    // Notification endpoints
+    '/api/notifications' => ['controller' => 'NotificationController', 'method' => 'handleRequest', 'http_method' => ['GET', 'PUT']],
+    '/api/notifications/{id}/read' => ['controller' => 'NotificationController', 'method' => 'handleRequest', 'http_method' => 'PUT'],
+    '/api/notifications/read-all' => ['controller' => 'NotificationController', 'method' => 'handleRequest', 'http_method' => 'PUT'],
+
     // Settings endpoints
     '/api/settings' => ['controller' => 'SettingsController', 'method' => 'getSettings', 'http_method' => 'GET'],
     '/api/settings/update' => ['controller' => 'SettingsController', 'method' => 'updateSettings', 'http_method' => 'POST'],

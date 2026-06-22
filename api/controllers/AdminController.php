@@ -745,7 +745,14 @@ class AdminController {
         try {
             $this->db->beginTransaction();
 
+            $statusChanged = false;
+            $oldActive = null;
             if ($isActive !== null) {
+                $stmt = $this->db->prepare("SELECT is_active FROM users WHERE id = ? AND role = 'seller'");
+                $stmt->execute([$vendorId]);
+                $oldActive = (int)$stmt->fetchColumn();
+                if ($oldActive !== $isActive) $statusChanged = true;
+
                 $stmt = $this->db->prepare("UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ? AND role = 'seller'");
                 $stmt->execute([$isActive, $vendorId]);
             }
@@ -753,6 +760,12 @@ class AdminController {
             if ($isApproved !== null) {
                 $stmt = $this->db->prepare("UPDATE sellers SET is_approved = ? WHERE user_id = ?");
                 $stmt->execute([$isApproved, $vendorId]);
+            }
+
+            if ($statusChanged) {
+                $statusText = $isActive ? 'active' : 'suspended';
+                $stmt = $this->db->prepare("INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'account_status', 'Account $statusText', 'Your seller account has been $statusText by admin.', '/seller')");
+                $stmt->execute([$vendorId]);
             }
 
             $this->db->commit();

@@ -152,6 +152,11 @@ class Database {
                 "CREATE TABLE IF NOT EXISTS deposit_logs (id INT AUTO_INCREMENT PRIMARY KEY, deposit_id INT NOT NULL, action VARCHAR(50) NOT NULL, actor_admin_id INT NULL, ip_address VARCHAR(64) NULL, user_agent VARCHAR(255) NULL, details LONGTEXT NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_dlog_deposit (deposit_id), INDEX idx_dlog_actor (actor_admin_id), CONSTRAINT fk_deposit_logs_deposit FOREIGN KEY (deposit_id) REFERENCES customer_deposits(id) ON DELETE CASCADE, CONSTRAINT fk_deposit_logs_actor FOREIGN KEY (actor_admin_id) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB"
             );
 
+            $ensureTable(
+                'notifications',
+                "CREATE TABLE IF NOT EXISTS notifications (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, type VARCHAR(50) NOT NULL DEFAULT 'info', title VARCHAR(255) NOT NULL, message TEXT NULL, link VARCHAR(255) NULL, is_read TINYINT(1) NOT NULL DEFAULT 0, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_notif_user (user_id), INDEX idx_notif_read (user_id, is_read), CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB"
+            );
+
             // Roles & Permissions tables
             $ensureTable(
                 'roles',

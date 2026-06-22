@@ -184,7 +184,7 @@ $routes = [
     '/api/seller/products/{id}' => ['controller' => 'ProductController', 'method' => 'handleRequest', 'http_method' => ['PUT', 'DELETE']],
     
     // Order endpoints
-    '/api/orders' => ['controller' => 'OrderController', 'method' => 'getCustomerOrders', 'http_method' => ['GET', 'POST']],
+    '/api/orders' => ['controller' => 'OrderController', 'method' => 'handleRequest', 'http_method' => ['GET', 'POST']],
     '/api/orders/stats' => ['controller' => 'OrderController', 'method' => 'getOrderStats', 'http_method' => 'GET'],
 
     // Wishlist endpoints

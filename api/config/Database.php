@@ -354,6 +354,25 @@ class Database {
                 $conn->exec("UPDATE categories SET is_active = CASE WHEN status = 'inactive' THEN 0 ELSE 1 END WHERE is_active NOT IN (0,1) OR is_active IS NULL");
             }
 
+            $seedCategories = [
+                'Electronics & Mobile Accessories',
+                'Fashion & Clothes',
+                'Footwear & Bags',
+                'Home & Kitchen',
+                'Beauty, Grooming & Personal Care',
+                'Grocery & Staples',
+                'Baby Care & Kids Toys',
+                'Auto Accessories & Industrial Supplies',
+                'Health & Wellness',
+            ];
+            foreach ($seedCategories as $catName) {
+                $stmt = $conn->prepare("SELECT id FROM categories WHERE name = ? LIMIT 1");
+                $stmt->execute([$catName]);
+                if (!$stmt->fetch()) {
+                    $conn->prepare("INSERT IGNORE INTO categories (name, is_active) VALUES (?, 1)")->execute([$catName]);
+                }
+            }
+
             $ensureColumn('sellers', 'user_id', 'user_id INT NULL');
             $ensureColumn('sellers', 'business_name', 'business_name VARCHAR(255) NULL');
             $ensureColumn('sellers', 'store_name', 'store_name VARCHAR(255) NULL');

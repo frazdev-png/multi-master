@@ -165,7 +165,7 @@ export default function SellerProductsPage() {
 
   const categoryOptions = useMemo<string[]>(() => {
     if (categories.length > 0) return categories
-    return ["Electronics", "Accessories", "Clothing", "Home & Kitchen"]
+    return ["Electronics & Mobile Accessories", "Fashion & Clothes", "Footwear & Bags", "Home & Kitchen", "Beauty, Grooming & Personal Care", "Grocery & Staples", "Baby Care & Kids Toys", "Auto Accessories & Industrial Supplies", "Health & Wellness"]
   }, [categories])
 
   // Filter products based on search and filters

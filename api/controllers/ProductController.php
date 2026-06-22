@@ -1080,6 +1080,13 @@ class ProductController {
                 $params[] = $data[$key];
             }
         }
+        if (!array_key_exists('category_id', $data) && !empty($data['category'])) {
+            $catId = $this->findCategoryId($data['category']);
+            if ($catId) {
+                $fields[] = "category_id = ?";
+                $params[] = $catId;
+            }
+        }
 
         if (array_key_exists('is_active', $data)) {
             $nextActive = (int)(!!$data['is_active']);

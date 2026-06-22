@@ -60,13 +60,24 @@ export default function ProductsManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [categories, setCategories] = useState<string[]>([])
 
   const [newProduct, setNewProduct] = useState({
     name: "",
     price: "",
     stock: 0,
     description: "",
+    category: "",
   })
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch("/api/backend/categories")
+      const data = await res.json().catch(() => null)
+      if (!res.ok) return
+      setCategories((data?.categories || []).map((c: any) => c.name).filter(Boolean))
+    } catch {}
+  }
 
   const loadProducts = async () => {
     try {
@@ -159,6 +170,7 @@ export default function ProductsManagement() {
         image_url: imageUrl,
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
         stock: Number(newProduct.stock ?? 0),
+        category: newProduct.category || undefined,
       }
 
       const res = await fetch("/api/backend/admin/products", {
@@ -172,7 +184,7 @@ export default function ProductsManagement() {
       }
 
       setIsAddDialogOpen(false)
-      setNewProduct({ name: "", price: "", stock: 0, description: "" })
+      setNewProduct({ name: "", price: "", stock: 0, description: "", category: "" })
       setAddImageFile(null)
       setAddImagePreview("")
       await loadProducts()
@@ -185,6 +197,7 @@ export default function ProductsManagement() {
 
   useEffect(() => {
     loadProducts()
+    loadCategories()
   }, [])
 
   const categoryOptions = useMemo(() => {
@@ -292,6 +305,7 @@ export default function ProductsManagement() {
         description: editingProduct.description,
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
         stock: Number(editingProduct.stock ?? 0),
+        category: editingProduct.category || undefined,
       }
       if (imageUrl && imageUrl !== "/placeholder.svg") {
         body.image_url = imageUrl
@@ -590,6 +604,17 @@ export default function ProductsManagement() {
                     onChange={(e) => setEditingProduct({...editingProduct, rating: e.target.value === "" ? "" : parseFloat(e.target.value)})}
                   />
                 </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Category</label>
+                  <select
+                    value={editingProduct.category}
+                    onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
+                    className="input w-full"
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((c) => (<option key={c} value={c}>{c}</option>))}
+                  </select>
+                </div>
                 <div className="col-span-2">
                   <label className="text-sm font-medium text-muted-foreground">Image</label>
                   <div className="flex items-center gap-3">
@@ -656,6 +681,17 @@ export default function ProductsManagement() {
                   value={newProduct.stock}
                   onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
                 />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Category</label>
+                <select
+                  value={newProduct.category}
+                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                  className="input w-full"
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((c) => (<option key={c} value={c}>{c}</option>))}
+                </select>
               </div>
               <div className="col-span-2">
                 <label className="text-sm font-medium text-muted-foreground">Image</label>

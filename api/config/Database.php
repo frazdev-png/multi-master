@@ -95,6 +95,11 @@ class Database {
                 'wishlist',
                 "CREATE TABLE IF NOT EXISTS wishlist (user_id INT NOT NULL, product_id INT NOT NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, product_id)) ENGINE=InnoDB"
             );
+            $this->ensureHealthyTable(
+                $conn,
+                'seller_products',
+                "CREATE TABLE IF NOT EXISTS seller_products (id INT AUTO_INCREMENT PRIMARY KEY, seller_id INT NOT NULL, product_id INT NOT NULL, custom_price DECIMAL(10,2) NULL, stock INT NULL, is_active TINYINT(1) NOT NULL DEFAULT 1, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_seller_product (seller_id, product_id), KEY idx_sp_seller (seller_id), KEY idx_sp_product (product_id)) ENGINE=InnoDB"
+            );
         } catch (Exception $e) {
         }
     }

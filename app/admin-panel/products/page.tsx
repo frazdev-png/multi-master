@@ -668,8 +668,12 @@ export default function ProductsManagement() {
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {categories.map((c) => (
+                        <SelectItem key={c} value={c} className="whitespace-normal break-words pr-8">
+                          {c}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -753,17 +757,21 @@ export default function ProductsManagement() {
                   onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Category</label>
-                <Select value={newProduct.category} onValueChange={(v) => setNewProduct({ ...newProduct, category: v })}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Category</label>
+                  <Select value={newProduct.category} onValueChange={(v) => setNewProduct({ ...newProduct, category: v })}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {categories.map((c) => (
+                        <SelectItem key={c} value={c} className="whitespace-normal break-words pr-8">
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-muted-foreground">Image</label>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">

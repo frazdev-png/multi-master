@@ -6,8 +6,10 @@ import { SellerHeader } from "@/components/seller/header"
 import { StatCard } from "@/components/admin/stat-card"
 import { Package, ShoppingCart, Wallet, Star } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { useRouter } from "next/navigation"
 
 export default function SellerDashboard() {
+  const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>("")
@@ -186,10 +188,10 @@ export default function SellerDashboard() {
             <div className="card">
               <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
               <div className="space-y-3">
-                <button className="w-full btn-primary">Add New Product</button>
-                <button className="w-full btn-secondary">View All Orders</button>
-                <button className="w-full btn-secondary">Withdraw Funds</button>
-                <button className="w-full btn-secondary">View Analytics</button>
+                <button className="w-full btn-primary" onClick={() => router.push('/seller/products')}>Add New Product</button>
+                <button className="w-full btn-secondary" onClick={() => router.push('/seller/orders')}>View All Orders</button>
+                <button className="w-full btn-secondary" onClick={() => router.push('/seller/wallet')}>Withdraw Funds</button>
+                <button className="w-full btn-secondary" onClick={() => router.push('/seller/analytics')}>View Analytics</button>
               </div>
             </div>
           </div>

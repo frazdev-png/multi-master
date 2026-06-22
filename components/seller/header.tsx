@@ -1,9 +1,10 @@
 "use client"
 
-import { Bell, User, Menu, X, CheckCircle, AlertTriangle, Info, XCircle } from "lucide-react"
+import { Bell, User, Menu, X, CheckCircle, AlertTriangle, Info, XCircle, LogOut } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
 import { useRouter } from "next/navigation"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface SellerHeaderProps {
   onMobileMenuToggle: () => void
@@ -26,7 +27,21 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [userEmail, setUserEmail] = useState("")
   const notifRef = useRef<HTMLDivElement>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("/api/backend/auth/me")
+        const data = await res.json().catch(() => null)
+        if (data?.user?.email) setUserEmail(data.user.email)
+      } catch {}
+    }
+    fetchUser()
+  }, [])
 
   const fetchNotifications = async () => {
     try {
@@ -36,9 +51,7 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
         setNotifications(data.notifications)
         setUnreadCount(data.unread_count || 0)
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   useEffect(() => {
@@ -52,6 +65,9 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setShowNotifDropdown(false)
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false)
+      }
     }
     document.addEventListener("mousedown", handleClick)
     return () => document.removeEventListener("mousedown", handleClick)
@@ -62,9 +78,7 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
       await fetch("/api/backend/notifications/read-all", { method: "PUT" })
       setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })))
       setUnreadCount(0)
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   const markOneRead = async (id: number) => {
@@ -72,9 +86,7 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
       await fetch(`/api/backend/notifications/${id}/read`, { method: "PUT" })
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n))
       setUnreadCount(prev => Math.max(0, prev - 1))
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   const getNotifIcon = (type: string) => {
@@ -85,6 +97,14 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
       case "error": return <XCircle className="h-4 w-4 text-red-500" />
       default: return <Info className="h-4 w-4 text-blue-500" />
     }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch {}
+    router.push("/auth/login")
+    router.refresh()
   }
 
   return (
@@ -146,10 +166,46 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
           )}
         </div>
 
-        <button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors">
-          <User size={20} className="text-muted-foreground" />
-          <span className="text-sm font-medium hidden sm:inline">Seller</span>
-        </button>
+        <div className="hidden sm:block">
+          <ThemeToggle />
+        </div>
+
+        <div className="relative ml-2 user-menu" ref={userMenuRef}>
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center gap-2 p-1 pr-3 rounded-full hover:bg-muted transition-colors"
+          >
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <User className="h-4 w-4" />
+            </div>
+            <span className="hidden sm:inline text-sm font-medium">Seller</span>
+          </button>
+
+          {showUserMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)}></div>
+              <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-card border border-border z-50">
+                <div className="px-4 py-3 border-b border-border">
+                  <p className="text-sm font-medium truncate">{userEmail || "Seller"}</p>
+                  <p className="text-xs text-muted-foreground">Seller</p>
+                </div>
+                <div className="p-1">
+                  <div className="flex items-center justify-between px-4 py-2 text-sm">
+                    <span>Theme</span>
+                    <ThemeToggle />
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </header>
   )

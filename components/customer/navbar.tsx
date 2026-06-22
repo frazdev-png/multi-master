@@ -3,8 +3,9 @@
 import Link from "next/link"
 import { ShoppingCart, Search, User, Heart, Menu, X, MessageCircle, LogOut } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 function resolvePublicImageUrl(src: string | undefined) {
   const raw = String(src || "").trim()
@@ -37,6 +38,9 @@ export function CustomerNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState<number>(0)
   const [wishlistCount, setWishlistCount] = useState<number>(0)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [userEmail, setUserEmail] = useState("")
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
     try {
@@ -84,10 +88,25 @@ export function CustomerNavbar() {
     const wishHandler = () => { loadWishlistCount() }
     window.addEventListener("cart:updated", handler)
     window.addEventListener("wishlist:updated", wishHandler)
+
+    fetch("/api/backend/auth/me").then(r => r.json()).then(d => {
+      if (d?.user?.email) setUserEmail(d.user.email)
+    }).catch(() => {})
+
     return () => {
       window.removeEventListener("cart:updated", handler)
       window.removeEventListener("wishlist:updated", wishHandler)
     }
+  }, [])
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
   }, [])
 
   return (
@@ -169,24 +188,54 @@ export function CustomerNavbar() {
               ) : null}
             </Link>
 
-            <Link
-              href="/customer"
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Account"
-            >
-              <User size={20} className="text-muted-foreground" />
-              <span className="hidden sm:inline font-medium">Account</span>
-            </Link>
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
 
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-              aria-label="Logout"
-              title="Logout"
-            >
-              <LogOut size={20} />
-              <span className="hidden sm:inline font-medium">Logout</span>
-            </button>
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 p-1 pr-3 rounded-full hover:bg-muted transition-colors"
+                aria-label="Account"
+              >
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <User className="h-4 w-4" />
+                </div>
+                <span className="hidden sm:inline text-sm font-medium">Account</span>
+              </button>
+
+              {showUserMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)}></div>
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-card border border-border z-50">
+                    <div className="px-4 py-3 border-b border-border">
+                      <p className="text-sm font-medium truncate">{userEmail || "Customer"}</p>
+                      <p className="text-xs text-muted-foreground">Customer</p>
+                    </div>
+                    <div className="p-1">
+                      <Link
+                        href="/customer"
+                        className="flex w-full items-center px-4 py-2 text-sm hover:bg-muted rounded"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        My Account
+                      </Link>
+                      <div className="flex items-center justify-between px-4 py-2 text-sm">
+                        <span>Theme</span>
+                        <ThemeToggle />
+                      </div>
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

@@ -102,8 +102,14 @@ export function CustomerNavbar() {
             </Link>
           </div>
 
-          <div className="hidden md:flex flex-1 mx-8 min-w-0">
-            <div className="relative w-full">
+          <div className="hidden md:flex items-center gap-6 flex-1 mx-8 min-w-0">
+            <Link href="/shop" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
+              Shop
+            </Link>
+            <Link href="/customer/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
+              Orders
+            </Link>
+            <div className="relative flex-1 max-w-md">
               <Search
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
                 size={18}

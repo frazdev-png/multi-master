@@ -306,6 +306,38 @@ class AdminController {
         }
     }
 
+    public function updateGlobalCommission() {
+        $user = $this->auth->authenticate('admin');
+        $data = $this->getJsonBody();
+        $rate = isset($data['rate']) ? (float)$data['rate'] : 0;
+
+        if ($rate < 0 || $rate > 100) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Commission rate must be between 0 and 100']);
+            return;
+        }
+
+        try {
+            $conn = $this->db->getConnection();
+
+            // Update commission_rate for all sellers
+            $stmt = $conn->prepare("UPDATE sellers SET commission_rate = ?");
+            $stmt->execute([$rate]);
+
+            // Also set default for future sellers
+            $stmt = $conn->prepare("ALTER TABLE sellers ALTER commission_rate SET DEFAULT ?");
+            $stmt->execute([$rate]);
+
+            echo json_encode(['success' => true, 'message' => 'Global commission rate updated to ' . $rate . '%']);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        } catch (Exception $e) {
+            // ALTER may fail on some MySQL versions, that's ok
+            echo json_encode(['success' => true, 'message' => 'Commission rate updated for all existing sellers']);
+        }
+    }
+
     public function listDeposits() {
         $user = $this->auth->authenticate('admin');
 
@@ -1197,6 +1229,11 @@ class AdminController {
 
             if (preg_match('#^/api/admin/deposits/(\d+)/approve$#', $path, $m)) {
                 $this->approveDeposit($m[1]);
+                return;
+            }
+
+            if (strpos($requestUri, '/api/admin/earnings/commission') !== false) {
+                $this->updateGlobalCommission();
                 return;
             }
 

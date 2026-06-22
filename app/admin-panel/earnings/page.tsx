@@ -217,10 +217,20 @@ export default function EarningsManagement() {
     }
   }
 
-  const handleUpdateCommission = () => {
-    if (confirm(`Update global commission rate to ${globalCommission}% for all vendors?`)) {
+  const handleUpdateCommission = async () => {
+    if (!confirm(`Update global commission rate to ${globalCommission}% for all vendors?`)) return
+    try {
+      const res = await fetch("/api/backend/admin/earnings/commission", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rate: globalCommission }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Failed to update commission")
       setVendors(vendors.map(vendor => ({ ...vendor, commission: globalCommission })))
       alert("Commission rates updated!")
+    } catch (e: any) {
+      alert("Error: " + (e?.message || "Failed to update commission"))
     }
   }
 
@@ -300,11 +310,16 @@ export default function EarningsManagement() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Global Commission Rate (%)</label>
-            <input type="number" defaultValue="10" className="admin-panel-search-input w-full" />
+            <input
+              type="number"
+              value={globalCommission}
+              onChange={(e) => setGlobalCommission(Number(e.target.value))}
+              className="admin-panel-search-input w-full"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Apply to All Categories</label>
-            <button className="admin-panel-btn-primary">Apply</button>
+            <button className="admin-panel-btn-primary" onClick={handleUpdateCommission}>Apply</button>
           </div>
         </div>
       </div>

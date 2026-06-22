@@ -292,6 +292,7 @@ class ProductController {
                     LEFT JOIN sellers ss ON ss.user_id = u.id
                     {$categoryJoin}
                     WHERE {$activeProduct} AND {$inStock}
+                      AND NOT EXISTS (SELECT 1 FROM users WHERE id = p.seller_id AND role = 'admin')
                 ";
 
                 $params = [];

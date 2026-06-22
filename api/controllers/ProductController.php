@@ -198,11 +198,20 @@ class ProductController {
     private function addColumnIfMissing($table, $column, $definition) {
         try {
             $this->db->prepare("SELECT {$column} FROM {$table} LIMIT 1")->execute();
+            // Column exists — update cache
+            if ($table === 'products' && is_array($this->productColumns)) {
+                $this->productColumns[$column] = true;
+            }
         } catch (PDOException $e) {
             if ($e->getCode() === '42S22' || strpos($e->getMessage(), 'Unknown column') !== false) {
                 try {
                     $this->db->prepare("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}")->execute();
+                    if ($table === 'products' && is_array($this->productColumns)) {
+                        $this->productColumns[$column] = true;
+                    }
+                    $this->validatedProductColumns[$column] = true;
                 } catch (PDOException $alterErr) {
+                    $this->validatedProductColumns[$column] = false;
                 }
             }
         }
@@ -215,7 +224,7 @@ class ProductController {
         }
 
         // Probe likely-to-differ columns to avoid runtime SQL crashes when schema is different
-        if (in_array($name, ['is_active', 'status', 'is_published'], true)) {
+        if (in_array($name, ['is_active', 'status', 'is_published', 'seller_profit'], true)) {
             return $this->probeProductColumn($name);
         }
 
@@ -325,6 +334,10 @@ class ProductController {
 
                 $this->ensureSellerProductsTable();
 
+                $hasSellerProfit = $this->hasProductColumn('seller_profit');
+                $priceExpr = $hasSellerProfit ? "(p.price + p.seller_profit)" : "p.price";
+                $selectSellerProfit = $hasSellerProfit ? "p.seller_profit," : "0 as seller_profit,";
+
                 $sql = "
                     SELECT 
                         p.id,
@@ -333,8 +346,8 @@ class ProductController {
                         p.image_url,
                         p.stock as admin_stock,
                         p.price as base_price,
-                        p.seller_profit,
-                        (p.price + p.seller_profit) as price,
+                        {$selectSellerProfit}
+                        {$priceExpr} as price,
                         sp.id as seller_product_id,
                         COALESCE(sp.stock, p.stock) as stock,
                         sp.seller_id,
@@ -370,12 +383,12 @@ class ProductController {
                 }
 
                 if ($minPrice > 0) {
-                    $sql .= " AND (p.price + p.seller_profit) >= ?";
+                    $sql .= " AND {$priceExpr} >= ?";
                     $params[] = $minPrice;
                 }
 
                 if ($maxPrice < 999999) {
-                    $sql .= " AND (p.price + p.seller_profit) <= ?";
+                    $sql .= " AND {$priceExpr} <= ?";
                     $params[] = $maxPrice;
                 }
 
@@ -389,7 +402,7 @@ class ProductController {
                 $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
 
                 if ($sortBy === 'price') {
-                    $sql .= " ORDER BY (p.price + p.seller_profit) {$order}";
+                    $sql .= " ORDER BY {$priceExpr} {$order}";
                 } elseif ($sortBy === 'rating') {
                     $sql .= " ORDER BY avg_rating {$order}";
                 } elseif ($sortBy === 'sales') {
@@ -493,8 +506,8 @@ class ProductController {
                     p.image_url,
                     p.stock as admin_stock,
                     p.price,
-                    p.seller_profit,
-                    (p.price + p.seller_profit) as final_price,
+                    " . ($this->hasProductColumn('seller_profit') ? "p.seller_profit," : "0 as seller_profit,") . "
+                    " . ($this->hasProductColumn('seller_profit') ? "(p.price + p.seller_profit) as final_price" : "p.price as final_price") . ",
                     p.is_active as admin_active,
                     {$categorySelect}
                 FROM seller_products sp
@@ -541,7 +554,7 @@ class ProductController {
                     'name' => $row['name'],
                     'price' => (float)$row['final_price'],
                     'base_price' => (float)$row['price'],
-                    'seller_profit' => (float)$row['seller_profit'],
+                    'seller_profit' => (float)($row['seller_profit'] ?? 0),
                     'stock' => $stock,
                     'admin_stock' => (int)$row['admin_stock'],
                     'category' => $row['category_name'] ?? '',
@@ -820,9 +833,11 @@ class ProductController {
         $values = [$sellerId, $name, $price, $stock];
 
         $this->ensureSellerProductsTable();
-        $columns[] = 'seller_profit';
-        $placeholders[] = '?';
-        $values[] = $sellerProfit;
+        if ($this->hasProductColumn('seller_profit')) {
+            $columns[] = 'seller_profit';
+            $placeholders[] = '?';
+            $values[] = $sellerProfit;
+        }
 
         if ($categoryId !== null && $this->hasProductColumn('category_id')) {
             $columns[] = 'category_id';
@@ -931,8 +946,10 @@ class ProductController {
 
         if (array_key_exists('seller_profit', $data)) {
             $this->ensureSellerProductsTable();
-            $fields[] = "seller_profit = ?";
-            $params[] = (float)$data['seller_profit'];
+            if ($this->hasProductColumn('seller_profit')) {
+                $fields[] = "seller_profit = ?";
+                $params[] = (float)$data['seller_profit'];
+            }
         }
 
         if (array_key_exists('is_active', $data)) {

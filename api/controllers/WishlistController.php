@@ -17,18 +17,43 @@ class WishlistController {
 
         try {
             $conn = $this->db->getConnection();
-            $stmt = $conn->prepare("
-                SELECT w.product_id, w.created_at as added_at,
-                       p.id, p.name, p.price, p.stock, p.image_url, p.seller_id,
-                       u.full_name as seller_name
-                FROM wishlist w
-                JOIN products p ON w.product_id = p.id
-                LEFT JOIN users u ON p.seller_id = u.id
-                WHERE w.user_id = ?
-                ORDER BY w.created_at DESC
-            ");
+            $stmt = $conn->prepare("SELECT product_id FROM wishlist WHERE user_id = ?");
             $stmt->execute([$userId]);
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $productIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            $items = [];
+            if (!empty($productIds)) {
+                $placeholders = implode(',', array_fill(0, count($productIds), '?'));
+                $stmt = $conn->prepare("
+                    SELECT p.id, p.name, p.price, p.stock, p.image_url, p.seller_id,
+                           u.full_name as seller_name
+                    FROM products p
+                    LEFT JOIN users u ON p.seller_id = u.id
+                    WHERE p.id IN ($placeholders)
+                ");
+                $stmt->execute($productIds);
+                $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $productMap = [];
+                foreach ($products as $p) {
+                    $productMap[$p['id']] = $p;
+                }
+
+                foreach ($productIds as $pid) {
+                    if (isset($productMap[$pid])) {
+                        $p = $productMap[$pid];
+                        $items[] = [
+                            'product_id' => $pid,
+                            'name' => $p['name'],
+                            'price' => $p['price'],
+                            'stock' => $p['stock'],
+                            'image_url' => $p['image_url'],
+                            'seller_id' => $p['seller_id'],
+                            'seller_name' => $p['seller_name'],
+                        ];
+                    }
+                }
+            }
 
             http_response_code(200);
             header('Content-Type: application/json');

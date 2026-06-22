@@ -11,13 +11,16 @@ export default function WishlistPage() {
   const router = useRouter()
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
   const fetchWishlist = async () => {
     try {
+      setError("")
       const res = await fetch("/api/backend/wishlist")
       const data = await res.json()
       if (data.success) setItems(data.items || [])
-    } catch {}
+      else setError(data.error || "Failed to load wishlist")
+    } catch { setError("Failed to load wishlist") }
     setLoading(false)
   }
 
@@ -50,6 +53,11 @@ export default function WishlistPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : error ? (
+          <div className="text-center py-20">
+            <p className="text-lg text-red-600 mb-4">{error}</p>
+            <button onClick={fetchWishlist} className="admin-panel-btn-primary">Retry</button>
+          </div>
         ) : items.length === 0 ? (
           <div className="text-center py-20">
             <Heart size={48} className="mx-auto mb-4 text-muted-foreground" />

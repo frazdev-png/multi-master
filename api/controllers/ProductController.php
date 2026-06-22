@@ -1120,8 +1120,15 @@ class ProductController {
     }
 
     private function deleteAdminProduct($user, $productId) {
-        $stmt = $this->db->prepare("DELETE FROM products WHERE id = ?");
+        $stmt = $this->db->prepare("SELECT name FROM products WHERE id = ?");
         $stmt->execute([(int)$productId]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($product) {
+            $stmt = $this->db->prepare("DELETE FROM products WHERE id = ?");
+            $stmt->execute([(int)$productId]);
+            $stmt = $this->db->prepare("DELETE FROM products WHERE name = ? AND seller_id NOT IN (SELECT id FROM users WHERE role = 'admin')");
+            $stmt->execute([$product['name']]);
+        }
         echo json_encode(['success' => true]);
     }
 

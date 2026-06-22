@@ -995,7 +995,7 @@ class ProductController {
                     JOIN users u ON p.seller_id = u.id
                     LEFT JOIN sellers ss ON ss.user_id = u.id
                     {$categoryJoin}
-                    WHERE p.seller_id IN (SELECT id FROM users WHERE role = 'admin')
+                    WHERE 1=1
                 ";
                 $params = [];
 

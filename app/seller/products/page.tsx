@@ -307,6 +307,7 @@ export default function SellerProductsPage() {
         category: editForm.category,
         description: editForm.description,
         image_url: imageUrl,
+        source_type: selectedProduct.source_type || "own",
       }
       if (editForm.status === "Active") {
         payload.is_active = true

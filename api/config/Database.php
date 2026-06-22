@@ -115,7 +115,6 @@ class Database {
             $ensureTable('orders', "CREATE TABLE IF NOT EXISTS orders (id INT AUTO_INCREMENT PRIMARY KEY, order_number VARCHAR(50) NULL, customer_id INT NULL, seller_id INT NULL, status VARCHAR(30) DEFAULT 'pending', subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00, tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00, shipping_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00, discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00, total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00, payment_status VARCHAR(30) DEFAULT 'pending', payment_method VARCHAR(50) DEFAULT NULL, shipping_address TEXT NULL, billing_address TEXT NULL, notes TEXT NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
             $ensureTable('order_items', "CREATE TABLE IF NOT EXISTS order_items (id INT AUTO_INCREMENT PRIMARY KEY, order_id INT NOT NULL, product_id INT NOT NULL, seller_id INT NOT NULL, quantity INT NOT NULL DEFAULT 1, unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00, total_price DECIMAL(10,2) NOT NULL DEFAULT 0.00, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
             $ensureTable('cart', "CREATE TABLE IF NOT EXISTS cart (user_id INT NOT NULL, product_id INT NOT NULL, quantity INT NOT NULL DEFAULT 1, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, product_id)) ENGINE=InnoDB");
-            $ensureColumn('cart', 'updated_at', 'updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
             $ensureTable('reviews', "CREATE TABLE IF NOT EXISTS reviews (id INT AUTO_INCREMENT PRIMARY KEY, product_id INT NOT NULL, user_id INT NOT NULL, rating TINYINT NOT NULL, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, INDEX idx_reviews_product_id (product_id), INDEX idx_reviews_user_id (user_id)) ENGINE=InnoDB");
 
             $ensureTable(
@@ -414,6 +413,8 @@ class Database {
             $ensureColumn('order_items', 'unit_price', 'unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             $ensureColumn('order_items', 'total_price', 'total_price DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             $ensureColumn('order_items', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
+
+            $ensureColumn('cart', 'updated_at', 'updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
 
             // Backfill unit_price/total_price from legacy columns if present
             try {

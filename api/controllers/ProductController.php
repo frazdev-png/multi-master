@@ -1120,8 +1120,15 @@ class ProductController {
     }
 
     private function deleteAdminProduct($user, $productId) {
-        $stmt = $this->db->prepare("DELETE FROM products WHERE id = ?");
-        $stmt->execute([(int)$productId]);
+        $productId = (int)$productId;
+        $this->db->prepare("DELETE FROM wishlist WHERE product_id = ?")->execute([$productId]);
+        $this->db->prepare("DELETE FROM cart WHERE product_id = ?")->execute([$productId]);
+        if ($this->hasProductColumn('is_active')) {
+            $this->db->prepare("UPDATE products SET is_active = 0" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ?")->execute([$productId]);
+        } else {
+            $this->db->prepare("DELETE FROM order_items WHERE product_id = ?")->execute([$productId]);
+            $this->db->prepare("DELETE FROM products WHERE id = ?")->execute([$productId]);
+        }
         echo json_encode(['success' => true]);
     }
 

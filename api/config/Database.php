@@ -405,6 +405,16 @@ class Database {
             $ensureColumn('orders', 'total_amount', 'total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             $ensureColumn('orders', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
             $ensureColumn('orders', 'updated_at', 'updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
+            $ensureColumn('orders', 'order_number', 'order_number VARCHAR(50) NULL');
+            $ensureColumn('orders', 'subtotal', 'subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('orders', 'tax_amount', 'tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('orders', 'shipping_amount', 'shipping_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('orders', 'discount_amount', 'discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('orders', 'payment_status', "payment_status VARCHAR(30) DEFAULT 'pending'");
+            $ensureColumn('orders', 'payment_method', 'payment_method VARCHAR(50) DEFAULT NULL');
+            $ensureColumn('orders', 'shipping_address', 'shipping_address TEXT NULL');
+            $ensureColumn('orders', 'billing_address', 'billing_address TEXT NULL');
+            $ensureColumn('orders', 'notes', 'notes TEXT NULL');
 
             $ensureColumn('order_items', 'order_id', 'order_id INT NULL');
             $ensureColumn('order_items', 'product_id', 'product_id INT NULL');

@@ -486,7 +486,7 @@ export default function SellerProductsPage() {
                           <tr key={product.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10 rounded-md overflow-hidden bg-gray-100 border border-gray-300">
+                                <div className="flex-shrink-0 h-14 w-14 rounded-md overflow-hidden bg-gray-100 border border-gray-300">
                                   {product.image_url ? (
                                     <img
                                       src={resolvePublicImageUrl(product.image_url) || "/placeholder.svg"}

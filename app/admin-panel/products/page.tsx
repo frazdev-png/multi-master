@@ -417,7 +417,7 @@ export default function ProductsManagement() {
                   <tr key={product.id} className="border-b border-border hover:bg-muted/50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                        <div className="w-14 h-14 bg-muted rounded-md flex items-center justify-center overflow-hidden">
                           {product.image ? (
                             <img
                               src={resolvePublicImageUrl(product.image) || "/placeholder.svg"}
@@ -494,6 +494,22 @@ export default function ProductsManagement() {
           </DialogHeader>
           {selectedProduct && (
             <div className="space-y-4">
+              {selectedProduct.image && (
+                <div className="flex justify-center">
+                  <div className="w-48 h-48 rounded-lg overflow-hidden border bg-muted">
+                    <img
+                      src={resolvePublicImageUrl(selectedProduct.image) || "/placeholder.svg"}
+                      alt={selectedProduct.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const el = e.currentTarget
+                        if (el.src.endsWith("/placeholder.svg")) return
+                        el.src = "/placeholder.svg"
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Product Name</label>

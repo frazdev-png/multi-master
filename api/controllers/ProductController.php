@@ -1123,13 +1123,15 @@ class ProductController {
         $productId = (int)$productId;
         $this->db->prepare("DELETE FROM wishlist WHERE product_id = ?")->execute([$productId]);
         $this->db->prepare("DELETE FROM cart WHERE product_id = ?")->execute([$productId]);
-        if ($this->hasProductColumn('is_active')) {
-            $this->db->prepare("UPDATE products SET is_active = 0" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ?")->execute([$productId]);
-        } else {
-            $this->db->prepare("DELETE FROM order_items WHERE product_id = ?")->execute([$productId]);
-            $this->db->prepare("DELETE FROM products WHERE id = ?")->execute([$productId]);
+        $this->db->prepare("DELETE FROM order_items WHERE product_id = ?")->execute([$productId]);
+        $stmt = $this->db->prepare("DELETE FROM products WHERE id = ?");
+        $stmt->execute([$productId]);
+        if ($stmt->rowCount() === 0) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Product not found']);
+            return;
         }
-        echo json_encode(['success' => true]);
+        echo json_encode(['success' => true, 'message' => 'Product permanently deleted']);
     }
 
     private function listAdminCategories($user) {

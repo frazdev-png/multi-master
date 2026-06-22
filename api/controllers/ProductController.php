@@ -178,9 +178,6 @@ class ProductController {
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     seller_id INT NOT NULL,
                     product_id INT NOT NULL,
-                    selling_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-                    base_price DECIMAL(10,2) DEFAULT 0.00,
-                    profit DECIMAL(10,2) DEFAULT 0.00,
                     stock INT DEFAULT NULL,
                     is_active TINYINT DEFAULT 1,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -189,12 +186,11 @@ class ProductController {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ")->execute();
 
-            // Migrate missing columns if table already existed with old schema
-            $this->addColumnIfMissing('seller_products', 'selling_price', "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
-            $this->addColumnIfMissing('seller_products', 'base_price', "DECIMAL(10,2) DEFAULT 0.00");
-            $this->addColumnIfMissing('seller_products', 'profit', "DECIMAL(10,2) DEFAULT 0.00");
             $this->addColumnIfMissing('seller_products', 'stock', "INT DEFAULT NULL");
             $this->addColumnIfMissing('seller_products', 'is_active', "TINYINT DEFAULT 1");
+
+            // Add seller_profit to products table for admin-set profit margin
+            $this->addColumnIfMissing('products', 'seller_profit', "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
         } catch (PDOException $e) {
         }
     }
@@ -336,12 +332,10 @@ class ProductController {
                         p.description,
                         p.image_url,
                         p.stock as admin_stock,
-                        p.price as base_admin_price,
-                        COALESCE(sp.selling_price, p.price) as price,
+                        p.price as base_price,
+                        p.seller_profit,
+                        (p.price + p.seller_profit) as price,
                         sp.id as seller_product_id,
-                        sp.selling_price,
-                        sp.base_price,
-                        sp.profit,
                         COALESCE(sp.stock, p.stock) as stock,
                         sp.seller_id,
                         u.full_name as seller_name,
@@ -376,12 +370,12 @@ class ProductController {
                 }
 
                 if ($minPrice > 0) {
-                    $sql .= " AND COALESCE(sp.selling_price, p.price) >= ?";
+                    $sql .= " AND (p.price + p.seller_profit) >= ?";
                     $params[] = $minPrice;
                 }
 
                 if ($maxPrice < 999999) {
-                    $sql .= " AND COALESCE(sp.selling_price, p.price) <= ?";
+                    $sql .= " AND (p.price + p.seller_profit) <= ?";
                     $params[] = $maxPrice;
                 }
 
@@ -395,7 +389,7 @@ class ProductController {
                 $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
 
                 if ($sortBy === 'price') {
-                    $sql .= " ORDER BY COALESCE(sp.selling_price, p.price) {$order}";
+                    $sql .= " ORDER BY (p.price + p.seller_profit) {$order}";
                 } elseif ($sortBy === 'rating') {
                     $sql .= " ORDER BY avg_rating {$order}";
                 } elseif ($sortBy === 'sales') {
@@ -490,9 +484,6 @@ class ProductController {
                 SELECT
                     sp.id as seller_product_id,
                     sp.product_id,
-                    sp.selling_price,
-                    sp.base_price as seller_base_price,
-                    sp.profit,
                     sp.stock as seller_stock,
                     sp.is_active as seller_active,
                     sp.created_at as added_at,
@@ -501,7 +492,9 @@ class ProductController {
                     p.description,
                     p.image_url,
                     p.stock as admin_stock,
-                    p.price as admin_price,
+                    p.price,
+                    p.seller_profit,
+                    (p.price + p.seller_profit) as final_price,
                     p.is_active as admin_active,
                     {$categorySelect}
                 FROM seller_products sp
@@ -541,19 +534,14 @@ class ProductController {
 
             $products = [];
             foreach ($rows as $row) {
-                $adminPrice = (float)$row['admin_price'];
-                $sellPrice = (float)$row['selling_price'];
-                $basePrice = (float)$row['seller_base_price'];
-                $profit = (float)$row['profit'];
                 $stock = $row['seller_stock'] !== null ? (int)$row['seller_stock'] : (int)$row['admin_stock'];
                 $products[] = [
                     'id' => (int)$row['seller_product_id'],
                     'product_id' => (int)$row['product_id'],
                     'name' => $row['name'],
-                    'price' => $sellPrice > 0 ? $sellPrice : $adminPrice,
-                    'selling_price' => $sellPrice > 0 ? $sellPrice : $adminPrice,
-                    'base_price' => $basePrice > 0 ? $basePrice : $adminPrice,
-                    'profit' => $profit > 0 ? $profit : ($sellPrice > 0 ? $sellPrice - $basePrice : 0),
+                    'price' => (float)$row['final_price'],
+                    'base_price' => (float)$row['price'],
+                    'seller_profit' => (float)$row['seller_profit'],
                     'stock' => $stock,
                     'admin_stock' => (int)$row['admin_stock'],
                     'category' => $row['category_name'] ?? '',
@@ -602,7 +590,7 @@ class ProductController {
                     'id' => (int)$row['id'],
                     'name' => $row['name'],
                     'price' => (float)$row['price'],
-                    'base_price' => isset($row['base_price']) ? (float)$row['base_price'] : 0,
+                    'seller_profit' => isset($row['seller_profit']) ? (float)$row['seller_profit'] : 0,
                     'stock' => (int)($row['stock'] ?? ($row['quantity'] ?? 0)),
                     'category' => $row['category_name'] ?? '',
                     'status' => $this->normalizeProductStatus($row),
@@ -625,22 +613,16 @@ class ProductController {
         $data = $this->getJsonBody();
         $this->ensureSellerProductsTable();
 
-        $stmt = $this->db->prepare("SELECT sp.*, p.price as admin_price FROM seller_products sp JOIN products p ON p.id = sp.product_id WHERE sp.id = ? AND sp.seller_id = ?");
+        $stmt = $this->db->prepare("SELECT id FROM seller_products WHERE id = ? AND seller_id = ?");
         $stmt->execute([(int)$sellerProductId, $user['id']]);
-        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$existing) {
+        if (!$stmt->fetch()) {
             http_response_code(404);
             echo json_encode(['error' => 'Product not found in your store']);
             return;
         }
 
-        $adminPrice = (float)$existing['admin_price'];
-        $sellingPrice = isset($data['selling_price']) ? (float)$data['selling_price'] : (float)$existing['selling_price'];
-        $basePrice = isset($data['base_price']) ? (float)$data['base_price'] : (float)$existing['base_price'];
-        $profit = $sellingPrice - $basePrice;
-
-        $fields = ["selling_price = ?", "base_price = ?", "profit = ?"];
-        $params = [$sellingPrice, $basePrice, $profit];
+        $fields = [];
+        $params = [];
 
         if (array_key_exists('stock', $data)) {
             $fields[] = "stock = ?";
@@ -651,10 +633,15 @@ class ProductController {
             $params[] = (int)(!!$data['is_active']);
         }
 
+        if (empty($fields)) {
+            echo json_encode(['success' => true, 'message' => 'No changes']);
+            return;
+        }
+
         $params[] = (int)$sellerProductId;
         $this->db->prepare("UPDATE seller_products SET " . implode(', ', $fields) . " WHERE id = ?")->execute($params);
 
-        echo json_encode(['success' => true, 'message' => 'Pricing updated']);
+        echo json_encode(['success' => true, 'message' => 'Product updated']);
     }
 
     private function attachProductToStore($user) {
@@ -667,7 +654,7 @@ class ProductController {
         }
         $this->ensureSellerProductsTable();
 
-        $stmt = $this->db->prepare("SELECT id, name, price FROM products WHERE id = ? AND seller_id IN (SELECT id FROM users WHERE role = 'admin')");
+        $stmt = $this->db->prepare("SELECT id, name FROM products WHERE id = ? AND seller_id IN (SELECT id FROM users WHERE role = 'admin')");
         $stmt->execute([$productId]);
         $adminProduct = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$adminProduct) {
@@ -684,21 +671,13 @@ class ProductController {
             return;
         }
 
-        $adminPrice = (float)$adminProduct['price'];
-        $sellingPrice = isset($data['selling_price']) ? (float)$data['selling_price'] : $adminPrice;
-        $basePrice = isset($data['base_price']) ? (float)$data['base_price'] : $adminPrice;
-        $profit = $sellingPrice - $basePrice;
-
         $stmt = $this->db->prepare("
-            INSERT INTO seller_products (seller_id, product_id, selling_price, base_price, profit, stock, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO seller_products (seller_id, product_id, stock, is_active)
+            VALUES (?, ?, ?, 1)
         ");
         $stmt->execute([
             $user['id'],
             (int)$productId,
-            $sellingPrice,
-            $basePrice,
-            $profit,
             isset($data['stock']) ? (int)$data['stock'] : null
         ]);
         $newId = (int)$this->db->lastInsertId();
@@ -834,10 +813,16 @@ class ProductController {
             }
         }
         $isActive = isset($data['is_active']) ? (int)(!!$data['is_active']) : 1;
+        $sellerProfit = isset($data['seller_profit']) ? (float)$data['seller_profit'] : 0;
 
         $columns = ['seller_id', 'name', 'price', 'stock'];
         $placeholders = ['?', '?', '?', '?'];
         $values = [$sellerId, $name, $price, $stock];
+
+        $this->ensureSellerProductsTable();
+        $columns[] = 'seller_profit';
+        $placeholders[] = '?';
+        $values[] = $sellerProfit;
 
         if ($categoryId !== null && $this->hasProductColumn('category_id')) {
             $columns[] = 'category_id';
@@ -944,12 +929,10 @@ class ProductController {
             }
         }
 
-        if (array_key_exists('base_price', $data)) {
-            $this->ensureBasePriceColumn();
-            if ($this->hasProductColumn('base_price')) {
-                $fields[] = "base_price = ?";
-                $params[] = (float)$data['base_price'];
-            }
+        if (array_key_exists('seller_profit', $data)) {
+            $this->ensureSellerProductsTable();
+            $fields[] = "seller_profit = ?";
+            $params[] = (float)$data['seller_profit'];
         }
 
         if (array_key_exists('is_active', $data)) {

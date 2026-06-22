@@ -38,7 +38,6 @@ interface Product {
   id: number
   name: string
   price: number
-  base_price: number
   stock: number
   category: string
   status: "Active" | "Inactive" | "Out of Stock"
@@ -67,8 +66,6 @@ export default function SellerProductsPage() {
   const [adoptLoading, setAdoptLoading] = useState<number | null>(null)
 
   const [editForm, setEditForm] = useState({
-    selling_price: "",
-    base_price: "",
     stock: "",
     status: "Active" as Product["status"],
   })
@@ -93,7 +90,6 @@ export default function SellerProductsPage() {
         id: Number(p.id),
         name: p.name,
         price: Number(p.price),
-        base_price: Number(p.base_price ?? 0),
         stock: Number(p.stock),
         category: p.category || "",
         status: isActive ? "Active" : "Inactive",
@@ -129,7 +125,6 @@ export default function SellerProductsPage() {
         id: Number(p.id),
         name: p.name,
         price: Number(p.price),
-        base_price: Number(p.base_price ?? 0),
         stock: Number(p.stock),
         category: p.category || "",
         status: "Active" as Product["status"],
@@ -169,8 +164,6 @@ export default function SellerProductsPage() {
   const handleEdit = (product: Product) => {
     setSelectedProduct(product)
     setEditForm({
-      selling_price: String(product.price),
-      base_price: String(product.base_price || 0),
       stock: String(product.stock),
       status: product.status,
     })
@@ -215,8 +208,6 @@ export default function SellerProductsPage() {
       setError("")
 
       const payload: any = {
-        selling_price: Number(editForm.selling_price),
-        base_price: Number(editForm.base_price),
         stock: Number(editForm.stock),
       }
       if (editForm.status === "Active") {
@@ -499,12 +490,6 @@ export default function SellerProductsPage() {
                         <h3 className="text-sm font-medium text-gray-900 truncate">{product.name}</h3>
                         <p className="text-sm text-gray-500 mt-1">{product.category}</p>
                         <p className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(product.price)}</p>
-                        {product.base_price > 0 && (
-                          <div className="mt-1 text-xs space-y-0.5">
-                            <p className="text-gray-500">Your cost: <span className="font-medium">{formatCurrency(product.base_price)}</span></p>
-                            <p className="text-green-600 font-medium">Your profit: +{formatCurrency(product.price - product.base_price)}</p>
-                          </div>
-                        )}
                         <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}</p>
                         <div className="mt-auto pt-3">
                           <Button size="sm" className="w-full" onClick={() => handleAttach(product)} disabled={adoptLoading === product.id}>
@@ -530,10 +515,10 @@ export default function SellerProductsPage() {
       {/* Edit Product Modal */}
       {showEditModal && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Edit Pricing & Status</h3>
+                <h3 className="text-lg font-medium text-gray-900">Edit Stock & Status</h3>
                 <button
                   type="button"
                   className="text-gray-400 hover:text-gray-500"
@@ -547,67 +532,35 @@ export default function SellerProductsPage() {
               </div>
               <p className="text-sm text-gray-500 mb-4">Product: <strong>{selectedProduct.name}</strong></p>
               
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="edit-selling-price" className="block text-sm font-medium text-gray-700">
-                      Selling Price (USDT) <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="number"
-                      id="edit-selling-price"
-                      className="mt-1 block w-full"
-                      min="0"
-                      step="0.01"
-                      value={editForm.selling_price}
-                      onChange={(e) => setEditForm((p) => ({ ...p, selling_price: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="edit-base-price" className="block text-sm font-medium text-gray-700">
-                      Your Cost (base price)
-                    </label>
-                    <Input
-                      type="number"
-                      id="edit-base-price"
-                      className="mt-1 block w-full"
-                      min="0"
-                      step="0.01"
-                      value={editForm.base_price}
-                      onChange={(e) => setEditForm((p) => ({ ...p, base_price: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="edit-stock" className="block text-sm font-medium text-gray-700">
-                      Stock Quantity <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="number"
-                      id="edit-stock"
-                      className="mt-1 block w-full"
-                      min="0"
-                      value={editForm.stock}
-                      onChange={(e) => setEditForm((p) => ({ ...p, stock: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="edit-status" className="block text-sm font-medium text-gray-700">
-                      Status <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="edit-status"
-                      className="input mt-1 block w-full"
-                      value={editForm.status}
-                      onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value as Product["status"] }))}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Out of Stock">Out of Stock</option>
-                    </select>
-                  </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label htmlFor="edit-stock" className="block text-sm font-medium text-gray-700">
+                    Stock Quantity <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    id="edit-stock"
+                    className="mt-1 block w-full"
+                    min="0"
+                    value={editForm.stock}
+                    onChange={(e) => setEditForm((p) => ({ ...p, stock: e.target.value }))}
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="edit-status" className="block text-sm font-medium text-gray-700">
+                    Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="edit-status"
+                    className="input mt-1 block w-full"
+                    value={editForm.status}
+                    onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value as Product["status"] }))}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Out of Stock">Out of Stock</option>
+                  </select>
                 </div>
               </div>
               
@@ -646,7 +599,7 @@ export default function SellerProductsPage() {
                 </button>
               </div>
               <p className="text-sm text-gray-500 mb-4">
-                Adding <strong>{attachProduct.name}</strong> to your store with default pricing.
+                Adding <strong>{attachProduct.name}</strong> to your store.
                 You can adjust pricing later.
               </p>
               <div className="flex justify-end space-x-3">

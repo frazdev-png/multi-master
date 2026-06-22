@@ -180,6 +180,8 @@ $routes = [
     '/api/categories' => ['controller' => 'ProductController', 'method' => 'getCategories', 'http_method' => 'GET'],
 
     // Seller product management
+    '/api/seller/products/admin-catalog' => ['controller' => 'ProductController', 'method' => 'handleRequest', 'http_method' => 'GET'],
+    '/api/seller/products/{id}/adopt' => ['controller' => 'ProductController', 'method' => 'handleRequest', 'http_method' => 'POST'],
     '/api/seller/products' => ['controller' => 'ProductController', 'method' => 'handleRequest', 'http_method' => ['GET', 'POST']],
     '/api/seller/products/{id}' => ['controller' => 'ProductController', 'method' => 'handleRequest', 'http_method' => ['PUT', 'DELETE']],
     

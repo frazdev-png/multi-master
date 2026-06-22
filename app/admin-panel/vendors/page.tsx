@@ -29,11 +29,9 @@ interface Vendor {
   lastActive: string;
   commission: number;
   paymentMethod: string;
-  documents: {
-    idVerified: boolean;
-    businessLicense: boolean;
-    taxId: boolean;
-  };
+  document_type: string;
+  id_front_image_url: string | null;
+  id_back_image_url: string | null;
   performance: {
     avgResponseTime: string;
     fulfillmentRate: number;
@@ -89,7 +87,9 @@ export default function VendorsManagement() {
           lastActive,
           commission: Number(v.commission ?? 10),
           paymentMethod: "",
-          documents: { idVerified: false, businessLicense: false, taxId: false },
+          document_type: v.document_type || "identity-card",
+          id_front_image_url: v.id_front_image_url || null,
+          id_back_image_url: v.id_back_image_url || null,
           performance: { avgResponseTime: "", fulfillmentRate: 0, returnRate: 0, customerSatisfaction: 0 },
         }
       })
@@ -553,31 +553,97 @@ export default function VendorsManagement() {
                 </div>
               </TabsContent>
               
-              <TabsContent value="documents" className="space-y-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">ID Verification</label>
-                      <p className="text-sm text-muted-foreground">Government-issued ID verification</p>
-                    </div>
-                    <Switch checked={selectedVendor.documents.idVerified} />
+              <TabsContent value="documents" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Document Type</label>
+                <p className="font-semibold capitalize mt-1">
+                  {selectedVendor.document_type === "identity-card" ? "Identity Card" :
+                   selectedVendor.document_type === "driving-license" ? "Driving License" :
+                   selectedVendor.document_type === "passport" ? "Passport" :
+                   selectedVendor.document_type}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                  {selectedVendor.document_type === "passport" ? "Passport Image" : "ID Front Image"}
+                </label>
+                {selectedVendor.id_front_image_url ? (
+                  <div className="relative group">
+                    <img
+                      src={selectedVendor.id_front_image_url}
+                      alt="ID Front"
+                      className="w-full rounded-lg border border-border object-cover max-h-64"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
+                    />
+                    <a
+                      href={selectedVendor.id_front_image_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute top-2 right-2 bg-background/80 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Eye size={16} />
+                    </a>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Business License</label>
-                      <p className="text-sm text-muted-foreground">Valid business license document</p>
-                    </div>
-                    <Switch checked={selectedVendor.documents.businessLicense} />
+                ) : (
+                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center text-muted-foreground">
+                    <FileText size={32} className="mx-auto mb-2" />
+                    <p className="text-sm">No document uploaded</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Tax ID</label>
-                      <p className="text-sm text-muted-foreground">Tax identification number</p>
+                )}
+              </div>
+
+              {selectedVendor.document_type !== "passport" && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">ID Back Image</label>
+                  {selectedVendor.id_back_image_url ? (
+                    <div className="relative group">
+                      <img
+                        src={selectedVendor.id_back_image_url}
+                        alt="ID Back"
+                        className="w-full rounded-lg border border-border object-cover max-h-64"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
+                      />
+                      <a
+                        href={selectedVendor.id_back_image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute top-2 right-2 bg-background/80 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Eye size={16} />
+                      </a>
                     </div>
-                    <Switch checked={selectedVendor.documents.taxId} />
-                  </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-border rounded-lg p-8 text-center text-muted-foreground">
+                      <FileText size={32} className="mx-auto mb-2" />
+                      <p className="text-sm">No document uploaded</p>
+                    </div>
+                  )}
                 </div>
-              </TabsContent>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                {selectedVendor.id_front_image_url ? (
+                  <CheckCircle size={20} className="text-green-600" />
+                ) : (
+                  <AlertCircle size={20} className="text-orange-500" />
+                )}
+                <div>
+                  <p className="text-sm font-medium">Verification Status</p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedVendor.id_front_image_url
+                      ? "Documents uploaded — review and verify"
+                      : "No documents uploaded by seller"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
               
               <TabsContent value="financial" className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">

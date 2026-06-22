@@ -1,5 +1,22 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+async function uploadFile(file: File, apiBaseUrl: string): Promise<string | null> {
+  try {
+    const fd = new FormData()
+    fd.append("type", "document")
+    fd.append("file", file)
+    const res = await fetch(`${apiBaseUrl}/api/settings/upload`, {
+      method: "POST",
+      body: fd,
+    })
+    const data = await res.json()
+    if (data?.success && data?.url) return data.url
+    return null
+  } catch {
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -9,12 +26,10 @@ export async function POST(request: NextRequest) {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    // Validate basic fields
     if (!fullName || !email || !password) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Validate password length
     if (password.length < 8) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 })
     }
@@ -33,6 +48,7 @@ export async function POST(request: NextRequest) {
       const promoCode = (formData.get("promoCode") as string) || ""
       const mobileNumber = formData.get("mobileNumber") as string
       const username = formData.get("username") as string
+      const documentType = (formData.get("documentType") as string) || "identity-card"
 
       payload.phone = mobileNumber
 
@@ -40,6 +56,22 @@ export async function POST(request: NextRequest) {
       payload.store_name = storeName || username || `store_${Date.now()}`
       payload.cnic_number = username || `${Date.now()}`
       payload.promo_code = promoCode
+      payload.document_type = documentType
+
+      // Upload document images
+      const idFrontFile = formData.get("idFrontImage") as File | null
+      const idBackFile = formData.get("idBackImage") as File | null
+      const passportFile = formData.get("passportImage") as File | null
+
+      if (idFrontFile?.size && idFrontFile.size > 0) {
+        payload.id_front_image_url = await uploadFile(idFrontFile, apiBaseUrl)
+      }
+      if (idBackFile?.size && idBackFile.size > 0) {
+        payload.id_back_image_url = await uploadFile(idBackFile, apiBaseUrl)
+      }
+      if (passportFile?.size && passportFile.size > 0) {
+        payload.id_front_image_url = await uploadFile(passportFile, apiBaseUrl)
+      }
     }
 
     const apiResponse = await fetch(`${apiBaseUrl}/api/auth/register`, {

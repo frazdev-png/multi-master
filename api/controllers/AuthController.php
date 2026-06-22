@@ -140,7 +140,10 @@ class AuthController {
                 'bank_name' => $data['bank_name'] ?? null,
                 'account_number' => $data['account_number'] ?? null,
                 'account_holder_name' => $data['account_holder_name'] ?? null,
-                'cnic_document_url' => $data['cnic_document_url'] ?? null
+                'cnic_document_url' => $data['cnic_document_url'] ?? null,
+                'document_type' => $data['document_type'] ?? 'identity-card',
+                'id_front_image_url' => $data['id_front_image_url'] ?? null,
+                'id_back_image_url' => $data['id_back_image_url'] ?? null
             ];
             
             $data['seller_data'] = $sellerData;

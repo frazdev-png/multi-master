@@ -42,7 +42,7 @@ class SettingsController {
                 return;
             }
 
-            $allowedTypes = ['logo', 'favicon', 'homepage_banner', 'product', 'chat'];
+            $allowedTypes = ['logo', 'favicon', 'homepage_banner', 'product', 'chat', 'document'];
             if (!in_array($type, $allowedTypes, true)) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'message' => 'Invalid type']);

@@ -833,6 +833,9 @@ class AdminController {
                     s.store_address,
                     s.is_approved,
                     s.commission_rate,
+                    s.document_type,
+                    s.id_front_image_url,
+                    s.id_back_image_url,
                     (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.id AND {$activeProduct}) as products,
                     (SELECT COUNT(*) FROM orders o WHERE o.seller_id = u.id) as orders,
                     (SELECT COALESCE(SUM(o.total_amount),0) FROM orders o WHERE o.seller_id = u.id AND o.status != 'cancelled') as earnings
@@ -904,6 +907,9 @@ class AdminController {
                     'commission' => (float)($v['commission_rate'] ?? 10.0),
                     'joinDate' => $v['created_at'],
                     'lastActive' => $v['last_seen'],
+                    'document_type' => $v['document_type'] ?? 'identity-card',
+                    'id_front_image_url' => $v['id_front_image_url'] ?? null,
+                    'id_back_image_url' => $v['id_back_image_url'] ?? null,
                 ];
             }
 

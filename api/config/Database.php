@@ -382,6 +382,9 @@ class Database {
             $ensureColumn('sellers', 'store_address', 'store_address TEXT');
             $ensureColumn('sellers', 'tax_number', 'tax_number VARCHAR(50) NULL');
             $ensureColumn('sellers', 'cnic_document_url', 'cnic_document_url VARCHAR(255) DEFAULT NULL');
+            $ensureColumn('sellers', 'document_type', "document_type VARCHAR(30) DEFAULT 'identity-card'");
+            $ensureColumn('sellers', 'id_front_image_url', 'id_front_image_url VARCHAR(255) DEFAULT NULL');
+            $ensureColumn('sellers', 'id_back_image_url', 'id_back_image_url VARCHAR(255) DEFAULT NULL');
             $ensureColumn('sellers', 'bank_name', 'bank_name VARCHAR(100) DEFAULT NULL');
             $ensureColumn('sellers', 'account_number', 'account_number VARCHAR(50) DEFAULT NULL');
             $ensureColumn('sellers', 'account_holder_name', 'account_holder_name VARCHAR(255) DEFAULT NULL');

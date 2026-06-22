@@ -188,7 +188,27 @@ class ProductController {
                     UNIQUE KEY unique_seller_product (seller_id, product_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ")->execute();
+
+            // Migrate missing columns if table already existed with old schema
+            $this->addColumnIfMissing('seller_products', 'selling_price', "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+            $this->addColumnIfMissing('seller_products', 'base_price', "DECIMAL(10,2) DEFAULT 0.00");
+            $this->addColumnIfMissing('seller_products', 'profit', "DECIMAL(10,2) DEFAULT 0.00");
+            $this->addColumnIfMissing('seller_products', 'stock', "INT DEFAULT NULL");
+            $this->addColumnIfMissing('seller_products', 'is_active', "TINYINT DEFAULT 1");
         } catch (PDOException $e) {
+        }
+    }
+
+    private function addColumnIfMissing($table, $column, $definition) {
+        try {
+            $this->db->prepare("SELECT {$column} FROM {$table} LIMIT 1")->execute();
+        } catch (PDOException $e) {
+            if ($e->getCode() === '42S22' || strpos($e->getMessage(), 'Unknown column') !== false) {
+                try {
+                    $this->db->prepare("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}")->execute();
+                } catch (PDOException $alterErr) {
+                }
+            }
         }
     }
 

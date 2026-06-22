@@ -1228,6 +1228,7 @@ class ProductController {
         $productId = (int)$productId;
         $this->db->prepare("DELETE FROM wishlist WHERE product_id = ?")->execute([$productId]);
         $this->db->prepare("DELETE FROM cart WHERE product_id = ?")->execute([$productId]);
+        $this->db->prepare("DELETE FROM order_items WHERE product_id = ?")->execute([$productId]);
         $this->db->prepare("DELETE FROM seller_products WHERE product_id = ?")->execute([$productId]);
         $this->db->prepare("DELETE FROM products WHERE id = ?")->execute([$productId]);
         echo json_encode(['success' => true]);

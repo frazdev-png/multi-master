@@ -490,6 +490,145 @@ class ProductController {
         }
     }
 
+    private function listAdminCatalog($user) {
+        try {
+            $rows = $this->runWithIsActiveFallback(function () {
+                $stockSelect = $this->stockSelectExpr('p');
+                $categoryJoin = '';
+                $categorySelect = "'' as category_name";
+                if ($this->hasProductColumn('category_id')) {
+                    $categoryJoin = 'LEFT JOIN categories c ON p.category_id = c.id';
+                    $categorySelect = 'c.name as category_name';
+                }
+
+                $sql = "
+                    SELECT p.*, {$stockSelect}, {$categorySelect}
+                    FROM products p
+                    {$categoryJoin}
+                    WHERE p.seller_id IN (SELECT id FROM users WHERE role = 'admin')
+                      AND " . $this->activeProductCondition('p') . "
+                ";
+
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute();
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            });
+
+            $products = [];
+            foreach ($rows as $row) {
+                $products[] = [
+                    'id' => (int)$row['id'],
+                    'name' => $row['name'],
+                    'price' => (float)$row['price'],
+                    'stock' => (int)($row['stock'] ?? ($row['quantity'] ?? 0)),
+                    'category' => $row['category_name'] ?? '',
+                    'status' => $this->normalizeProductStatus($row),
+                    'is_active' => isset($row['is_active']) ? (int)$row['is_active'] : 1,
+                    'created_at' => $row['created_at'],
+                    'image_url' => $row['image_url'] ?? null,
+                    'description' => $row['description'] ?? ''
+                ];
+            }
+
+            header('Content-Type: application/json');
+            echo json_encode(['products' => $products]);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
+    private function adoptAdminProduct($user, $productId) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT p.*, u.role
+                FROM products p
+                JOIN users u ON p.seller_id = u.id
+                WHERE p.id = ? AND u.role = 'admin' LIMIT 1
+            ");
+            $stmt->execute([$productId]);
+            $adminProduct = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$adminProduct) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Admin product not found']);
+                return;
+            }
+
+            $stmt = $this->db->prepare("SELECT id FROM products WHERE seller_id = ? AND name = ? LIMIT 1");
+            $stmt->execute([$user['id'], $adminProduct['name']]);
+            if ($stmt->fetch()) {
+                http_response_code(409);
+                echo json_encode(['error' => 'You already have a product with this name']);
+                return;
+            }
+
+            $columns = ['seller_id', 'name', 'price'];
+            $placeholders = ['?', '?', '?'];
+            $values = [$user['id'], $adminProduct['name'], $adminProduct['price']];
+
+            $stockCol = $this->stockColumnName();
+            $stockValue = (int)($adminProduct['stock'] ?? ($adminProduct['quantity'] ?? 0));
+            if ($stockCol) {
+                $columns[] = $stockCol;
+                $placeholders[] = '?';
+                $values[] = $stockValue;
+            }
+
+            if ($this->hasProductColumn('category_id') && !empty($adminProduct['category_id'])) {
+                $columns[] = 'category_id';
+                $placeholders[] = '?';
+                $values[] = $adminProduct['category_id'];
+            }
+
+            if ($this->hasProductColumn('description')) {
+                $columns[] = 'description';
+                $placeholders[] = '?';
+                $values[] = $adminProduct['description'];
+            }
+
+            if ($this->hasProductColumn('image_url')) {
+                $columns[] = 'image_url';
+                $placeholders[] = '?';
+                $values[] = $adminProduct['image_url'];
+            }
+
+            if ($this->hasProductColumn('is_active')) {
+                $columns[] = 'is_active';
+                $placeholders[] = '?';
+                $values[] = 1;
+            } elseif ($this->hasProductColumn('status')) {
+                $columns[] = 'status';
+                $placeholders[] = '?';
+                $values[] = 'active';
+            } elseif ($this->hasProductColumn('is_published')) {
+                $columns[] = 'is_published';
+                $placeholders[] = '?';
+                $values[] = 1;
+            }
+
+            if ($this->hasProductColumn('created_at')) {
+                $columns[] = 'created_at';
+                $placeholders[] = 'NOW()';
+            }
+            if ($this->hasProductColumn('updated_at')) {
+                $columns[] = 'updated_at';
+                $placeholders[] = 'NOW()';
+            }
+
+            $sql = "INSERT INTO products (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($values);
+            $newId = (int)$this->db->lastInsertId();
+
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'product_id' => $newId, 'message' => 'Product added to your store']);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
     private function createSellerProduct($user) {
         $data = $this->getJsonBody();
         $name = trim($data['name'] ?? '');
@@ -1227,6 +1366,14 @@ class ProductController {
 
         if (strpos($path, '/api/seller/products') === 0) {
             $user = $this->auth->authenticate('seller');
+            if ($method === 'GET' && strpos($path, '/api/seller/products/admin-catalog') !== false) {
+                $this->listAdminCatalog($user);
+                return;
+            }
+            if ($method === 'POST' && preg_match('/\/api\/seller\/products\/(\d+)\/adopt/', $path, $m)) {
+                $this->adoptAdminProduct($user, $m[1]);
+                return;
+            }
             if ($method === 'GET') {
                 $this->listSellerProducts($user);
                 return;

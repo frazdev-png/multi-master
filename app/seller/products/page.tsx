@@ -50,6 +50,8 @@ export default function SellerProductsPage() {
   const [categories, setCategories] = useState<string[]>([])
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [showAdminCatalog, setShowAdminCatalog] = useState(false)
+  const [adminCatalog, setAdminCatalog] = useState<Product[]>([])
 
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -60,6 +62,7 @@ export default function SellerProductsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [adoptLoading, setAdoptLoading] = useState<number | null>(null)
 
   const [addForm, setAddForm] = useState({
     name: "",
@@ -130,10 +133,35 @@ export default function SellerProductsPage() {
     }
   }
 
+  const loadAdminCatalog = async () => {
+    try {
+      const res = await fetch("/api/backend/seller/products/admin-catalog")
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || "Failed to load admin catalog")
+      const mapped = (data?.products || []).map((p: any) => ({
+        id: Number(p.id),
+        name: p.name,
+        price: Number(p.price),
+        stock: Number(p.stock),
+        category: p.category || "",
+        status: "Active" as Product["status"],
+        createdAt: p.created_at ? new Date(p.created_at).toISOString().slice(0, 10) : "",
+        image_url: p.image_url,
+      }))
+      setAdminCatalog(mapped)
+    } catch {
+      setAdminCatalog([])
+    }
+  }
+
   useEffect(() => {
     loadProducts()
     loadCategories()
   }, [])
+
+  useEffect(() => {
+    if (showAdminCatalog) loadAdminCatalog()
+  }, [showAdminCatalog])
 
   const categoryOptions = useMemo<string[]>(() => {
     if (categories.length > 0) return categories
@@ -302,6 +330,22 @@ export default function SellerProductsPage() {
     }
   }
 
+  const handleAdopt = async (productId: number) => {
+    try {
+      setAdoptLoading(productId)
+      setError("")
+      const res = await fetch(`/api/backend/seller/products/${productId}/adopt`, { method: "POST" })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || "Failed to add product")
+      await loadAdminCatalog()
+      await loadProducts()
+    } catch (e: any) {
+      setError(e?.message || "Failed to add product")
+    } finally {
+      setAdoptLoading(null)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Active':
@@ -330,180 +374,228 @@ export default function SellerProductsPage() {
                 <h1 className="text-2xl font-bold text-gray-900">Products</h1>
                 <p className="mt-1 text-sm text-gray-500">Manage your store products</p>
               </div>
-              <Button className="mt-4 md:mt-0" onClick={() => setShowAddModal(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Product
-              </Button>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                    Search
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Search className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <Input
-                      id="search"
-                      type="text"
-                      placeholder="Search products..."
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    id="status"
-                    className="input w-full"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Out of Stock">Out of Stock</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    id="category"
-                    className="input w-full"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                  >
-                    <option value="all">All Categories</option>
-                    {categoryOptions.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex gap-2 mt-4 md:mt-0">
+                <Button variant={showAdminCatalog ? "outline" : "default"} onClick={() => setShowAdminCatalog(false)}>
+                  My Products
+                </Button>
+                <Button variant={showAdminCatalog ? "default" : "outline"} onClick={() => setShowAdminCatalog(true)}>
+                  Admin Catalog
+                </Button>
+                {!showAdminCatalog && (
+                  <Button onClick={() => setShowAddModal(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Product
+                  </Button>
+                )}
               </div>
             </div>
+
+            {!showAdminCatalog && (
+              <div className="bg-white rounded-lg shadow p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+                      Search
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <Input
+                        id="search"
+                        type="text"
+                        placeholder="Search products..."
+                        className="pl-10"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      id="status"
+                      className="input w-full"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <option value="all">All Status</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                      <option value="Out of Stock">Out of Stock</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                      Category
+                    </label>
+                    <select
+                      id="category"
+                      className="input w-full"
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">All Categories</option>
+                      {categoryOptions.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {error && <div className="text-red-600 text-sm">{error}</div>}
 
-            {/* Products Table */}
-            <div className="bg-white shadow rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Product
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Category
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Price
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Stock
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredProducts.length > 0 ? (
-                      filteredProducts.map((product) => (
-                        <tr key={product.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 rounded-md overflow-hidden bg-gray-100 border border-gray-300">
-                                {product.image_url ? (
-                                  <img
-                                    src={resolvePublicImageUrl(product.image_url) || "/placeholder.svg"}
-                                    alt={product.name}
-                                    className="h-full w-full object-cover"
-                                    onError={(e) => {
-                                      const el = e.currentTarget
-                                      if (el.src.endsWith("/placeholder.svg")) return
-                                      el.src = "/placeholder.svg"
-                                    }}
-                                  />
-                                ) : (
-                                  <span className="text-gray-500 text-xs">IMG</span>
-                                )}
+            {!showAdminCatalog ? (
+              /* Products Table */
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Product
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Category
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Price
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Stock
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredProducts.length > 0 ? (
+                        filteredProducts.map((product) => (
+                          <tr key={product.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10 rounded-md overflow-hidden bg-gray-100 border border-gray-300">
+                                  {product.image_url ? (
+                                    <img
+                                      src={resolvePublicImageUrl(product.image_url) || "/placeholder.svg"}
+                                      alt={product.name}
+                                      className="h-full w-full object-cover"
+                                      onError={(e) => {
+                                        const el = e.currentTarget
+                                        if (el.src.endsWith("/placeholder.svg")) return
+                                        el.src = "/placeholder.svg"
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="text-gray-500 text-xs">IMG</span>
+                                  )}
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                                  <div className="text-sm text-gray-500">SKU: {product.id.toString().padStart(4, '0')}</div>
+                                </div>
                               </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                                <div className="text-sm text-gray-500">SKU: {product.id.toString().padStart(4, '0')}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{product.category}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{formatCurrency(product.price)}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{product.stock} units</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={getStatusBadge(product.status)}>
+                                {product.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedProduct(product)
+                                  }}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  <Eye className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleEdit(product)}
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                >
+                                  <Edit className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(product)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  <Trash2 className="h-5 w-5" />
+                                </button>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{product.category}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{formatCurrency(product.price)}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{product.stock} units</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={getStatusBadge(product.status)}>
-                              {product.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex justify-end space-x-2">
-                              <button
-                                onClick={() => {
-                                  setSelectedProduct(product)
-                                  // Show view modal or navigate to product detail page
-                                }}
-                                className="text-blue-600 hover:text-blue-900"
-                              >
-                                <Eye className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => handleEdit(product)}
-                                className="text-indigo-600 hover:text-indigo-900"
-                              >
-                                <Edit className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(product)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                            No products found. Try adjusting your search or filters.
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
-                          No products found. Try adjusting your search or filters.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Admin Catalog */
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Admin Product Catalog</h2>
+                  <p className="text-sm text-gray-500">Browse products added by admin and add them to your store</p>
+                </div>
+                {adminCatalog.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                    {adminCatalog.map((product) => (
+                      <div key={product.id} className="border rounded-lg p-4 flex flex-col">
+                        <div className="h-32 w-full rounded-md overflow-hidden bg-gray-100 mb-3">
+                          {product.image_url ? (
+                            <img src={resolvePublicImageUrl(product.image_url) || "/placeholder.svg"} alt={product.name} className="h-full w-full object-cover" onError={(e) => { const el = e.currentTarget; if (!el.src.endsWith("/placeholder.svg")) el.src = "/placeholder.svg" }} />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-gray-400 text-sm">No Image</div>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-medium text-gray-900 truncate">{product.name}</h3>
+                        <p className="text-sm text-gray-500 mt-1">{product.category}</p>
+                        <p className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(product.price)}</p>
+                        <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}</p>
+                        <div className="mt-auto pt-3">
+                          <Button size="sm" className="w-full" onClick={() => handleAdopt(product.id)} disabled={adoptLoading === product.id}>
+                            {adoptLoading === product.id ? "Adding..." : "Add to my store"}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-sm text-gray-500">
+                    No products available in admin catalog.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>

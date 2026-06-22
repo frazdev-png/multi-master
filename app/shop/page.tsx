@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react"
 
 type ApiProduct = {
   id: number | string
+  seller_product_id?: number | string
   name?: string
   price?: number | string
   original_price?: number | string
@@ -212,6 +213,7 @@ export default function ShopPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {products.map((p) => {
                       const id = String(p.id ?? "")
+                      const sellerProductId = String(p.seller_product_id ?? p.id ?? "")
                       const name = String(p.name ?? "")
                       const price = Number(p.price ?? 0)
                       const originalPrice = Number(p.original_price ?? 0)
@@ -223,8 +225,9 @@ export default function ShopPage() {
 
                       return (
                         <ProductCard
-                          key={id}
+                          key={sellerProductId}
                           id={id}
+                          sellerProductId={sellerProductId}
                           name={name}
                           price={price}
                           originalPrice={originalPrice > 0 ? originalPrice : undefined}

@@ -168,7 +168,27 @@ class ProductController {
             $this->db->prepare("ALTER TABLE products ADD COLUMN base_price DECIMAL(10,2) DEFAULT 0.00 AFTER price")->execute();
             $this->productColumns['base_price'] = true;
         } catch (PDOException $e) {
-            // Column might already exist or table can't be altered; ignore
+        }
+    }
+
+    private function ensureSellerProductsTable() {
+        try {
+            $this->db->prepare("
+                CREATE TABLE IF NOT EXISTS seller_products (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    seller_id INT NOT NULL,
+                    product_id INT NOT NULL,
+                    selling_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    base_price DECIMAL(10,2) DEFAULT 0.00,
+                    profit DECIMAL(10,2) DEFAULT 0.00,
+                    stock INT DEFAULT NULL,
+                    is_active TINYINT DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_seller_product (seller_id, product_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ")->execute();
+        } catch (PDOException $e) {
         }
     }
 
@@ -287,22 +307,36 @@ class ProductController {
                     }
                 }
 
+                $this->ensureSellerProductsTable();
+
                 $sql = "
                     SELECT 
-                        p.*,
-                        {$stockSelect},
+                        p.id,
+                        p.name,
+                        p.description,
+                        p.image_url,
+                        p.stock as admin_stock,
+                        p.price as base_admin_price,
+                        COALESCE(sp.selling_price, p.price) as price,
+                        sp.id as seller_product_id,
+                        sp.selling_price,
+                        sp.base_price,
+                        sp.profit,
+                        COALESCE(sp.stock, p.stock) as stock,
+                        sp.seller_id,
                         u.full_name as seller_name,
                         ss.store_name,
                         {$categorySelect},
                         (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
                         (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count,
-                        (SELECT COUNT(*) FROM order_items WHERE product_id = p.id) as sales_count
-                    FROM products p
-                    JOIN users u ON p.seller_id = u.id
+                        (SELECT COUNT(*) FROM order_items oi JOIN products pp ON oi.product_id = pp.id WHERE pp.id = p.id) as sales_count,
+                        p.created_at
+                    FROM seller_products sp
+                    JOIN products p ON p.id = sp.product_id
+                    JOIN users u ON sp.seller_id = u.id
                     LEFT JOIN sellers ss ON ss.user_id = u.id
                     {$categoryJoin}
-                    WHERE {$activeProduct} AND {$inStock}
-                      AND NOT EXISTS (SELECT 1 FROM users WHERE id = p.seller_id AND role = 'admin')
+                    WHERE sp.is_active = 1 AND {$activeProduct}
                 ";
 
                 $params = [];
@@ -322,12 +356,12 @@ class ProductController {
                 }
 
                 if ($minPrice > 0) {
-                    $sql .= " AND p.price >= ?";
+                    $sql .= " AND COALESCE(sp.selling_price, p.price) >= ?";
                     $params[] = $minPrice;
                 }
 
                 if ($maxPrice < 999999) {
-                    $sql .= " AND p.price <= ?";
+                    $sql .= " AND COALESCE(sp.selling_price, p.price) <= ?";
                     $params[] = $maxPrice;
                 }
 
@@ -341,7 +375,7 @@ class ProductController {
                 $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
 
                 if ($sortBy === 'price') {
-                    $sql .= " ORDER BY p.price {$order}";
+                    $sql .= " ORDER BY COALESCE(sp.selling_price, p.price) {$order}";
                 } elseif ($sortBy === 'rating') {
                     $sql .= " ORDER BY avg_rating {$order}";
                 } elseif ($sortBy === 'sales') {
@@ -423,79 +457,95 @@ class ProductController {
         $offset = $_GET['offset'] ?? 0;
 
         try {
-            $rows = $this->runWithIsActiveFallback(function () use ($user, $search, $category, $status, $limit, $offset) {
-                $stockSelect = $this->stockSelectExpr('p');
-                $categoryJoin = '';
-                $categorySelect = "'' as category_name";
-                if ($this->hasProductColumn('category_id')) {
-                    $categoryJoin = 'LEFT JOIN categories c ON p.category_id = c.id';
-                    $categorySelect = 'c.name as category_name';
+            $this->ensureSellerProductsTable();
+
+            $categoryJoin = '';
+            $categorySelect = "'' as category_name";
+            if ($this->hasProductColumn('category_id')) {
+                $categoryJoin = 'LEFT JOIN categories c ON p.category_id = c.id';
+                $categorySelect = 'c.name as category_name';
+            }
+
+            $sql = "
+                SELECT
+                    sp.id as seller_product_id,
+                    sp.product_id,
+                    sp.selling_price,
+                    sp.base_price as seller_base_price,
+                    sp.profit,
+                    sp.stock as seller_stock,
+                    sp.is_active as seller_active,
+                    sp.created_at as added_at,
+                    p.id as product_id_orig,
+                    p.name,
+                    p.description,
+                    p.image_url,
+                    p.stock as admin_stock,
+                    p.price as admin_price,
+                    p.is_active as admin_active,
+                    {$categorySelect}
+                FROM seller_products sp
+                JOIN products p ON p.id = sp.product_id
+                {$categoryJoin}
+                WHERE sp.seller_id = ?
+            ";
+            $params = [$user['id']];
+
+            if ($search !== '') {
+                $sql .= " AND (p.name LIKE ? OR p.description LIKE ?)";
+                $s = "%{$search}%";
+                $params[] = $s;
+                $params[] = $s;
+            }
+
+            if ($category !== '' && $category !== 'all' && $categoryJoin !== '') {
+                $sql .= " AND c.name = ?";
+                $params[] = $category;
+            }
+
+            if ($status !== '' && $status !== 'all') {
+                if ($status === 'Active') {
+                    $sql .= " AND sp.is_active = 1";
+                } elseif ($status === 'Inactive') {
+                    $sql .= " AND sp.is_active = 0";
                 }
+            }
 
-                $sql = "
-                    SELECT p.*, {$stockSelect}, {$categorySelect}
-                    FROM products p
-                    {$categoryJoin}
-                    WHERE p.seller_id = ?
-                ";
-                $params = [$user['id']];
+            $sql .= " ORDER BY sp.id DESC LIMIT ? OFFSET ?";
+            $params[] = (int)$limit;
+            $params[] = (int)$offset;
 
-                if ($search !== '') {
-                    $sql .= " AND (p.name LIKE ? OR p.description LIKE ?)";
-                    $s = "%{$search}%";
-                    $params[] = $s;
-                    $params[] = $s;
-                }
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                if ($category !== '' && $category !== 'all' && $categoryJoin !== '') {
-                    $sql .= " AND c.name = ?";
-                    $params[] = $category;
-                }
+            $products = [];
+            foreach ($rows as $row) {
+                $adminPrice = (float)$row['admin_price'];
+                $sellPrice = (float)$row['selling_price'];
+                $basePrice = (float)$row['seller_base_price'];
+                $profit = (float)$row['profit'];
+                $stock = $row['seller_stock'] !== null ? (int)$row['seller_stock'] : (int)$row['admin_stock'];
+                $products[] = [
+                    'id' => (int)$row['seller_product_id'],
+                    'product_id' => (int)$row['product_id'],
+                    'name' => $row['name'],
+                    'price' => $sellPrice > 0 ? $sellPrice : $adminPrice,
+                    'selling_price' => $sellPrice > 0 ? $sellPrice : $adminPrice,
+                    'base_price' => $basePrice > 0 ? $basePrice : $adminPrice,
+                    'profit' => $profit > 0 ? $profit : ($sellPrice > 0 ? $sellPrice - $basePrice : 0),
+                    'stock' => $stock,
+                    'admin_stock' => (int)$row['admin_stock'],
+                    'category' => $row['category_name'] ?? '',
+                    'status' => ((int)$row['seller_active'] === 1) ? 'Active' : 'Inactive',
+                    'is_active' => (int)$row['seller_active'],
+                    'image_url' => $row['image_url'] ?? null,
+                    'description' => $row['description'] ?? ''
+                ];
+            }
 
-                if ($status !== '' && $status !== 'all') {
-                    if ($status === 'Active') {
-                        $sql .= " AND " . $this->activeProductCondition('p') . " AND " . $this->inStockCondition('p');
-                    } elseif ($status === 'Inactive') {
-                        $sql .= " AND " . $this->inactiveProductCondition('p');
-                    } elseif ($status === 'Out of Stock') {
-                        $col = $this->stockColumnName();
-                        if ($col) {
-                            $sql .= " AND " . $this->activeProductCondition('p') . " AND p.{$col} <= 0";
-                        } else {
-                            $sql .= " AND 1=0";
-                        }
-                    }
-                }
-
-                $orderBy = $this->sellerProductsOrderBy();
-                $sql .= " ORDER BY {$orderBy} DESC LIMIT ? OFFSET ?";
-                $params[] = (int)$limit;
-                $params[] = (int)$offset;
-
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute($params);
-                return $stmt->fetchAll(PDO::FETCH_ASSOC);
-            });
-
-        $products = [];
-        foreach ($rows as $row) {
-            $products[] = [
-                'id' => (int)$row['id'],
-                'name' => $row['name'],
-                'price' => (float)$row['price'],
-                'base_price' => isset($row['base_price']) ? (float)$row['base_price'] : 0,
-                'stock' => (int)($row['stock'] ?? ($row['quantity'] ?? 0)),
-                'category' => $row['category_name'] ?? '',
-                'status' => $this->normalizeProductStatus($row),
-                'is_active' => isset($row['is_active']) ? (int)$row['is_active'] : 1,
-                'created_at' => $row['created_at'],
-                'image_url' => $row['image_url'] ?? null,
-                'description' => $row['description'] ?? ''
-            ];
-        }
-
-        header('Content-Type: application/json');
-        echo json_encode(['products' => $products]);
+            header('Content-Type: application/json');
+            echo json_encode(['products' => $products]);
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
@@ -551,344 +601,102 @@ class ProductController {
         }
     }
 
-    private function adoptAdminProduct($user, $productId) {
-        try {
-            $stmt = $this->db->prepare("
-                SELECT p.*, u.role
-                FROM products p
-                JOIN users u ON p.seller_id = u.id
-                WHERE p.id = ? AND u.role = 'admin' LIMIT 1
-            ");
-            $stmt->execute([$productId]);
-            $adminProduct = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$adminProduct) {
-                http_response_code(404);
-                echo json_encode(['error' => 'Admin product not found']);
-                return;
-            }
-
-            $stmt = $this->db->prepare("SELECT id FROM products WHERE seller_id = ? AND name = ? LIMIT 1");
-            $stmt->execute([$user['id'], $adminProduct['name']]);
-            if ($stmt->fetch()) {
-                http_response_code(409);
-                echo json_encode(['error' => 'You already have a product with this name']);
-                return;
-            }
-
-            $columns = ['seller_id', 'name', 'price'];
-            $placeholders = ['?', '?', '?'];
-            $values = [$user['id'], $adminProduct['name'], $adminProduct['price']];
-
-            $stockCol = $this->stockColumnName();
-            $stockValue = (int)($adminProduct['stock'] ?? ($adminProduct['quantity'] ?? 0));
-            if ($stockCol) {
-                $columns[] = $stockCol;
-                $placeholders[] = '?';
-                $values[] = $stockValue;
-            }
-
-            if ($this->hasProductColumn('category_id') && !empty($adminProduct['category_id'])) {
-                $columns[] = 'category_id';
-                $placeholders[] = '?';
-                $values[] = $adminProduct['category_id'];
-            }
-
-            if ($this->hasProductColumn('description')) {
-                $columns[] = 'description';
-                $placeholders[] = '?';
-                $values[] = $adminProduct['description'];
-            }
-
-            if ($this->hasProductColumn('image_url')) {
-                $columns[] = 'image_url';
-                $placeholders[] = '?';
-                $values[] = $adminProduct['image_url'];
-            }
-
-            if ($this->hasProductColumn('base_price') && !empty($adminProduct['base_price'])) {
-                $columns[] = 'base_price';
-                $placeholders[] = '?';
-                $values[] = (float)$adminProduct['base_price'];
-            }
-
-            if ($this->hasProductColumn('is_active')) {
-                $columns[] = 'is_active';
-                $placeholders[] = '?';
-                $values[] = 1;
-            } elseif ($this->hasProductColumn('status')) {
-                $columns[] = 'status';
-                $placeholders[] = '?';
-                $values[] = 'active';
-            } elseif ($this->hasProductColumn('is_published')) {
-                $columns[] = 'is_published';
-                $placeholders[] = '?';
-                $values[] = 1;
-            }
-
-            if ($this->hasProductColumn('created_at')) {
-                $columns[] = 'created_at';
-                $placeholders[] = 'NOW()';
-            }
-        if ($this->hasProductColumn('updated_at')) {
-            $columns[] = 'updated_at';
-            $placeholders[] = 'NOW()';
-        }
-
-        if (!empty($data['base_price'])) {
-            $this->ensureBasePriceColumn();
-            if ($this->hasProductColumn('base_price')) {
-                $columns[] = 'base_price';
-                $placeholders[] = '?';
-                $values[] = (float)$data['base_price'];
-            }
-        }
-
-        $sql = "INSERT INTO products (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute($values);
-            $newId = (int)$this->db->lastInsertId();
-
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true, 'product_id' => $newId, 'message' => 'Product added to your store']);
-        } catch (PDOException $e) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-        }
-    }
-
-    private function createSellerProduct($user) {
+    private function updateSellerProductPricing($user, $sellerProductId) {
         $data = $this->getJsonBody();
-        $name = trim($data['name'] ?? '');
-        $price = $data['price'] ?? null;
-        $stock = $data['stock'] ?? null;
+        $this->ensureSellerProductsTable();
 
-        if ($name === '' || $price === null || $stock === null) {
-            http_response_code(400);
-            echo json_encode(['error' => 'name, price, and stock are required']);
-            return;
-        }
-
-        $categoryId = $data['category_id'] ?? null;
-        if (!$categoryId && !empty($data['category'])) {
-            $categoryId = $this->findCategoryId($data['category']);
-        }
-        $description = $data['description'] ?? null;
-        $imageUrl = $data['image_url'] ?? null;
-        if ($imageUrl !== null && $imageUrl !== '') {
-            if (strlen($imageUrl) > 65535) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
-                return;
-            }
-            $allowedSchemes = ['http://', 'https://', 'data:image/', '/uploads/'];
-            $valid = false;
-            foreach ($allowedSchemes as $scheme) {
-                if (stripos($imageUrl, $scheme) === 0) {
-                    $valid = true;
-                    break;
-                }
-            }
-            if (!$valid) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Image URL must start with http://, https://, or be a valid data URI']);
-                return;
-            }
-            if (preg_match('/^https?:\/\//i', $imageUrl)) {
-                $parsed = parse_url($imageUrl);
-                if (!isset($parsed['scheme'], $parsed['host'])) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Image URL is not a valid URL']);
-                    return;
-                }
-            }
-        }
-        $isActive = isset($data['is_active']) ? (int)(!!$data['is_active']) : 1;
-
-        $columns = ['seller_id', 'name', 'price'];
-        $placeholders = ['?', '?', '?'];
-        $values = [$user['id'], $name, $price];
-
-        $stockCol = $this->stockColumnName();
-        if ($stockCol) {
-            $columns[] = $stockCol;
-            $placeholders[] = '?';
-            $values[] = $stock;
-        }
-
-        if ($categoryId !== null && $this->hasProductColumn('category_id')) {
-            $columns[] = 'category_id';
-            $placeholders[] = '?';
-            $values[] = $categoryId;
-        }
-
-        if ($this->hasProductColumn('description')) {
-            $columns[] = 'description';
-            $placeholders[] = '?';
-            $values[] = $description;
-        }
-
-        if ($this->hasProductColumn('image_url')) {
-            $columns[] = 'image_url';
-            $placeholders[] = '?';
-            $values[] = $imageUrl;
-        }
-
-        if ($this->hasProductColumn('is_active')) {
-            $columns[] = 'is_active';
-            $placeholders[] = '?';
-            $values[] = $isActive;
-        } elseif ($this->hasProductColumn('status')) {
-            $columns[] = 'status';
-            $placeholders[] = '?';
-            $values[] = $isActive ? 'active' : 'inactive';
-        } elseif ($this->hasProductColumn('is_published')) {
-            $columns[] = 'is_published';
-            $placeholders[] = '?';
-            $values[] = $isActive;
-        }
-
-        if ($this->hasProductColumn('created_at')) {
-            $columns[] = 'created_at';
-            $placeholders[] = 'NOW()';
-        }
-        if ($this->hasProductColumn('updated_at')) {
-            $columns[] = 'updated_at';
-            $placeholders[] = 'NOW()';
-        }
-
-        $sql = "INSERT INTO products (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($values);
-        $id = (int)$this->db->lastInsertId();
-
-        http_response_code(201);
-        echo json_encode(['success' => true, 'product_id' => $id]);
-    }
-
-    private function updateSellerProduct($user, $productId) {
-        $data = $this->getJsonBody();
-
-        $stmt = $this->db->prepare("SELECT * FROM products WHERE id = ? AND seller_id = ? LIMIT 1");
-        $stmt->execute([(int)$productId, $user['id']]);
+        $stmt = $this->db->prepare("SELECT sp.*, p.price as admin_price FROM seller_products sp JOIN products p ON p.id = sp.product_id WHERE sp.id = ? AND sp.seller_id = ?");
+        $stmt->execute([(int)$sellerProductId, $user['id']]);
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-
         if (!$existing) {
             http_response_code(404);
-            echo json_encode(['error' => 'Product not found']);
+            echo json_encode(['error' => 'Product not found in your store']);
             return;
         }
 
-        if (array_key_exists('image_url', $data)) {
-            $imageUrl = $data['image_url'];
-            if ($imageUrl !== null && $imageUrl !== '') {
-                if (strlen($imageUrl) > 65535) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Image URL is too long (max 65535 characters)']);
-                    return;
-                }
-                $allowedSchemes = ['http://', 'https://', 'data:image/', '/uploads/'];
-                $valid = false;
-                foreach ($allowedSchemes as $scheme) {
-                    if (stripos($imageUrl, $scheme) === 0) {
-                        $valid = true;
-                        break;
-                    }
-                }
-                if (!$valid) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Image URL must start with http://, https://, or be a valid data URI']);
-                    return;
-                }
-                if (preg_match('/^https?:\/\//i', $imageUrl)) {
-                    $parsed = parse_url($imageUrl);
-                    if (!isset($parsed['scheme'], $parsed['host'])) {
-                        http_response_code(400);
-                        echo json_encode(['error' => 'Image URL is not a valid URL']);
-                        return;
-                    }
-                }
-            }
-        }
+        $adminPrice = (float)$existing['admin_price'];
+        $sellingPrice = isset($data['selling_price']) ? (float)$data['selling_price'] : (float)$existing['selling_price'];
+        $basePrice = isset($data['base_price']) ? (float)$data['base_price'] : (float)$existing['base_price'];
+        $profit = $sellingPrice - $basePrice;
 
-        $fields = [];
-        $params = [];
-
-        foreach (['name','description','image_url'] as $key) {
-            if (array_key_exists($key, $data)) {
-                $fields[] = "$key = ?";
-                $params[] = $data[$key];
-            }
-        }
-
-        if (array_key_exists('price', $data)) {
-            $fields[] = "price = ?";
-            $params[] = $data['price'];
-        }
+        $fields = ["selling_price = ?", "base_price = ?", "profit = ?"];
+        $params = [$sellingPrice, $basePrice, $profit];
 
         if (array_key_exists('stock', $data)) {
-            $stockCol = $this->stockColumnName();
-            if ($stockCol) {
-                $fields[] = "{$stockCol} = ?";
-                $params[] = $data['stock'];
-            }
+            $fields[] = "stock = ?";
+            $params[] = $data['stock'] !== null ? (int)$data['stock'] : null;
         }
-
-        if (array_key_exists('category_id', $data)) {
-            $fields[] = "category_id = ?";
-            $params[] = $data['category_id'];
-        } elseif (array_key_exists('category', $data)) {
-            $fields[] = "category_id = ?";
-            $params[] = $this->findCategoryId($data['category']);
-        }
-
         if (array_key_exists('is_active', $data)) {
-            $nextActive = (int)(!!$data['is_active']);
-            if ($this->hasProductColumn('is_active')) {
-                $fields[] = "is_active = ?";
-                $params[] = $nextActive;
-            } elseif ($this->hasProductColumn('status')) {
-                $fields[] = "status = ?";
-                $params[] = $nextActive ? 'active' : 'inactive';
-            } elseif ($this->hasProductColumn('is_published')) {
-                $fields[] = "is_published = ?";
-                $params[] = $nextActive;
-            }
+            $fields[] = "is_active = ?";
+            $params[] = (int)(!!$data['is_active']);
         }
 
-        if (empty($fields)) {
-            echo json_encode(['success' => true]);
+        $params[] = (int)$sellerProductId;
+        $this->db->prepare("UPDATE seller_products SET " . implode(', ', $fields) . " WHERE id = ?")->execute($params);
+
+        echo json_encode(['success' => true, 'message' => 'Pricing updated']);
+    }
+
+    private function attachProductToStore($user) {
+        $data = $this->getJsonBody();
+        $productId = isset($data['product_id']) ? (int)$data['product_id'] : 0;
+        if ($productId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'product_id is required']);
+            return;
+        }
+        $this->ensureSellerProductsTable();
+
+        $stmt = $this->db->prepare("SELECT id, name, price FROM products WHERE id = ? AND seller_id IN (SELECT id FROM users WHERE role = 'admin')");
+        $stmt->execute([$productId]);
+        $adminProduct = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$adminProduct) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Admin product not found']);
             return;
         }
 
-        if ($this->hasProductColumn('updated_at')) {
-            $fields[] = "updated_at = NOW()";
+        $stmt = $this->db->prepare("SELECT id FROM seller_products WHERE seller_id = ? AND product_id = ?");
+        $stmt->execute([$user['id'], (int)$productId]);
+        if ($stmt->fetch()) {
+            http_response_code(409);
+            echo json_encode(['error' => 'Product already in your store']);
+            return;
         }
-        $sql = "UPDATE products SET " . implode(', ', $fields) . " WHERE id = ? AND seller_id = ?";
-        $params[] = (int)$productId;
-        $params[] = $user['id'];
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        $adminPrice = (float)$adminProduct['price'];
+        $sellingPrice = isset($data['selling_price']) ? (float)$data['selling_price'] : $adminPrice;
+        $basePrice = isset($data['base_price']) ? (float)$data['base_price'] : $adminPrice;
+        $profit = $sellingPrice - $basePrice;
 
-        echo json_encode(['success' => true]);
+        $stmt = $this->db->prepare("
+            INSERT INTO seller_products (seller_id, product_id, selling_price, base_price, profit, stock, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+        ");
+        $stmt->execute([
+            $user['id'],
+            (int)$productId,
+            $sellingPrice,
+            $basePrice,
+            $profit,
+            isset($data['stock']) ? (int)$data['stock'] : null
+        ]);
+        $newId = (int)$this->db->lastInsertId();
+
+        http_response_code(201);
+        echo json_encode(['success' => true, 'seller_product_id' => $newId, 'message' => 'Product added to your store']);
     }
 
-    private function deleteSellerProduct($user, $productId) {
-        if ($this->hasProductColumn('is_active')) {
-            $stmt = $this->db->prepare("UPDATE products SET is_active = 0" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
-            $stmt->execute([(int)$productId, $user['id']]);
-        } elseif ($this->hasProductColumn('status')) {
-            $stmt = $this->db->prepare("UPDATE products SET status = ?" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
-            $stmt->execute(['inactive', (int)$productId, $user['id']]);
-        } elseif ($this->hasProductColumn('is_published')) {
-            $stmt = $this->db->prepare("UPDATE products SET is_published = 0" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
-            $stmt->execute([(int)$productId, $user['id']]);
-        } else {
-            $stmt = $this->db->prepare("DELETE FROM products WHERE id = ? AND seller_id = ?");
-            $stmt->execute([(int)$productId, $user['id']]);
+    private function deleteSellerProduct($user, $sellerProductId) {
+        $this->ensureSellerProductsTable();
+        $stmt = $this->db->prepare("DELETE FROM seller_products WHERE id = ? AND seller_id = ?");
+        $stmt->execute([(int)$sellerProductId, $user['id']]);
+        if ($stmt->rowCount() === 0) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Product not found in your store']);
+            return;
         }
-        echo json_encode(['success' => true]);
+        echo json_encode(['success' => true, 'message' => 'Product removed from your store']);
     }
 
     private function listAdminProducts($user) {
@@ -917,7 +725,7 @@ class ProductController {
                     JOIN users u ON p.seller_id = u.id
                     LEFT JOIN sellers ss ON ss.user_id = u.id
                     {$categoryJoin}
-                    WHERE 1=1
+                    WHERE u.role = 'admin'
                 ";
                 $params = [];
 
@@ -1159,6 +967,7 @@ class ProductController {
         $this->db->prepare("DELETE FROM wishlist WHERE product_id = ?")->execute([$productId]);
         $this->db->prepare("DELETE FROM cart WHERE product_id = ?")->execute([$productId]);
         $this->db->prepare("DELETE FROM order_items WHERE product_id = ?")->execute([$productId]);
+        $this->db->prepare("DELETE FROM seller_products WHERE product_id = ?")->execute([$productId]);
         $stmt = $this->db->prepare("DELETE FROM products WHERE id = ?");
         $stmt->execute([$productId]);
         if ($stmt->rowCount() === 0) {
@@ -1422,8 +1231,8 @@ class ProductController {
                 $this->listAdminCatalog($user);
                 return;
             }
-            if ($method === 'POST' && preg_match('/\/api\/seller\/products\/(\d+)\/adopt/', $path, $m)) {
-                $this->adoptAdminProduct($user, $m[1]);
+            if ($method === 'POST' && preg_match('/\/api\/seller\/products\/(\d+)\/pricing/', $path, $m)) {
+                $this->updateSellerProductPricing($user, $m[1]);
                 return;
             }
             if ($method === 'GET') {
@@ -1431,11 +1240,11 @@ class ProductController {
                 return;
             }
             if ($method === 'POST') {
-                $this->createSellerProduct($user);
+                $this->attachProductToStore($user);
                 return;
             }
             if ($method === 'PUT' && preg_match('/\/api\/seller\/products\/(\d+)/', $path, $m)) {
-                $this->updateSellerProduct($user, $m[1]);
+                $this->updateSellerProductPricing($user, $m[1]);
                 return;
             }
             if ($method === 'DELETE' && preg_match('/\/api\/seller\/products\/(\d+)/', $path, $m)) {

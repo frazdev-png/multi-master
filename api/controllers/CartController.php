@@ -33,14 +33,28 @@ class CartController {
 
     private function addToCart($user) {
         $data = $this->getJsonBody();
+        $sellerProductId = (int)($data['seller_product_id'] ?? 0);
         $productId = (int)($data['product_id'] ?? 0);
         $quantity = (int)($data['quantity'] ?? 1);
+        if ($quantity <= 0) $quantity = 1;
+
+        if ($sellerProductId > 0) {
+            $stmt = $this->db->prepare("SELECT product_id, selling_price FROM seller_products WHERE id = ? AND is_active = 1");
+            $stmt->execute([$sellerProductId]);
+            $sp = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$sp) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Product not available']);
+                return;
+            }
+            $productId = (int)$sp['product_id'];
+        }
+
         if ($productId <= 0) {
             http_response_code(400);
             echo json_encode(['error' => 'product_id is required']);
             return;
         }
-        if ($quantity <= 0) $quantity = 1;
 
         $stmt = $this->db->prepare("\n            INSERT INTO cart (user_id, product_id, quantity, created_at, updated_at)\n            VALUES (?, ?, ?, NOW(), NOW())\n            ON DUPLICATE KEY UPDATE\n                quantity = quantity + VALUES(quantity),\n                updated_at = NOW()\n        ");
         $stmt->execute([$user['id'], $productId, $quantity]);

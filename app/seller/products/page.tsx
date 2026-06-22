@@ -5,7 +5,7 @@ import { SellerSidebar } from "@/components/seller/sidebar"
 import { SellerHeader } from "@/components/seller/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, MoreVertical, Edit, Trash2, Eye } from "lucide-react"
+import { Search, Edit, Trash2, Eye } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
 function resolvePublicImageUrl(src: string | undefined) {
@@ -58,36 +58,21 @@ export default function SellerProductsPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [showAttachModal, setShowAttachModal] = useState(false)
+  const [attachProduct, setAttachProduct] = useState<any>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [adoptLoading, setAdoptLoading] = useState<number | null>(null)
 
-  const [addForm, setAddForm] = useState({
-    name: "",
-    price: "",
-    stock: "",
-    category: "",
-    description: "",
-    image_url: "",
-    is_active: true,
-  })
-  const [addImageFile, setAddImageFile] = useState<File | null>(null)
-  const [addImagePreview, setAddImagePreview] = useState("")
-
   const [editForm, setEditForm] = useState({
-    name: "",
-    price: "",
+    selling_price: "",
+    base_price: "",
     stock: "",
-    category: "",
     status: "Active" as Product["status"],
-    description: "",
-    image_url: "",
   })
-  const [editImageFile, setEditImageFile] = useState<File | null>(null)
-  const [editImagePreview, setEditImagePreview] = useState("")
+  // image state removed - sellers can only update pricing/stock/status
 
   const loadProducts = async () => {
     try {
@@ -184,16 +169,11 @@ export default function SellerProductsPage() {
   const handleEdit = (product: Product) => {
     setSelectedProduct(product)
     setEditForm({
-      name: product.name,
-      price: String(product.price),
+      selling_price: String(product.price),
+      base_price: String(product.base_price || 0),
       stock: String(product.stock),
-      category: product.category,
       status: product.status,
-      description: "",
-      image_url: "",
     })
-    setEditImageFile(null)
-    setEditImagePreview("")
     setShowEditModal(true)
   }
 
@@ -228,84 +208,16 @@ export default function SellerProductsPage() {
     run()
   }
 
-  const submitAdd = async () => {
-    try {
-      setIsLoading(true)
-      setError("")
-      let imageUrl = addForm.image_url
-      if (addImageFile) {
-        const formData = new FormData()
-        formData.append("type", "product")
-        formData.append("file", addImageFile)
-        const uploadRes = await fetch("/api/backend/settings/upload", {
-          method: "POST",
-          body: formData,
-        })
-        const uploadData = await uploadRes.json().catch(() => null)
-        if (!uploadRes.ok || !uploadData?.success || !uploadData?.url) {
-          throw new Error(uploadData?.message || uploadData?.error || "Failed to upload image")
-        }
-        imageUrl = String(uploadData.url)
-      }
-      const payload: any = {
-        name: addForm.name,
-        price: Number(addForm.price),
-        stock: Number(addForm.stock),
-        category: addForm.category,
-        description: addForm.description,
-        image_url: imageUrl,
-        is_active: addForm.is_active,
-      }
-      const res = await fetch("/api/backend/seller/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      const data = await res.json().catch(() => null)
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to add product")
-      }
-      setShowAddModal(false)
-      setAddForm({ name: "", price: "", stock: "", category: "", description: "", image_url: "", is_active: true })
-      setAddImageFile(null)
-      setAddImagePreview("")
-      await loadProducts()
-    } catch (e: any) {
-      setError(e?.message || "Failed to add product")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const submitEdit = async () => {
     try {
       if (!selectedProduct) return
       setIsLoading(true)
       setError("")
 
-      let imageUrl = editForm.image_url
-      if (editImageFile) {
-        const formData = new FormData()
-        formData.append("type", "product")
-        formData.append("file", editImageFile)
-        const uploadRes = await fetch("/api/backend/settings/upload", {
-          method: "POST",
-          body: formData,
-        })
-        const uploadData = await uploadRes.json().catch(() => null)
-        if (!uploadRes.ok || !uploadData?.success || !uploadData?.url) {
-          throw new Error(uploadData?.message || uploadData?.error || "Failed to upload image")
-        }
-        imageUrl = String(uploadData.url)
-      }
-
       const payload: any = {
-        name: editForm.name,
-        price: Number(editForm.price),
+        selling_price: Number(editForm.selling_price),
+        base_price: Number(editForm.base_price),
         stock: Number(editForm.stock),
-        category: editForm.category,
-        description: editForm.description,
-        image_url: imageUrl,
       }
       if (editForm.status === "Active") {
         payload.is_active = true
@@ -323,8 +235,6 @@ export default function SellerProductsPage() {
       }
       setShowEditModal(false)
       setSelectedProduct(null)
-      setEditImageFile(null)
-      setEditImagePreview("")
       await loadProducts()
     } catch (e: any) {
       setError(e?.message || "Failed to update product")
@@ -333,13 +243,25 @@ export default function SellerProductsPage() {
     }
   }
 
-  const handleAdopt = async (productId: number) => {
+  const handleAttach = async (product: any) => {
+    setAttachProduct(product)
+    setShowAttachModal(true)
+  }
+
+  const confirmAttach = async () => {
+    if (!attachProduct) return
     try {
-      setAdoptLoading(productId)
+      setAdoptLoading(attachProduct.id)
       setError("")
-      const res = await fetch(`/api/backend/seller/products/${productId}/adopt`, { method: "POST" })
+      const res = await fetch("/api/backend/seller/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: attachProduct.id }),
+      })
       const data = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(data?.error || "Failed to add product")
+      if (!res.ok) throw new Error(data?.error || "Failed to add product to your store")
+      setShowAttachModal(false)
+      setAttachProduct(null)
       await loadAdminCatalog()
       await loadProducts()
     } catch (e: any) {
@@ -384,12 +306,6 @@ export default function SellerProductsPage() {
                 <Button variant={showAdminCatalog ? "default" : "outline"} onClick={() => setShowAdminCatalog(true)}>
                   Admin Catalog
                 </Button>
-                {!showAdminCatalog && (
-                  <Button onClick={() => setShowAddModal(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Product
-                  </Button>
-                )}
               </div>
             </div>
 
@@ -591,7 +507,7 @@ export default function SellerProductsPage() {
                         )}
                         <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}</p>
                         <div className="mt-auto pt-3">
-                          <Button size="sm" className="w-full" onClick={() => handleAdopt(product.id)} disabled={adoptLoading === product.id}>
+                          <Button size="sm" className="w-full" onClick={() => handleAttach(product)} disabled={adoptLoading === product.id}>
                             {adoptLoading === product.id ? "Adding..." : "Add to my store"}
                           </Button>
                         </div>
@@ -609,169 +525,15 @@ export default function SellerProductsPage() {
         </main>
       </div>
 
-      {/* Add Product Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Add New Product</h3>
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-gray-500"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  <span className="sr-only">Close</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      Product Name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="text"
-                      id="name"
-                      className="mt-1 block w-full"
-                      placeholder="Enter product name"
-                      value={addForm.name}
-                      onChange={(e) => setAddForm((p) => ({ ...p, name: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-                      Price (USDT) <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="number"
-                      id="price"
-                      className="mt-1 block w-full"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                      value={addForm.price}
-                      onChange={(e) => setAddForm((p) => ({ ...p, price: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="stock" className="block text-sm font-medium text-gray-700">
-                      Stock Quantity <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="number"
-                      id="stock"
-                      className="mt-1 block w-full"
-                      placeholder="0"
-                      min="0"
-                      value={addForm.stock}
-                      onChange={(e) => setAddForm((p) => ({ ...p, stock: e.target.value }))}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="category"
-                      className="input mt-1 block w-full"
-                      value={addForm.category}
-                      onChange={(e) => setAddForm((p) => ({ ...p, category: e.target.value }))}
-                    >
-                      <option value="">Select a category</option>
-                      {categoryOptions.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                    Description
-                  </label>
-                  <textarea
-                    id="description"
-                    rows={3}
-                    className="input mt-1 block w-full resize-none"
-                    placeholder="Enter product description"
-                    value={addForm.description}
-                    onChange={(e) => setAddForm((p) => ({ ...p, description: e.target.value }))}
-                  ></textarea>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Product Image</label>
-                  <div className="mt-1">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      id="add-product-image"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) {
-                          setAddImageFile(file)
-                          const reader = new FileReader()
-                          reader.onload = () => setAddImagePreview(reader.result as string)
-                          reader.readAsDataURL(file)
-                        }
-                      }}
-                    />
-                    <label
-                      htmlFor="add-product-image"
-                      className="flex items-center gap-3 cursor-pointer"
-                    >
-                      <span className="inline-block h-16 w-16 rounded-md overflow-hidden bg-gray-100 border border-gray-300 flex items-center justify-center">
-                        {addImagePreview ? (
-                          <img src={addImagePreview} alt="Preview" className="h-full w-full object-cover" />
-                        ) : (
-                          <svg className="h-8 w-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-                          </svg>
-                        )}
-                      </span>
-                      <span className="inline-block bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700">
-                        {addImageFile ? addImageFile.name : "Choose Image"}
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="button" onClick={submitAdd} disabled={isLoading}>
-                  Add Product
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
       
       {/* Edit Product Modal */}
       {showEditModal && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Edit Product</h3>
+                <h3 className="text-lg font-medium text-gray-900">Edit Pricing & Status</h3>
                 <button
                   type="button"
                   className="text-gray-400 hover:text-gray-500"
@@ -783,34 +545,37 @@ export default function SellerProductsPage() {
                   </svg>
                 </button>
               </div>
+              <p className="text-sm text-gray-500 mb-4">Product: <strong>{selectedProduct.name}</strong></p>
               
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700">
-                      Product Name <span className="text-red-500">*</span>
+                    <label htmlFor="edit-selling-price" className="block text-sm font-medium text-gray-700">
+                      Selling Price (USDT) <span className="text-red-500">*</span>
                     </label>
                     <Input
-                      type="text"
-                      id="edit-name"
+                      type="number"
+                      id="edit-selling-price"
                       className="mt-1 block w-full"
-                      value={editForm.name}
-                      onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                      min="0"
+                      step="0.01"
+                      value={editForm.selling_price}
+                      onChange={(e) => setEditForm((p) => ({ ...p, selling_price: e.target.value }))}
                     />
                   </div>
                   
                   <div>
-                    <label htmlFor="edit-price" className="block text-sm font-medium text-gray-700">
-                      Price (USDT) <span className="text-red-500">*</span>
+                    <label htmlFor="edit-base-price" className="block text-sm font-medium text-gray-700">
+                      Your Cost (base price)
                     </label>
                     <Input
                       type="number"
-                      id="edit-price"
+                      id="edit-base-price"
                       className="mt-1 block w-full"
                       min="0"
                       step="0.01"
-                      value={editForm.price}
-                      onChange={(e) => setEditForm((p) => ({ ...p, price: e.target.value }))}
+                      value={editForm.base_price}
+                      onChange={(e) => setEditForm((p) => ({ ...p, base_price: e.target.value }))}
                     />
                   </div>
                   
@@ -829,24 +594,6 @@ export default function SellerProductsPage() {
                   </div>
                   
                   <div>
-                    <label htmlFor="edit-category" className="block text-sm font-medium text-gray-700">
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="edit-category"
-                      className="input mt-1 block w-full"
-                      value={editForm.category}
-                      onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
-                    >
-                      {categoryOptions.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
                     <label htmlFor="edit-status" className="block text-sm font-medium text-gray-700">
                       Status <span className="text-red-500">*</span>
                     </label>
@@ -862,67 +609,56 @@ export default function SellerProductsPage() {
                     </select>
                   </div>
                 </div>
-                
-                <div>
-                  <label htmlFor="edit-description" className="block text-sm font-medium text-gray-700">
-                    Description
-                  </label>
-                  <textarea
-                    id="edit-description"
-                    rows={3}
-                    className="input mt-1 block w-full resize-none"
-                    placeholder="Enter product description"
-                    value={editForm.description}
-                    onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                  ></textarea>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Product Image</label>
-                  <div className="mt-1">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      id="edit-product-image"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) {
-                          setEditImageFile(file)
-                          const reader = new FileReader()
-                          reader.onload = () => setEditImagePreview(reader.result as string)
-                          reader.readAsDataURL(file)
-                        }
-                      }}
-                    />
-                    <label htmlFor="edit-product-image" className="flex items-center gap-3 cursor-pointer">
-                      <span className="inline-block h-16 w-16 rounded-md overflow-hidden bg-gray-100 border border-gray-300 flex items-center justify-center">
-                        {editImagePreview || selectedProduct?.image_url ? (
-                          <img src={editImagePreview || selectedProduct?.image_url || ""} alt="Preview" className="h-full w-full object-cover" />
-                        ) : (
-                          <svg className="h-8 w-8 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-                          </svg>
-                        )}
-                      </span>
-                      <span className="inline-block bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700">
-                        {editImageFile ? editImageFile.name : "Choose Image"}
-                      </span>
-                    </label>
-                  </div>
-                </div>
               </div>
               
               <div className="mt-6 flex justify-end space-x-3">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => { setShowEditModal(false); setEditImageFile(null); setEditImagePreview("") }}
+                  onClick={() => setShowEditModal(false)}
                 >
                   Cancel
                 </Button>
                 <Button type="button" onClick={submitEdit} disabled={isLoading}>
                   Save Changes
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attach to Store Modal */}
+      {showAttachModal && attachProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Add to My Store</h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-500"
+                  onClick={() => { setShowAttachModal(false); setAttachProduct(null) }}
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Adding <strong>{attachProduct.name}</strong> to your store with default pricing.
+                You can adjust pricing later.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setShowAttachModal(false); setAttachProduct(null) }}
+                >
+                  Cancel
+                </Button>
+                <Button type="button" onClick={confirmAttach} disabled={adoptLoading === attachProduct.id}>
+                  {adoptLoading === attachProduct.id ? "Adding..." : "Add to Store"}
                 </Button>
               </div>
             </div>

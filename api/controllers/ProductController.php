@@ -162,6 +162,16 @@ class ProductController {
         }
     }
 
+    private function ensureBasePriceColumn() {
+        if ($this->hasProductColumn('base_price')) return;
+        try {
+            $this->db->prepare("ALTER TABLE products ADD COLUMN base_price DECIMAL(10,2) DEFAULT 0.00 AFTER price")->execute();
+            $this->productColumns['base_price'] = true;
+        } catch (PDOException $e) {
+            // Column might already exist or table can't be altered; ignore
+        }
+    }
+
     private function hasProductColumn($name) {
         $cols = $this->getProductColumns();
         if (!isset($cols[$name])) {
@@ -473,6 +483,7 @@ class ProductController {
                 'id' => (int)$row['id'],
                 'name' => $row['name'],
                 'price' => (float)$row['price'],
+                'base_price' => isset($row['base_price']) ? (float)$row['base_price'] : 0,
                 'stock' => (int)($row['stock'] ?? ($row['quantity'] ?? 0)),
                 'category' => $row['category_name'] ?? '',
                 'status' => $this->normalizeProductStatus($row),
@@ -521,6 +532,7 @@ class ProductController {
                     'id' => (int)$row['id'],
                     'name' => $row['name'],
                     'price' => (float)$row['price'],
+                    'base_price' => isset($row['base_price']) ? (float)$row['base_price'] : 0,
                     'stock' => (int)($row['stock'] ?? ($row['quantity'] ?? 0)),
                     'category' => $row['category_name'] ?? '',
                     'status' => $this->normalizeProductStatus($row),
@@ -594,6 +606,12 @@ class ProductController {
                 $values[] = $adminProduct['image_url'];
             }
 
+            if ($this->hasProductColumn('base_price') && !empty($adminProduct['base_price'])) {
+                $columns[] = 'base_price';
+                $placeholders[] = '?';
+                $values[] = (float)$adminProduct['base_price'];
+            }
+
             if ($this->hasProductColumn('is_active')) {
                 $columns[] = 'is_active';
                 $placeholders[] = '?';
@@ -612,12 +630,21 @@ class ProductController {
                 $columns[] = 'created_at';
                 $placeholders[] = 'NOW()';
             }
-            if ($this->hasProductColumn('updated_at')) {
-                $columns[] = 'updated_at';
-                $placeholders[] = 'NOW()';
-            }
+        if ($this->hasProductColumn('updated_at')) {
+            $columns[] = 'updated_at';
+            $placeholders[] = 'NOW()';
+        }
 
-            $sql = "INSERT INTO products (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
+        if (!empty($data['base_price'])) {
+            $this->ensureBasePriceColumn();
+            if ($this->hasProductColumn('base_price')) {
+                $columns[] = 'base_price';
+                $placeholders[] = '?';
+                $values[] = (float)$data['base_price'];
+            }
+        }
+
+        $sql = "INSERT INTO products (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
             $stmt = $this->db->prepare($sql);
             $stmt->execute($values);
             $newId = (int)$this->db->lastInsertId();
@@ -1086,6 +1113,14 @@ class ProductController {
             if ($catId) {
                 $fields[] = "category_id = ?";
                 $params[] = $catId;
+            }
+        }
+
+        if (array_key_exists('base_price', $data)) {
+            $this->ensureBasePriceColumn();
+            if ($this->hasProductColumn('base_price')) {
+                $fields[] = "base_price = ?";
+                $params[] = (float)$data['base_price'];
             }
         }
 

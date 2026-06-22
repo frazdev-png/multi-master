@@ -38,6 +38,7 @@ interface Product {
   id: number
   name: string
   price: number
+  base_price: number
   stock: number
   category: string
   status: "Active" | "Inactive" | "Out of Stock"
@@ -107,6 +108,7 @@ export default function SellerProductsPage() {
         id: Number(p.id),
         name: p.name,
         price: Number(p.price),
+        base_price: Number(p.base_price ?? 0),
         stock: Number(p.stock),
         category: p.category || "",
         status: isActive ? "Active" : "Inactive",
@@ -142,6 +144,7 @@ export default function SellerProductsPage() {
         id: Number(p.id),
         name: p.name,
         price: Number(p.price),
+        base_price: Number(p.base_price ?? 0),
         stock: Number(p.stock),
         category: p.category || "",
         status: "Active" as Product["status"],
@@ -580,6 +583,12 @@ export default function SellerProductsPage() {
                         <h3 className="text-sm font-medium text-gray-900 truncate">{product.name}</h3>
                         <p className="text-sm text-gray-500 mt-1">{product.category}</p>
                         <p className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(product.price)}</p>
+                        {product.base_price > 0 && (
+                          <div className="mt-1 text-xs space-y-0.5">
+                            <p className="text-gray-500">Your cost: <span className="font-medium">{formatCurrency(product.base_price)}</span></p>
+                            <p className="text-green-600 font-medium">Your profit: +{formatCurrency(product.price - product.base_price)}</p>
+                          </div>
+                        )}
                         <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}</p>
                         <div className="mt-auto pt-3">
                           <Button size="sm" className="w-full" onClick={() => handleAdopt(product.id)} disabled={adoptLoading === product.id}>

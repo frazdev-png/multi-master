@@ -39,6 +39,9 @@ interface Product {
   sku: string;
   vendor: string;
   price: string;
+  priceValue: number;
+  base_price: number;
+  profit: string;
   stock: number;
   rating: number;
   status: string;
@@ -65,6 +68,7 @@ export default function ProductsManagement() {
   const [newProduct, setNewProduct] = useState({
     name: "",
     price: "",
+    base_price: "",
     stock: 0,
     description: "",
     category: "",
@@ -94,12 +98,17 @@ export default function ProductsManagement() {
         const vendorName = p.store_name || p.seller_name || ""
         const status = Number(p.is_active) === 1 ? "Active" : "Inactive"
 
+        const basePriceNum = Number(p.base_price ?? 0)
+        const profitVal = basePriceNum > 0 ? priceNumber - basePriceNum : 0
         return {
           id: Number(p.id),
           name: p.name || "",
           sku: p.sku || `SKU-${p.id}`,
           vendor: vendorName,
           price: formatCurrency(priceNumber),
+          priceValue: priceNumber,
+          base_price: basePriceNum,
+          profit: profitVal > 0 ? `+${formatCurrency(profitVal)}` : "—",
           stock: Number(p.stock ?? 0),
           rating: Number(p.rating ?? 0),
           status,
@@ -164,11 +173,13 @@ export default function ProductsManagement() {
 
       const priceNumber = Number(String(newProduct.price || "").replace(/[^0-9.]/g, ""))
 
+      const basePriceNum = Number(String(newProduct.base_price || "").replace(/[^0-9.]/g, ""))
       const body: any = {
         name: newProduct.name,
         description: newProduct.description,
         image_url: imageUrl,
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
+        base_price: Number.isFinite(basePriceNum) && basePriceNum > 0 ? basePriceNum : undefined,
         stock: Number(newProduct.stock ?? 0),
         category: newProduct.category || undefined,
       }
@@ -184,7 +195,7 @@ export default function ProductsManagement() {
       }
 
       setIsAddDialogOpen(false)
-      setNewProduct({ name: "", price: "", stock: 0, description: "", category: "" })
+      setNewProduct({ name: "", price: "", base_price: "", stock: 0, description: "", category: "" })
       setAddImageFile(null)
       setAddImagePreview("")
       await loadProducts()
@@ -300,10 +311,12 @@ export default function ProductsManagement() {
       }
 
       const priceNumber = Number(String(editingProduct.price || "").replace(/[^0-9.]/g, ""))
+      const basePriceNum = Number(String(editingProduct.base_price ?? "").replace(/[^0-9.]/g, ""))
       const body: any = {
         name: editingProduct.name,
         description: editingProduct.description,
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
+        base_price: Number.isFinite(basePriceNum) && basePriceNum > 0 ? basePriceNum : undefined,
         stock: Number(editingProduct.stock ?? 0),
         category: editingProduct.category || undefined,
       }
@@ -406,6 +419,7 @@ export default function ProductsManagement() {
                   <th className="px-4 py-3 text-left text-sm font-medium">SKU</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Vendor</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Price</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Profit</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Stock</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Rating</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
@@ -442,6 +456,11 @@ export default function ProductsManagement() {
                     <td className="px-4 py-3 text-muted-foreground">{product.sku}</td>
                     <td className="px-4 py-3">{product.vendor}</td>
                     <td className="px-4 py-3 text-primary font-semibold">{product.price}</td>
+                    <td className="px-4 py-3">
+                      <span className={product.base_price > 0 ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                        {product.profit}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={getStockColor(product.stock)}>{product.stock}</span>
                     </td>
@@ -528,8 +547,16 @@ export default function ProductsManagement() {
                   <p>{selectedProduct.category}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Price</label>
+                  <label className="text-sm font-medium text-muted-foreground">Selling Price</label>
                   <p className="font-semibold text-lg text-primary">{selectedProduct.price}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Seller's Cost</label>
+                  <p>{formatCurrency(selectedProduct.base_price)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Seller's Profit</label>
+                  <p className="text-green-600 font-semibold">{formatCurrency(selectedProduct.priceValue - selectedProduct.base_price)}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Stock</label>
@@ -595,11 +622,24 @@ export default function ProductsManagement() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Price</label>
+                  <label className="text-sm font-medium text-muted-foreground">Selling Price</label>
                   <Input
                     value={editingProduct.price}
                     onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
                   />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Seller's Cost (base price)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editingProduct.base_price || ""}
+                    onChange={(e) => setEditingProduct({...editingProduct, base_price: e.target.value === "" ? 0 : parseFloat(e.target.value)})}
+                  />
+                  {editingProduct.base_price > 0 && editingProduct.priceValue > editingProduct.base_price && (
+                    <p className="text-xs text-green-600 mt-1">Seller profit: {formatCurrency(editingProduct.priceValue - editingProduct.base_price)}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Stock</label>
@@ -687,8 +727,21 @@ export default function ProductsManagement() {
                 <Input value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} />
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Price</label>
+                <label className="text-sm font-medium text-muted-foreground">Selling Price</label>
                 <Input value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Seller's Cost (base price)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newProduct.base_price}
+                  onChange={(e) => setNewProduct({ ...newProduct, base_price: e.target.value })}
+                />
+                {newProduct.base_price && Number(newProduct.base_price) > 0 && Number(newProduct.price) > Number(newProduct.base_price) && (
+                  <p className="text-xs text-green-600 mt-1">Seller profit: {formatCurrency(Number(newProduct.price) - Number(newProduct.base_price))}</p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Stock</label>

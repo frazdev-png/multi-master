@@ -4,6 +4,7 @@ import { Heart, Star } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { formatCurrency } from "@/lib/utils"
+import { notify } from "@/components/ui/toast"
 
 function resolvePublicImageUrl(src: string) {
   const value = (src || "").trim()
@@ -57,6 +58,7 @@ export function ProductCard({ id, name, price, originalPrice, image, rating, rev
         const res = await fetch(`/api/backend/wishlist/${id}`, { method: "DELETE" })
         if (!res.ok && res.status !== 401 && res.status !== 403) return
         setInWishlist(false)
+        notify("Removed from wishlist")
       } else {
         const res = await fetch("/api/backend/wishlist/add", {
           method: "POST",
@@ -72,9 +74,10 @@ export function ProductCard({ id, name, price, originalPrice, image, rating, rev
           throw new Error(data?.error || "Failed to add to wishlist")
         }
         setInWishlist(true)
+        notify("Added to wishlist!")
       }
     } catch (e: any) {
-      alert(e?.message || "Something went wrong")
+      notify(e?.message || "Something went wrong", "error")
     }
   }
 
@@ -102,8 +105,9 @@ export function ProductCard({ id, name, price, originalPrice, image, rating, rev
       }
 
       window.dispatchEvent(new Event("cart:updated"))
+      notify("Added to cart!")
     } catch (e: any) {
-      alert(e?.message || "Failed to add to cart")
+      notify(e?.message || "Failed to add to cart", "error")
     } finally {
       setIsAdding(false)
     }

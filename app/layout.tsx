@@ -6,6 +6,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { RealtimeProvider } from "@/contexts/RealtimeContext"
 import { ChatWidget } from "@/components/chat/chat-widget"
+import { ToastContainer } from "@/components/ui/toast"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -48,6 +49,7 @@ export default function RootLayout({
           <RealtimeProvider>
             {children}
             <ChatWidget />
+            <ToastContainer />
           </RealtimeProvider>
         </ThemeProvider>
       </body>

@@ -216,6 +216,7 @@ $routes = [
     '/api/admin/orders/{id}/status' => ['controller' => 'OrderController', 'method' => 'handleRequest', 'http_method' => 'PUT'],
     '/api/admin/vendors' => ['controller' => 'AdminController', 'method' => 'handleRequest', 'http_method' => 'GET'],
     '/api/admin/vendors/{id}/status' => ['controller' => 'AdminController', 'method' => 'handleRequest', 'http_method' => 'PUT'],
+    '/api/admin/vendors/{id}' => ['controller' => 'AdminController', 'method' => 'handleRequest', 'http_method' => 'DELETE'],
 
     // Admin roles & permissions management
     '/api/admin/roles' => ['controller' => 'AdminController', 'method' => 'handleRoles', 'http_method' => ['GET', 'POST']],

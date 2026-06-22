@@ -801,6 +801,48 @@ class AdminController {
         }
     }
 
+    public function deleteVendor($vendorId) {
+        $user = $this->auth->authenticate();
+        if ($user['role'] !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Admin access required']);
+            return;
+        }
+
+        $vendorId = (int)$vendorId;
+        if ($vendorId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid vendor ID']);
+            return;
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            $stmt = $this->db->prepare("SELECT id FROM users WHERE id = ? AND role = 'seller'");
+            $stmt->execute([$vendorId]);
+            if (!$stmt->fetch()) {
+                $this->db->rollBack();
+                http_response_code(404);
+                echo json_encode(['error' => 'Vendor not found']);
+                return;
+            }
+
+            $stmt = $this->db->prepare("DELETE FROM sellers WHERE user_id = ?");
+            $stmt->execute([$vendorId]);
+
+            $stmt = $this->db->prepare("DELETE FROM users WHERE id = ? AND role = 'seller'");
+            $stmt->execute([$vendorId]);
+
+            $this->db->commit();
+            echo json_encode(['success' => true, 'message' => 'Vendor deleted permanently']);
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
     public function getVendors() {
         // Authenticate admin
         $user = $this->auth->authenticate();
@@ -1242,6 +1284,10 @@ class AdminController {
         } elseif ($method === 'DELETE') {
             if (preg_match('#^/api/admin/subscribers/(\d+)$#', $path, $m)) {
                 $this->deleteSubscriber($m[1]);
+                return;
+            }
+            if (preg_match('#^/api/admin/vendors/(\d+)$#', $path, $m)) {
+                $this->deleteVendor($m[1]);
                 return;
             }
         } elseif ($method === 'POST') {

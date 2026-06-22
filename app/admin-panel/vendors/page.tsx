@@ -12,6 +12,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { formatCurrency } from "@/lib/utils"
 
+function resolvePublicImageUrl(src: string | undefined | null) {
+  const raw = String(src || "").trim()
+  if (!raw) return ""
+  if (/^https?:\/\//i.test(raw)) return raw
+  if (raw.startsWith("//")) return `https:${raw}`
+  if (raw.startsWith("/api/uploads/")) return raw.replace("/api/uploads/", "/uploads/")
+  if (raw.startsWith("api/uploads/")) return `/${raw.replace("api/uploads/", "uploads/")}`
+  if (raw.startsWith("uploads/")) return `/${raw}`
+  if (raw.startsWith("/uploads/")) return raw
+  return raw
+}
+
 interface Vendor {
   id: number;
   name: string;
@@ -181,9 +193,21 @@ export default function VendorsManagement() {
     }
   }
 
-  const handleDelete = (vendorId: number) => {
-    if (confirm("Suspend this vendor?")) {
-      handleToggleStatus(vendorId)
+  const handleDelete = async (vendorId: number) => {
+    if (!confirm("Delete this vendor permanently? This action cannot be undone.")) return
+    try {
+      setIsLoading(true)
+      setError("")
+      const res = await fetch(`/api/backend/admin/vendors/${vendorId}`, {
+        method: "DELETE",
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || "Failed to delete vendor")
+      await loadVendors()
+    } catch (e: any) {
+      setError(e?.message || "Failed to delete vendor")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -574,13 +598,13 @@ export default function VendorsManagement() {
                 {selectedVendor.id_front_image_url ? (
                   <div className="relative group">
                     <img
-                      src={selectedVendor.id_front_image_url}
+                      src={resolvePublicImageUrl(selectedVendor.id_front_image_url)}
                       alt="ID Front"
                       className="w-full rounded-lg border border-border object-cover max-h-64"
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
                     />
                     <a
-                      href={selectedVendor.id_front_image_url}
+                      href={resolvePublicImageUrl(selectedVendor.id_front_image_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="absolute top-2 right-2 bg-background/80 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -602,13 +626,13 @@ export default function VendorsManagement() {
                   {selectedVendor.id_back_image_url ? (
                     <div className="relative group">
                       <img
-                        src={selectedVendor.id_back_image_url}
+                        src={resolvePublicImageUrl(selectedVendor.id_back_image_url)}
                         alt="ID Back"
                         className="w-full rounded-lg border border-border object-cover max-h-64"
                         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
                       />
                       <a
-                        href={selectedVendor.id_back_image_url}
+                        href={resolvePublicImageUrl(selectedVendor.id_back_image_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="absolute top-2 right-2 bg-background/80 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"

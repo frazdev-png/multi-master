@@ -122,11 +122,20 @@ class AuthMiddleware {
             throw new Exception('Invalid user');
         }
 
+        // Check token version (invalidate tokens when user is deleted or force-logged-out)
+        $tokenVersion = isset($payload['tok_ver']) ? (int)$payload['tok_ver'] : null;
+        if ($tokenVersion !== null) {
+            $dbVersion = isset($user['token_version']) ? (int)$user['token_version'] : 1;
+            if ($tokenVersion !== $dbVersion) {
+                throw new Exception('Token invalidated');
+            }
+        }
+
         return $user;
     }
 
     // Generate JWT token
-    public static function generateToken($userId, $role) {
+    public static function generateToken($userId, $role, $tokenVersion = null) {
         $secretKey = $_ENV['JWT_SECRET'] ?? '';
         $secretKeyTrim = is_string($secretKey) ? trim($secretKey) : '';
         if ($secretKeyTrim === '' || $secretKeyTrim === 'your-secret-key' || stripos($secretKeyTrim, 'change-this-in-production') !== false) {
@@ -148,6 +157,10 @@ class AuthMiddleware {
             'sub' => $userId,
             'role' => $role
         ];
+
+        if ($tokenVersion !== null) {
+            $payload['tok_ver'] = (int)$tokenVersion;
+        }
         
         $header = [
             'typ' => 'JWT',

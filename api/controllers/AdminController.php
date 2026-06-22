@@ -828,6 +828,10 @@ class AdminController {
                 return;
             }
 
+            // Increment token_version to invalidate all active sessions
+            $stmt = $this->db->prepare("UPDATE users SET token_version = token_version + 1 WHERE id = ?");
+            $stmt->execute([$vendorId]);
+
             $stmt = $this->db->prepare("DELETE FROM sellers WHERE user_id = ?");
             $stmt->execute([$vendorId]);
 

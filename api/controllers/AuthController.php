@@ -193,7 +193,7 @@ class AuthController {
         $user = $this->userModel->getUserWithRoleData($userId);
         
         // Generate JWT token
-        $token = AuthMiddleware::generateToken($userId, $data['role']);
+        $token = AuthMiddleware::generateToken($userId, $data['role'], 1);
         
         // Return success response
         $this->sendResponse([
@@ -219,7 +219,7 @@ class AuthController {
         }
         
         // Generate JWT token
-        $token = AuthMiddleware::generateToken($user['id'], $user['role']);
+        $token = AuthMiddleware::generateToken($user['id'], $user['role'], isset($user['token_version']) ? (int)$user['token_version'] : 1);
         
         // Get full user data with role-specific information
         $userData = $this->userModel->getUserWithRoleData($user['id']);
@@ -252,7 +252,7 @@ class AuthController {
         }
         
         // Generate JWT token
-        $token = AuthMiddleware::generateToken($user['id'], $user['role']);
+        $token = AuthMiddleware::generateToken($user['id'], $user['role'], isset($user['token_version']) ? (int)$user['token_version'] : 1);
         
         // Get full user data with role-specific information
         $userData = $this->userModel->getUserWithRoleData($user['id']);

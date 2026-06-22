@@ -90,6 +90,11 @@ class Database {
                 'message_reads',
                 "CREATE TABLE IF NOT EXISTS message_reads (message_id INT NOT NULL, user_id INT NOT NULL, read_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (message_id, user_id), KEY idx_mr_user (user_id)) ENGINE=InnoDB"
             );
+            $this->ensureHealthyTable(
+                $conn,
+                'wishlist',
+                "CREATE TABLE IF NOT EXISTS wishlist (user_id INT NOT NULL, product_id INT NOT NULL, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, product_id)) ENGINE=InnoDB"
+            );
         } catch (Exception $e) {
         }
     }

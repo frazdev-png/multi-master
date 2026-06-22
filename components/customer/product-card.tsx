@@ -46,9 +46,37 @@ export interface ProductCardProps {
 export function ProductCard({ id, name, price, originalPrice, image, rating, reviews, seller, stock }: ProductCardProps) {
   const router = useRouter()
   const [isAdding, setIsAdding] = useState(false)
+  const [inWishlist, setInWishlist] = useState(false)
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0
 
   const resolvedImage = resolvePublicImageUrl(image)
+
+  const toggleWishlist = async () => {
+    try {
+      if (inWishlist) {
+        const res = await fetch(`/api/backend/wishlist/${id}`, { method: "DELETE" })
+        if (!res.ok && res.status !== 401 && res.status !== 403) return
+        setInWishlist(false)
+      } else {
+        const res = await fetch("/api/backend/wishlist/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ product_id: Number(id) }),
+        })
+        const data = await res.json().catch(() => null)
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            router.push("/auth/login?role=customer")
+            return
+          }
+          throw new Error(data?.error || "Failed to add to wishlist")
+        }
+        setInWishlist(true)
+      }
+    } catch (e: any) {
+      alert(e?.message || "Something went wrong")
+    }
+  }
 
   const addToCart = async () => {
     if (isAdding) return
@@ -99,8 +127,12 @@ export function ProductCard({ id, name, price, originalPrice, image, rating, rev
             -{discount}%
           </div>
         )}
-        <button className="absolute top-2 left-2 p-2 bg-white rounded-full hover:bg-muted transition-colors">
-          <Heart size={18} />
+        <button
+          type="button"
+          className="absolute top-2 left-2 p-2 bg-white rounded-full hover:bg-muted transition-colors"
+          onClick={toggleWishlist}
+        >
+          <Heart size={18} className={inWishlist ? "fill-danger text-danger" : ""} />
         </button>
       </div>
 

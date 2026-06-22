@@ -13,11 +13,12 @@ export default function CustomerOrdersPage() {
       seller: string
       amount: number
       status: string
-      items: number
+      items: { product_name: string; quantity: number; price: number }[]
     }[]
   >([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -48,7 +49,11 @@ export default function CustomerOrdersPage() {
           seller: o.store_name || o.seller_name || "",
           amount: Number(o.total_amount || 0),
           status: mapStatus(o.status),
-          items: Number(o.item_count || 0),
+          items: (o.items || []).map((i: any) => ({
+            product_name: i.product_name,
+            quantity: Number(i.quantity),
+            price: Number(i.price || i.total || 0),
+          })),
         }))
 
         if (!cancelled) {
@@ -137,9 +142,26 @@ export default function CustomerOrdersPage() {
                     >
                       {getStatusIcon(order.status)} {order.status}
                     </span>
-                    <button className="mt-2 md:mt-4 text-primary hover:underline font-medium text-sm">Details</button>
+                    <button
+                      className="mt-2 md:mt-4 text-primary hover:underline font-medium text-sm"
+                      onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
+                    >
+                      {expandedId === order.id ? "Hide" : "Details"}
+                    </button>
                   </div>
                 </div>
+                {expandedId === order.id && order.items.length > 0 && (
+                  <div className="mt-4 pt-4 border-t space-y-2">
+                    {order.items.map((item, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <span className="text-foreground">{item.product_name}</span>
+                        <span className="text-muted-foreground">
+                          {item.quantity} × {formatCurrency(item.price)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

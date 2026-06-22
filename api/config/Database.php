@@ -434,6 +434,7 @@ class Database {
                 $hasLegacyPrice = (bool)$stmt->fetch(PDO::FETCH_ASSOC);
                 if ($hasLegacyPrice) {
                     $conn->exec("UPDATE order_items SET unit_price = price WHERE (unit_price IS NULL OR unit_price = 0) AND price IS NOT NULL");
+                    $conn->exec("ALTER TABLE order_items MODIFY COLUMN price DECIMAL(10,2) NOT NULL DEFAULT 0.00");
                 }
             } catch (Exception $e) {
             }
@@ -444,6 +445,7 @@ class Database {
                 $hasLegacyTotal = (bool)$stmt->fetch(PDO::FETCH_ASSOC);
                 if ($hasLegacyTotal) {
                     $conn->exec("UPDATE order_items SET total_price = total WHERE (total_price IS NULL OR total_price = 0) AND total IS NOT NULL");
+                    $conn->exec("ALTER TABLE order_items MODIFY COLUMN total DECIMAL(10,2) NOT NULL DEFAULT 0.00");
                 }
             } catch (Exception $e) {
             }

@@ -192,8 +192,8 @@ $routes = [
     // Wishlist endpoints
     '/api/wishlist' => ['controller' => 'WishlistController', 'method' => 'getWishlist', 'http_method' => ['GET']],
     '/api/wishlist/add' => ['controller' => 'WishlistController', 'method' => 'addToWishlist', 'http_method' => 'POST'],
-    '/api/wishlist/{id}' => ['controller' => 'WishlistController', 'method' => 'removeFromWishlist', 'http_method' => 'DELETE'],
-    '/api/wishlist/{id}/check' => ['controller' => 'WishlistController', 'method' => 'checkWishlist', 'http_method' => 'GET'],
+    '/api/wishlist/{productId}' => ['controller' => 'WishlistController', 'method' => 'removeFromWishlist', 'http_method' => 'DELETE'],
+    '/api/wishlist/{productId}/check' => ['controller' => 'WishlistController', 'method' => 'checkWishlist', 'http_method' => 'GET'],
 
     // Cart endpoints
     '/api/cart' => ['controller' => 'CartController', 'method' => 'handleRequest', 'http_method' => ['GET', 'POST', 'DELETE']],

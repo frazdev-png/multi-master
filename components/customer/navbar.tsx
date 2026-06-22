@@ -36,6 +36,7 @@ export function CustomerNavbar() {
   const isHome = pathname === "/"
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState<number>(0)
+  const [wishlistCount, setWishlistCount] = useState<number>(0)
 
   const handleLogout = async () => {
     try {
@@ -44,6 +45,16 @@ export function CustomerNavbar() {
     }
     router.push("/auth/login")
     router.refresh()
+  }
+
+  const loadWishlistCount = async () => {
+    try {
+      const res = await fetch("/api/backend/wishlist")
+      if (res.status === 401 || res.status === 403) { setWishlistCount(0); return }
+      const data = await res.json().catch(() => null)
+      if (!data?.success) { setWishlistCount(0); return }
+      setWishlistCount(data.items?.length ?? 0)
+    } catch { setWishlistCount(0) }
   }
 
   const loadCartCount = async () => {
@@ -68,11 +79,15 @@ export function CustomerNavbar() {
 
   useEffect(() => {
     loadCartCount()
-    const handler = () => {
-      loadCartCount()
-    }
+    loadWishlistCount()
+    const handler = () => { loadCartCount() }
+    const wishHandler = () => { loadWishlistCount() }
     window.addEventListener("cart:updated", handler)
-    return () => window.removeEventListener("cart:updated", handler)
+    window.addEventListener("wishlist:updated", wishHandler)
+    return () => {
+      window.removeEventListener("cart:updated", handler)
+      window.removeEventListener("wishlist:updated", wishHandler)
+    }
   }, [])
 
   return (
@@ -125,6 +140,11 @@ export function CustomerNavbar() {
               aria-label="Wishlist"
             >
               <Heart size={20} />
+              {wishlistCount > 0 ? (
+                <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 bg-danger text-white rounded-full text-xs flex items-center justify-center">
+                  {wishlistCount}
+                </span>
+              ) : null}
             </Link>
 
             <Link

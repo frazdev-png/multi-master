@@ -58,6 +58,7 @@ export function ProductCard({ id, name, price, originalPrice, image, rating, rev
         const res = await fetch(`/api/backend/wishlist/${id}`, { method: "DELETE" })
         if (!res.ok && res.status !== 401 && res.status !== 403) return
         setInWishlist(false)
+        window.dispatchEvent(new Event("wishlist:updated"))
         notify("Removed from wishlist")
       } else {
         const res = await fetch("/api/backend/wishlist/add", {
@@ -74,6 +75,7 @@ export function ProductCard({ id, name, price, originalPrice, image, rating, rev
           throw new Error(data?.error || "Failed to add to wishlist")
         }
         setInWishlist(true)
+        window.dispatchEvent(new Event("wishlist:updated"))
         notify("Added to wishlist!")
       }
     } catch (e: any) {

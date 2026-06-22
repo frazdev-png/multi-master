@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { formatCurrency } from "@/lib/utils"
+import { notify } from "@/components/ui/toast"
 
 export default function WishlistPage() {
   const router = useRouter()
@@ -30,7 +31,11 @@ export default function WishlistPage() {
     try {
       const res = await fetch(`/api/backend/wishlist/${productId}`, { method: "DELETE" })
       const data = await res.json()
-      if (data.success) fetchWishlist()
+      if (data.success) {
+        fetchWishlist()
+        window.dispatchEvent(new Event("wishlist:updated"))
+        notify("Removed from wishlist")
+      }
     } catch {}
   }
 

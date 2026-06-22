@@ -606,14 +606,14 @@ export default function ProductsManagement() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Category</label>
-                  <select
-                    value={editingProduct.category}
-                    onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
-                    className="input w-full"
-                  >
-                    <option value="">Select a category</option>
-                    {categories.map((c) => (<option key={c} value={c}>{c}</option>))}
-                  </select>
+                  <Select value={editingProduct.category} onValueChange={(v) => setEditingProduct({...editingProduct, category: v})}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="col-span-2">
                   <label className="text-sm font-medium text-muted-foreground">Image</label>
@@ -684,14 +684,14 @@ export default function ProductsManagement() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Category</label>
-                <select
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                  className="input w-full"
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((c) => (<option key={c} value={c}>{c}</option>))}
-                </select>
+                <Select value={newProduct.category} onValueChange={(v) => setNewProduct({ ...newProduct, category: v })}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="col-span-2">
                 <label className="text-sm font-medium text-muted-foreground">Image</label>

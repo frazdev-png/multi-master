@@ -320,21 +320,13 @@ class AdminController {
         try {
             $conn = $this->db->getConnection();
 
-            // Update commission_rate for all sellers
             $stmt = $conn->prepare("UPDATE sellers SET commission_rate = ?");
-            $stmt->execute([$rate]);
-
-            // Also set default for future sellers
-            $stmt = $conn->prepare("ALTER TABLE sellers ALTER commission_rate SET DEFAULT ?");
             $stmt->execute([$rate]);
 
             echo json_encode(['success' => true, 'message' => 'Global commission rate updated to ' . $rate . '%']);
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-        } catch (Exception $e) {
-            // ALTER may fail on some MySQL versions, that's ok
-            echo json_encode(['success' => true, 'message' => 'Commission rate updated for all existing sellers']);
         }
     }
 

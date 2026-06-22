@@ -277,7 +277,7 @@ class ProductController {
                     }
                 }
 
-                $sellerOwnSql = "
+                $sql = "
                     SELECT 
                         p.*,
                         {$stockSelect},
@@ -286,44 +286,43 @@ class ProductController {
                         {$categorySelect},
                         (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
                         (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count,
-                        (SELECT COUNT(*) FROM order_items WHERE product_id = p.id) as sales_count,
-                        p.price as display_price, p.stock as display_stock
+                        (SELECT COUNT(*) FROM order_items WHERE product_id = p.id) as sales_count
                     FROM products p
                     JOIN users u ON p.seller_id = u.id
                     LEFT JOIN sellers ss ON ss.user_id = u.id
                     {$categoryJoin}
                     WHERE {$activeProduct} AND {$inStock}
-                      AND p.seller_id NOT IN (SELECT id FROM users WHERE role = 'admin')
+                      AND NOT EXISTS (SELECT 1 FROM users WHERE id = p.seller_id AND role = 'admin')
                 ";
 
                 $params = [];
 
                 if (!empty($search)) {
-                    $sellerOwnSql .= " AND (p.name LIKE ? OR p.description LIKE ?)";
+                    $sql .= " AND (p.name LIKE ? OR p.description LIKE ?)";
                     $searchParam = "%{$search}%";
                     $params[] = $searchParam;
                     $params[] = $searchParam;
                 }
 
                 if (!empty($categories) && $categoryWhere !== '') {
-                    $sellerOwnSql .= $categoryWhere;
+                    $sql .= $categoryWhere;
                     foreach ($categories as $catName) {
                         $params[] = $catName;
                     }
                 }
 
                 if ($minPrice > 0) {
-                    $sellerOwnSql .= " AND p.price >= ?";
+                    $sql .= " AND p.price >= ?";
                     $params[] = $minPrice;
                 }
 
                 if ($maxPrice < 999999) {
-                    $sellerOwnSql .= " AND p.price <= ?";
+                    $sql .= " AND p.price <= ?";
                     $params[] = $maxPrice;
                 }
 
                 if ($rating > 0) {
-                    $sellerOwnSql .= " AND (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) >= ?";
+                    $sql .= " AND (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) >= ?";
                     $params[] = $rating;
                 }
 
@@ -332,104 +331,23 @@ class ProductController {
                 $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
 
                 if ($sortBy === 'price') {
-                    $sellerOwnSql .= " ORDER BY p.price {$order}";
+                    $sql .= " ORDER BY p.price {$order}";
                 } elseif ($sortBy === 'rating') {
-                    $sellerOwnSql .= " ORDER BY avg_rating {$order}";
+                    $sql .= " ORDER BY avg_rating {$order}";
                 } elseif ($sortBy === 'sales') {
-                    $sellerOwnSql .= " ORDER BY sales_count {$order}";
+                    $sql .= " ORDER BY sales_count {$order}";
                 } else {
                     $orderBy = $this->hasProductColumn('created_at') ? 'p.created_at' : 'p.id';
-                    $sellerOwnSql .= " ORDER BY {$orderBy} {$order}";
+                    $sql .= " ORDER BY {$orderBy} {$order}";
                 }
 
-                $sellerOwnSql .= " LIMIT ? OFFSET ?";
-                $ownParams = array_merge($params, [(int)$limit, (int)$offset]);
+                $sql .= " LIMIT ? OFFSET ?";
+                $params[] = (int)$limit;
+                $params[] = (int)$offset;
 
-                $stmt = $this->db->prepare($sellerOwnSql);
-                $stmt->execute($ownParams);
-                $ownProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-                $assignedSql = "
-                    SELECT 
-                        p.*,
-                        {$stockSelect},
-                        u.full_name as seller_name,
-                        ss.store_name,
-                        {$categorySelect},
-                        (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
-                        (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count,
-                        (SELECT COUNT(*) FROM order_items WHERE product_id = p.id) as sales_count,
-                        COALESCE(sp.custom_price, p.price) as display_price,
-                        COALESCE(sp.stock, p.stock) as display_stock
-                    FROM seller_products sp
-                    JOIN products p ON sp.product_id = p.id
-                    JOIN users u ON sp.seller_id = u.id
-                    LEFT JOIN sellers ss ON ss.user_id = u.id
-                    {$categoryJoin}
-                    WHERE sp.is_active = 1 AND {$activeProduct}
-                      AND (sp.stock IS NULL OR sp.stock > 0)
-                ";
-                $assignedParams = [];
-
-                if (!empty($search)) {
-                    $assignedSql .= " AND (p.name LIKE ? OR p.description LIKE ?)";
-                    $searchParam = "%{$search}%";
-                    $assignedParams[] = $searchParam;
-                    $assignedParams[] = $searchParam;
-                }
-
-                if (!empty($categories) && $categoryWhere !== '') {
-                    $assignedSql .= $categoryWhere;
-                    foreach ($categories as $catName) {
-                        $assignedParams[] = $catName;
-                    }
-                }
-
-                if ($minPrice > 0) {
-                    $assignedSql .= " AND COALESCE(sp.custom_price, p.price) >= ?";
-                    $assignedParams[] = $minPrice;
-                }
-
-                if ($maxPrice < 999999) {
-                    $assignedSql .= " AND COALESCE(sp.custom_price, p.price) <= ?";
-                    $assignedParams[] = $maxPrice;
-                }
-
-                if ($rating > 0) {
-                    $assignedSql .= " AND (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) >= ?";
-                    $assignedParams[] = $rating;
-                }
-
-                if ($sortBy === 'price') {
-                    $assignedSql .= " ORDER BY display_price {$order}";
-                } elseif ($sortBy === 'rating') {
-                    $assignedSql .= " ORDER BY avg_rating {$order}";
-                } elseif ($sortBy === 'sales') {
-                    $assignedSql .= " ORDER BY sales_count {$order}";
-                } else {
-                    $assignedSql .= " ORDER BY sp.created_at {$order}";
-                }
-
-                $assignedSql .= " LIMIT ? OFFSET ?";
-                $assignedParams = array_merge($assignedParams, [(int)$limit, (int)$offset]);
-
-                $assignedStmt = $this->db->prepare($assignedSql);
-                $assignedStmt->execute($assignedParams);
-                $assignedProducts = $assignedStmt->fetchAll(PDO::FETCH_ASSOC);
-
-                $products = [];
-                foreach ($ownProducts as $row) {
-                    $row['display_price'] = (float)$row['price'];
-                    $row['display_stock'] = (int)($row['stock'] ?? ($row['quantity'] ?? 0));
-                    $products[] = $row;
-                }
-                foreach ($assignedProducts as $row) {
-                    $row['price'] = $row['display_price'];
-                    $row['stock'] = $row['display_stock'];
-                    $products[] = $row;
-                }
-
-                return $products;
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute($params);
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
             });
 
             foreach ($products as &$product) {
@@ -505,7 +423,7 @@ class ProductController {
                 }
 
                 $sql = "
-                    SELECT p.*, {$stockSelect}, {$categorySelect}, 'own' as source_type, NULL as sp_id, NULL as custom_price, NULL as assigned_stock
+                    SELECT p.*, {$stockSelect}, {$categorySelect}
                     FROM products p
                     {$categoryJoin}
                     WHERE p.seller_id = ?
@@ -540,70 +458,28 @@ class ProductController {
                 }
 
                 $orderBy = $this->sellerProductsOrderBy();
-                $sql .= " ORDER BY {$orderBy} DESC";
+                $sql .= " ORDER BY {$orderBy} DESC LIMIT ? OFFSET ?";
+                $params[] = (int)$limit;
+                $params[] = (int)$offset;
 
-                $ownProducts = $this->db->prepare($sql);
-                $ownProducts->execute($params);
-                $ownRows = $ownProducts->fetchAll(PDO::FETCH_ASSOC);
-
-                $assignedSql = "
-                    SELECT p.*, {$stockSelect}, {$categorySelect},
-                           'assigned' as source_type, sp.id as sp_id, sp.custom_price, sp.stock as assigned_stock
-                    FROM seller_products sp
-                    JOIN products p ON sp.product_id = p.id
-                    {$categoryJoin}
-                    WHERE sp.seller_id = ? AND sp.is_active = 1
-                ";
-                $assignedParams = [$user['id']];
-
-                if ($search !== '') {
-                    $assignedSql .= " AND (p.name LIKE ? OR p.description LIKE ?)";
-                    $s = "%{$search}%";
-                    $assignedParams[] = $s;
-                    $assignedParams[] = $s;
-                }
-
-                if ($category !== '' && $category !== 'all' && $categoryJoin !== '') {
-                    $assignedSql .= " AND c.name = ?";
-                    $assignedParams[] = $category;
-                }
-
-                if ($status !== '' && $status !== 'all') {
-                    if ($status === 'Active') {
-                        $assignedSql .= " AND " . $this->activeProductCondition('p') . " AND (sp.stock IS NULL OR sp.stock > 0)";
-                    } elseif ($status === 'Inactive') {
-                        $assignedSql .= " AND 1=0";
-                    } elseif ($status === 'Out of Stock') {
-                        $assignedSql .= " AND " . $this->activeProductCondition('p') . " AND sp.stock IS NOT NULL AND sp.stock <= 0";
-                    }
-                }
-
-                $assignedSql .= " ORDER BY sp.created_at DESC";
-                $assignedStmt = $this->db->prepare($assignedSql);
-                $assignedStmt->execute($assignedParams);
-                $assignedRows = $assignedStmt->fetchAll(PDO::FETCH_ASSOC);
-
-                return array_merge($ownRows, $assignedRows);
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute($params);
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
             });
 
         $products = [];
         foreach ($rows as $row) {
-            $isAssigned = ($row['source_type'] ?? '') === 'assigned';
-            $price = $isAssigned && $row['custom_price'] !== null ? (float)$row['custom_price'] : (float)($row['price'] ?? 0);
-            $stock = $isAssigned && $row['assigned_stock'] !== null ? (int)$row['assigned_stock'] : (int)($row['stock'] ?? ($row['quantity'] ?? 0));
             $products[] = [
-                'id' => $isAssigned ? (int)$row['sp_id'] : (int)$row['id'],
-                'product_id' => (int)$row['id'],
+                'id' => (int)$row['id'],
                 'name' => $row['name'],
-                'price' => $price,
-                'stock' => $stock,
+                'price' => (float)$row['price'],
+                'stock' => (int)($row['stock'] ?? ($row['quantity'] ?? 0)),
                 'category' => $row['category_name'] ?? '',
-                'status' => $isAssigned ? ($stock > 0 ? 'Active' : 'Out of Stock') : $this->normalizeProductStatus($row),
-                'is_active' => 1,
+                'status' => $this->normalizeProductStatus($row),
+                'is_active' => isset($row['is_active']) ? (int)$row['is_active'] : 1,
                 'created_at' => $row['created_at'],
                 'image_url' => $row['image_url'] ?? null,
-                'description' => $row['description'] ?? '',
-                'source_type' => $isAssigned ? 'assigned' : 'own'
+                'description' => $row['description'] ?? ''
             ];
         }
 
@@ -680,16 +556,70 @@ class ProductController {
                 return;
             }
 
-            $stmt = $this->db->prepare("SELECT id FROM seller_products WHERE seller_id = ? AND product_id = ? LIMIT 1");
-            $stmt->execute([$user['id'], $productId]);
+            $stmt = $this->db->prepare("SELECT id FROM products WHERE seller_id = ? AND name = ? LIMIT 1");
+            $stmt->execute([$user['id'], $adminProduct['name']]);
             if ($stmt->fetch()) {
-                http_response_code(200);
-                echo json_encode(['success' => true, 'message' => 'Product already in your store']);
+                http_response_code(409);
+                echo json_encode(['error' => 'You already have a product with this name']);
                 return;
             }
 
-            $stmt = $this->db->prepare("INSERT INTO seller_products (seller_id, product_id) VALUES (?, ?)");
-            $stmt->execute([$user['id'], $productId]);
+            $columns = ['seller_id', 'name', 'price'];
+            $placeholders = ['?', '?', '?'];
+            $values = [$user['id'], $adminProduct['name'], $adminProduct['price']];
+
+            $stockCol = $this->stockColumnName();
+            $stockValue = (int)($adminProduct['stock'] ?? ($adminProduct['quantity'] ?? 0));
+            if ($stockCol) {
+                $columns[] = $stockCol;
+                $placeholders[] = '?';
+                $values[] = $stockValue;
+            }
+
+            if ($this->hasProductColumn('category_id') && !empty($adminProduct['category_id'])) {
+                $columns[] = 'category_id';
+                $placeholders[] = '?';
+                $values[] = $adminProduct['category_id'];
+            }
+
+            if ($this->hasProductColumn('description')) {
+                $columns[] = 'description';
+                $placeholders[] = '?';
+                $values[] = $adminProduct['description'];
+            }
+
+            if ($this->hasProductColumn('image_url')) {
+                $columns[] = 'image_url';
+                $placeholders[] = '?';
+                $values[] = $adminProduct['image_url'];
+            }
+
+            if ($this->hasProductColumn('is_active')) {
+                $columns[] = 'is_active';
+                $placeholders[] = '?';
+                $values[] = 1;
+            } elseif ($this->hasProductColumn('status')) {
+                $columns[] = 'status';
+                $placeholders[] = '?';
+                $values[] = 'active';
+            } elseif ($this->hasProductColumn('is_published')) {
+                $columns[] = 'is_published';
+                $placeholders[] = '?';
+                $values[] = 1;
+            }
+
+            if ($this->hasProductColumn('created_at')) {
+                $columns[] = 'created_at';
+                $placeholders[] = 'NOW()';
+            }
+            if ($this->hasProductColumn('updated_at')) {
+                $columns[] = 'updated_at';
+                $placeholders[] = 'NOW()';
+            }
+
+            $sql = "INSERT INTO products (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($values);
             $newId = (int)$this->db->lastInsertId();
 
             header('Content-Type: application/json');
@@ -811,34 +741,6 @@ class ProductController {
 
     private function updateSellerProduct($user, $productId) {
         $data = $this->getJsonBody();
-        $sourceType = $data['source_type'] ?? '';
-
-        if ($sourceType === 'assigned') {
-            $stmt = $this->db->prepare("SELECT id FROM seller_products WHERE id = ? AND seller_id = ? AND is_active = 1 LIMIT 1");
-            $stmt->execute([(int)$productId, $user['id']]);
-            if (!$stmt->fetch()) {
-                http_response_code(404);
-                echo json_encode(['error' => 'Product not found']);
-                return;
-            }
-            $fields = [];
-            $params = [];
-            if (array_key_exists('price', $data)) {
-                $fields[] = "custom_price = ?";
-                $params[] = $data['price'];
-            }
-            if (array_key_exists('stock', $data)) {
-                $fields[] = "stock = ?";
-                $params[] = $data['stock'];
-            }
-            if (!empty($fields)) {
-                $fields[] = "updated_at = NOW()";
-                $params[] = (int)$productId;
-                $this->db->prepare("UPDATE seller_products SET " . implode(', ', $fields) . " WHERE id = ?")->execute($params);
-            }
-            echo json_encode(['success' => true]);
-            return;
-        }
 
         $stmt = $this->db->prepare("SELECT * FROM products WHERE id = ? AND seller_id = ? LIMIT 1");
         $stmt->execute([(int)$productId, $user['id']]);
@@ -946,25 +848,18 @@ class ProductController {
     }
 
     private function deleteSellerProduct($user, $productId) {
-        $data = $this->getJsonBody();
-        $sourceType = $data['source_type'] ?? '';
-        if ($sourceType === 'assigned') {
-            $stmt = $this->db->prepare("UPDATE seller_products SET is_active = 0 WHERE id = ? AND seller_id = ?");
+        if ($this->hasProductColumn('is_active')) {
+            $stmt = $this->db->prepare("UPDATE products SET is_active = 0" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
+            $stmt->execute([(int)$productId, $user['id']]);
+        } elseif ($this->hasProductColumn('status')) {
+            $stmt = $this->db->prepare("UPDATE products SET status = ?" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
+            $stmt->execute(['inactive', (int)$productId, $user['id']]);
+        } elseif ($this->hasProductColumn('is_published')) {
+            $stmt = $this->db->prepare("UPDATE products SET is_published = 0" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
             $stmt->execute([(int)$productId, $user['id']]);
         } else {
-            if ($this->hasProductColumn('is_active')) {
-                $stmt = $this->db->prepare("UPDATE products SET is_active = 0" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
-                $stmt->execute([(int)$productId, $user['id']]);
-            } elseif ($this->hasProductColumn('status')) {
-                $stmt = $this->db->prepare("UPDATE products SET status = ?" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
-                $stmt->execute(['inactive', (int)$productId, $user['id']]);
-            } elseif ($this->hasProductColumn('is_published')) {
-                $stmt = $this->db->prepare("UPDATE products SET is_published = 0" . ($this->hasProductColumn('updated_at') ? ", updated_at = NOW()" : "") . " WHERE id = ? AND seller_id = ?");
-                $stmt->execute([(int)$productId, $user['id']]);
-            } else {
-                $stmt = $this->db->prepare("DELETE FROM products WHERE id = ? AND seller_id = ?");
-                $stmt->execute([(int)$productId, $user['id']]);
-            }
+            $stmt = $this->db->prepare("DELETE FROM products WHERE id = ? AND seller_id = ?");
+            $stmt->execute([(int)$productId, $user['id']]);
         }
         echo json_encode(['success' => true]);
     }
@@ -1225,12 +1120,8 @@ class ProductController {
     }
 
     private function deleteAdminProduct($user, $productId) {
-        $productId = (int)$productId;
-        $this->db->prepare("DELETE FROM wishlist WHERE product_id = ?")->execute([$productId]);
-        $this->db->prepare("DELETE FROM cart WHERE product_id = ?")->execute([$productId]);
-        $this->db->prepare("DELETE FROM order_items WHERE product_id = ?")->execute([$productId]);
-        $this->db->prepare("DELETE FROM seller_products WHERE product_id = ?")->execute([$productId]);
-        $this->db->prepare("DELETE FROM products WHERE id = ?")->execute([$productId]);
+        $stmt = $this->db->prepare("DELETE FROM products WHERE id = ?");
+        $stmt->execute([(int)$productId]);
         echo json_encode(['success' => true]);
     }
 

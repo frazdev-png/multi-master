@@ -43,7 +43,6 @@ interface Product {
   status: "Active" | "Inactive" | "Out of Stock"
   createdAt: string
   image_url?: string
-  source_type?: "own" | "assigned"
 }
 
 export default function SellerProductsPage() {
@@ -113,7 +112,6 @@ export default function SellerProductsPage() {
         status: isActive ? "Active" : "Inactive",
         createdAt: p.created_at ? new Date(p.created_at).toISOString().slice(0, 10) : "",
         image_url: p.image_url,
-        source_type: p.source_type || "own",
       }})
       setProducts(mapped)
     } catch (e: any) {
@@ -209,8 +207,6 @@ export default function SellerProductsPage() {
         setError("")
         const res = await fetch(`/api/backend/seller/products/${selectedProduct.id}`, {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ source_type: selectedProduct.source_type || "own" }),
         })
         const data = await res.json().catch(() => null)
         if (!res.ok) {
@@ -307,7 +303,6 @@ export default function SellerProductsPage() {
         category: editForm.category,
         description: editForm.description,
         image_url: imageUrl,
-        source_type: selectedProduct.source_type || "own",
       }
       if (editForm.status === "Active") {
         payload.is_active = true

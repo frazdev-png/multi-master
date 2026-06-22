@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-async function uploadFile(file: File, apiBaseUrl: string): Promise<string | null> {
+async function uploadFile(file: File, origin: string): Promise<string | null> {
   try {
     const fd = new FormData()
     fd.append("type", "document")
     fd.append("file", file)
-    const res = await fetch(`${apiBaseUrl}/api/settings/upload`, {
+    const res = await fetch(`${origin}/api/backend/settings/upload`, {
       method: "POST",
       body: fd,
     })
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://127.0.0.1:8000"
+    const origin = request.nextUrl.origin
 
     const payload: any = {
       email,
@@ -51,34 +52,31 @@ export async function POST(request: NextRequest) {
       const documentType = (formData.get("documentType") as string) || "identity-card"
 
       payload.phone = mobileNumber
-
       payload.business_name = storeName || username || "Seller Business"
       payload.store_name = storeName || username || `store_${Date.now()}`
       payload.cnic_number = username || `${Date.now()}`
       payload.promo_code = promoCode
       payload.document_type = documentType
 
-      // Upload document images
+      // Upload document files through Next.js proxy
       const idFrontFile = formData.get("idFrontImage") as File | null
       const idBackFile = formData.get("idBackImage") as File | null
       const passportFile = formData.get("passportImage") as File | null
 
       if (idFrontFile?.size && idFrontFile.size > 0) {
-        payload.id_front_image_url = await uploadFile(idFrontFile, apiBaseUrl)
+        payload.id_front_image_url = await uploadFile(idFrontFile, origin)
       }
       if (idBackFile?.size && idBackFile.size > 0) {
-        payload.id_back_image_url = await uploadFile(idBackFile, apiBaseUrl)
+        payload.id_back_image_url = await uploadFile(idBackFile, origin)
       }
       if (passportFile?.size && passportFile.size > 0) {
-        payload.id_front_image_url = await uploadFile(passportFile, apiBaseUrl)
+        payload.id_front_image_url = await uploadFile(passportFile, origin)
       }
     }
 
     const apiResponse = await fetch(`${apiBaseUrl}/api/auth/register`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
 

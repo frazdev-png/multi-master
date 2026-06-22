@@ -145,6 +145,34 @@ class AuthController {
                 'id_front_image_url' => $data['id_front_image_url'] ?? null,
                 'id_back_image_url' => $data['id_back_image_url'] ?? null
             ];
+
+            // Handle file uploads from multipart form data
+            $uploadDir = __DIR__ . '/../uploads/settings';
+            if (!is_dir($uploadDir)) {
+                @mkdir($uploadDir, 0775, true);
+            }
+
+            foreach (['idFrontImage', 'idBackImage', 'passportImage'] as $field) {
+                if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+                    $file = $_FILES[$field];
+                    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                    if (!$ext) $ext = 'png';
+                    $allowedExt = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'ico', 'pdf'];
+                    if (in_array($ext, $allowedExt, true)) {
+                        $unique = bin2hex(random_bytes(8));
+                        $filename = 'doc_' . $unique . '.' . $ext;
+                        $targetPath = $uploadDir . '/' . $filename;
+                        if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+                            $url = '/uploads/settings/' . $filename;
+                            if ($field === 'idFrontImage' || $field === 'passportImage') {
+                                $sellerData['id_front_image_url'] = $url;
+                            } elseif ($field === 'idBackImage') {
+                                $sellerData['id_back_image_url'] = $url;
+                            }
+                        }
+                    }
+                }
+            }
             
             $data['seller_data'] = $sellerData;
         }

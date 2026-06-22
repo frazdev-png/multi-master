@@ -115,6 +115,8 @@ class User extends BaseModel {
                 $userData[$key] = $data[$key];
             }
         }
+        // New accounts are always active by default
+        $userData['is_active'] = 1;
         $userData['created_at'] = $createdAt;
         $userData['updated_at'] = $createdAt;
 

@@ -110,6 +110,9 @@ function RegisterPageInner() {
         submitData.append("storeName", formData.storeName)
         submitData.append("promoCode", formData.promoCode)
         submitData.append("documentType", formData.documentType)
+        if (formData.idFrontImage) submitData.append("idFrontImage", formData.idFrontImage)
+        if (formData.idBackImage) submitData.append("idBackImage", formData.idBackImage)
+        if (formData.passportImage) submitData.append("passportImage", formData.passportImage)
       }
 
       const response = await fetch("/api/auth/register", {
@@ -127,9 +130,14 @@ function RegisterPageInner() {
 
       setSuccess(true)
       setTimeout(() => {
-        // Redirect to login with role parameter for context
-        router.push(`/auth/login?role=${role}`)
-      }, 2000)
+        if (role === "seller") {
+          router.push("/seller")
+        } else if (role === "admin") {
+          router.push("/admin-panel")
+        } else {
+          router.push("/")
+        }
+      }, 1500)
     } catch (err) {
       setError("An error occurred. Please try again.")
       console.log("[v0] Register error:", err)
@@ -186,9 +194,9 @@ function RegisterPageInner() {
         {success && (
           <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
             <CheckCircle size={20} className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-            <p className="text-green-700 dark:text-green-400 text-sm">
-              Account created successfully! Redirecting to login...
-            </p>
+              <p className="text-green-700 dark:text-green-400 text-sm">
+                Account created successfully! Signing in...
+              </p>
           </div>
         )}
 

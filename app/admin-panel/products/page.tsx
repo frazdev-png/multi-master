@@ -529,7 +529,7 @@ export default function ProductsManagement() {
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Product Name</label>
                   <p className="font-semibold">{selectedProduct.name}</p>
@@ -575,7 +575,7 @@ export default function ProductsManagement() {
                     {selectedProduct.status}
                   </Badge>
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <label className="text-sm font-medium text-muted-foreground">Description</label>
                   <p>{selectedProduct.description}</p>
                 </div>
@@ -599,7 +599,7 @@ export default function ProductsManagement() {
           </DialogHeader>
           {editingProduct && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Product Name</label>
                   <Input
@@ -671,18 +671,18 @@ export default function ProductsManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <label className="text-sm font-medium text-muted-foreground">Image</label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <Button type="button" variant="outline" onClick={() => openFilePicker(setEditImageFile, setEditImagePreview)}>
                       {editImageFile ? "Change Image" : "Upload Image"}
                     </Button>
                     {editImageFile && (
-                      <span className="text-sm text-muted-foreground">{editImageFile.name}</span>
+                      <span className="text-sm text-muted-foreground break-all">{editImageFile.name}</span>
                     )}
                   </div>
                   {(editImagePreview || editingProduct.image) && (
-                    <div className="mt-2 relative w-32 h-32 border rounded-md overflow-hidden bg-muted">
+                    <div className="mt-2 relative w-32 h-32 sm:w-40 sm:h-40 border rounded-md overflow-hidden bg-muted">
                       <img
                         src={editImagePreview || editingProduct.image || "/placeholder.svg"}
                         alt="Preview"
@@ -692,7 +692,7 @@ export default function ProductsManagement() {
                     </div>
                   )}
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <label className="text-sm font-medium text-muted-foreground">Description</label>
                   <Input
                     value={editingProduct.description}
@@ -721,7 +721,7 @@ export default function ProductsManagement() {
             <DialogDescription>Create a new product</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Product Name</label>
                 <Input value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} />
@@ -762,23 +762,23 @@ export default function ProductsManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <label className="text-sm font-medium text-muted-foreground">Image</label>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <Button type="button" variant="outline" onClick={() => openFilePicker(setAddImageFile, setAddImagePreview)}>
                     {addImageFile ? "Change Image" : "Upload Image"}
                   </Button>
                   {addImageFile && (
-                    <span className="text-sm text-muted-foreground">{addImageFile.name}</span>
+                    <span className="text-sm text-muted-foreground break-all">{addImageFile.name}</span>
                   )}
                 </div>
                 {addImagePreview && (
-                  <div className="mt-2 relative w-32 h-32 border rounded-md overflow-hidden bg-muted">
+                  <div className="mt-2 relative w-32 h-32 sm:w-40 sm:h-40 border rounded-md overflow-hidden bg-muted">
                     <img src={addImagePreview} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <label className="text-sm font-medium text-muted-foreground">Description</label>
                 <Input value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} />
               </div>

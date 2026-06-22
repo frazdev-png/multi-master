@@ -23,7 +23,7 @@ class CartController {
     }
 
     private function listCart($user) {
-        $stmt = $this->db->prepare("\n            SELECT\n                c.product_id,\n                c.quantity,\n                p.name,\n                p.price,\n                p.image_url,\n                p.stock,\n                p.seller_id\n            FROM cart c\n            JOIN products p ON p.id = c.product_id\n            WHERE c.user_id = ?\n            ORDER BY c.updated_at DESC\n        ");
+        $stmt = $this->db->prepare("\n            SELECT\n                c.product_id,\n                c.quantity,\n                p.name,\n                p.price,\n                p.image_url,\n                p.stock,\n                p.seller_id\n            FROM cart c\n            JOIN products p ON p.id = c.product_id\n            WHERE c.user_id = ?\n            ORDER BY c.created_at DESC\n        ");
         $stmt->execute([$user['id']]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

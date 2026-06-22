@@ -218,27 +218,57 @@ class OrderController {
 
     private function updateAdminOrderStatus($user, $orderId) {
         $data = $this->getJsonBody();
+        $orderId = (int)$orderId;
+
+        $fields = [];
+        $params = [];
+
         $status = $data['status'] ?? null;
-        if (!$status) {
+        if ($status) {
+            $allowed = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+            $status = strtolower($status);
+            if (!in_array($status, $allowed)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid status']);
+                return;
+            }
+            $fields[] = "status = ?";
+            $params[] = $status;
+        }
+
+        $paymentStatus = $data['payment_status'] ?? null;
+        if ($paymentStatus) {
+            $allowedPayment = ['pending', 'paid', 'failed', 'refunded', 'cancelled'];
+            $paymentStatus = strtolower($paymentStatus);
+            if (!in_array($paymentStatus, $allowedPayment)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid payment_status']);
+                return;
+            }
+            $fields[] = "payment_status = ?";
+            $params[] = $paymentStatus;
+        }
+
+        if (array_key_exists('payment_method', $data)) {
+            $fields[] = "payment_method = ?";
+            $params[] = $data['payment_method'];
+        }
+
+        if (empty($fields)) {
             http_response_code(400);
-            echo json_encode(['error' => 'status is required']);
+            echo json_encode(['error' => 'Nothing to update']);
             return;
         }
 
-        $allowed = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-        $status = strtolower($status);
-        if (!in_array($status, $allowed)) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Invalid status']);
-            return;
-        }
+        $fields[] = "updated_at = NOW()";
+        $params[] = $orderId;
 
-        $stmt = $this->db->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?");
-        $stmt->execute([$status, (int)$orderId]);
+        $sql = "UPDATE orders SET " . implode(', ', $fields) . " WHERE id = ?";
+        $this->db->prepare($sql)->execute($params);
 
         if ($status === 'delivered') {
             $stmt = $this->db->prepare("SELECT total_amount, seller_id FROM orders WHERE id = ?");
-            $stmt->execute([(int)$orderId]);
+            $stmt->execute([$orderId]);
             $order = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($order && $order['total_amount'] > 0) {
                 $sid = $order['seller_id'];
@@ -246,7 +276,7 @@ class OrderController {
                 $this->db->prepare("UPDATE wallets SET pending_balance = GREATEST(pending_balance - ?, 0), available_balance = available_balance + ?, balance = COALESCE(balance, 0) + ?, total_earnings = COALESCE(total_earnings, 0) + ? WHERE user_id = ?")
                     ->execute([$amt, $amt, $amt, $amt, $sid]);
                 $this->db->prepare("INSERT INTO wallet_transactions (user_id, type, direction, amount, description, reference_type, reference_id, created_at) VALUES (?, 'order_delivered', 'credit', ?, CONCAT('Order #', ?, ' delivered'), 'order', ?, NOW())")
-                    ->execute([$sid, $amt, (int)$orderId, (int)$orderId]);
+                    ->execute([$sid, $amt, $orderId, $orderId]);
             }
         }
 

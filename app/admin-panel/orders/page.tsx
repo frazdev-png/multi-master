@@ -17,6 +17,8 @@ interface AdminOrder {
   vendor: string
   amount: string
   status: string
+  paymentStatus: string
+  paymentMethod: string
   items: number
   date: string
   email: string
@@ -27,6 +29,7 @@ interface AdminOrder {
 export default function OrdersManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [paymentFilter, setPaymentFilter] = useState("all")
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -60,6 +63,15 @@ export default function OrdersManagement() {
         return "Cancelled"
       }
 
+      const mapPaymentStatus = (s: string) => {
+        const v = (s || "").toLowerCase()
+        if (v === "paid") return "Paid"
+        if (v === "failed") return "Failed"
+        if (v === "refunded") return "Refunded"
+        if (v === "cancelled") return "Cancelled"
+        return "Pending"
+      }
+
       const mapped: AdminOrder[] = (data?.orders || []).map((o: any) => ({
         orderId: Number(o.id),
         id: `#ORD-${String(o.id).padStart(3, "0")}`,
@@ -67,6 +79,8 @@ export default function OrdersManagement() {
         vendor: o.store_name || o.seller_name || "",
         amount: formatCurrency(Number(o.total_amount ?? 0)),
         status: mapStatus(o.status),
+        paymentStatus: mapPaymentStatus(o.payment_status),
+        paymentMethod: o.payment_method || "",
         items: Number(o.item_count ?? 0),
         date: o.created_at ? new Date(o.created_at).toLocaleDateString() : "",
         email: o.customer_email || "",
@@ -93,7 +107,10 @@ export default function OrdersManagement() {
     return () => clearTimeout(t)
   }, [searchTerm])
 
-  const filteredOrders = orders
+  const filteredOrders = orders.filter((o) => {
+    if (paymentFilter !== "all" && o.paymentStatus.toLowerCase() !== paymentFilter) return false
+    return true
+  })
 
   const handleView = (order: AdminOrder) => {
     setSelectedOrder(order)
@@ -131,9 +148,61 @@ export default function OrdersManagement() {
     }
   }
 
-  const handleSaveEdit = () => {
-    setIsEditDialogOpen(false)
-    setEditingOrder(null)
+  const handlePaymentStatusChange = async (orderId: number, newPaymentStatus: string) => {
+    try {
+      setIsLoading(true)
+      setError("")
+      const res = await fetch(`/api/backend/admin/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_status: newPaymentStatus.toLowerCase() }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to update payment status")
+      }
+      await loadOrders()
+    } catch (e: any) {
+      setError(e?.message || "Failed to update payment status")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const getPaymentStatusColor = (status: string) => {
+    switch(status.toLowerCase()) {
+      case 'paid': return 'bg-green-100 text-green-800'
+      case 'pending': return 'bg-yellow-100 text-yellow-800'
+      case 'failed': return 'bg-red-100 text-red-800'
+      case 'refunded': return 'bg-purple-100 text-purple-800'
+      case 'cancelled': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingOrder) return
+    try {
+      setIsLoading(true)
+      setError("")
+      const res = await fetch(`/api/backend/admin/orders/${editingOrder.orderId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payment_status: editingOrder.paymentStatus.toLowerCase(),
+          payment_method: editingOrder.paymentMethod || null,
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || "Failed to save changes")
+      setIsEditDialogOpen(false)
+      setEditingOrder(null)
+      await loadOrders()
+    } catch (e: any) {
+      setError(e?.message || "Failed to save changes")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleRefresh = () => {
@@ -142,9 +211,9 @@ export default function OrdersManagement() {
 
   const handleExport = () => {
     const csvContent = "data:text/csv;charset=utf-8," + 
-      "Order ID,Customer,Vendor,Amount,Status,Items,Date\n" +
+      "Order ID,Customer,Vendor,Amount,Status,Payment Status,Items,Date\n" +
       orders.map(order => 
-        `${order.id},${order.customer},${order.vendor},${order.amount},${order.status},${order.items},${order.date}`
+        `${order.id},${order.customer},${order.vendor},${order.amount},${order.status},${order.paymentStatus},${order.items},${order.date}`
       ).join("\n")
     
     const encodedUri = encodeURI(csvContent)
@@ -219,9 +288,25 @@ export default function OrdersManagement() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => {setSearchTerm(""); setStatusFilter("all")}}>
-          Clear Filters
-        </Button>
+        <div>
+          <label className="block text-sm font-medium mb-2">Payment Status</label>
+          <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Payment Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="refunded">Refunded</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+          <Button onClick={() => {setSearchTerm(""); setStatusFilter("all"); setPaymentFilter("all")}}>
+            Clear Filters
+          </Button>
       </div>
 
       {/* Orders Table */}
@@ -237,6 +322,7 @@ export default function OrdersManagement() {
                   <th className="px-4 py-3 text-left text-sm font-medium">Amount</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Items</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Payment</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
                 </tr>
@@ -265,6 +351,25 @@ export default function OrdersManagement() {
                       <div className="mt-2">
                         <Badge className={getStatusColor(order.status)}>
                           {order.status}
+                        </Badge>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Select value={order.paymentStatus} onValueChange={(v) => handlePaymentStatusChange(order.orderId, v)}>
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Paid">Paid</SelectItem>
+                          <SelectItem value="Failed">Failed</SelectItem>
+                          <SelectItem value="Refunded">Refunded</SelectItem>
+                          <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="mt-2">
+                        <Badge className={getPaymentStatusColor(order.paymentStatus)}>
+                          {order.paymentStatus}
                         </Badge>
                       </div>
                     </td>
@@ -328,6 +433,16 @@ export default function OrdersManagement() {
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Items</label>
                   <p>{selectedOrder.items} items</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Payment Status</label>
+                  <Badge className={getPaymentStatusColor(selectedOrder.paymentStatus)}>
+                    {selectedOrder.paymentStatus}
+                  </Badge>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Payment Method</label>
+                  <p>{selectedOrder.paymentMethod || "—"}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Date</label>
@@ -402,6 +517,29 @@ export default function OrdersManagement() {
                   <Input
                     value={editingOrder.phone}
                     onChange={(e) => setEditingOrder({...editingOrder, phone: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Payment Status</label>
+                  <Select value={editingOrder.paymentStatus} onValueChange={(v) => setEditingOrder({...editingOrder, paymentStatus: v})}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Paid">Paid</SelectItem>
+                      <SelectItem value="Failed">Failed</SelectItem>
+                      <SelectItem value="Refunded">Refunded</SelectItem>
+                      <SelectItem value="Cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Payment Method</label>
+                  <Input
+                    value={editingOrder.paymentMethod}
+                    onChange={(e) => setEditingOrder({...editingOrder, paymentMethod: e.target.value})}
+                    placeholder="e.g. Credit Card, Bank Transfer"
                   />
                 </div>
                 <div className="col-span-2">

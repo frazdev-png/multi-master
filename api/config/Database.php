@@ -414,6 +414,7 @@ class Database {
             $ensureColumn('order_items', 'total_price', 'total_price DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             $ensureColumn('order_items', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
 
+            $ensureColumn('cart', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
             $ensureColumn('cart', 'updated_at', 'updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
 
             // Backfill unit_price/total_price from legacy columns if present

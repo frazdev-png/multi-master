@@ -121,6 +121,28 @@ class AuthController {
     public function register() {
         $data = $this->getRequestData();
         
+        // Normalize camelCase field names from FormData to snake_case for PHP
+        $camelToSnake = [
+            'fullName' => 'full_name',
+            'storeName' => 'store_name',
+            'mobileNumber' => 'phone',
+            'promoCode' => 'promo_code',
+            'documentType' => 'document_type',
+        ];
+        foreach ($camelToSnake as $camel => $snake) {
+            if (isset($data[$camel]) && !isset($data[$snake])) {
+                $data[$snake] = $data[$camel];
+            }
+        }
+        // Map username -> cnic_number if cnic_number not provided directly
+        if (isset($data['username']) && !isset($data['cnic_number'])) {
+            $data['cnic_number'] = $data['username'];
+        }
+        // Map storeName -> business_name if business_name not provided
+        if (isset($data['storeName']) && !isset($data['business_name'])) {
+            $data['business_name'] = $data['storeName'];
+        }
+        
         // Validate required fields
         $requiredFields = ['email', 'password', 'role', 'full_name'];
         $this->validateFields($data, $requiredFields);

@@ -5,6 +5,7 @@ import { CustomerNavbar } from "@/components/customer/navbar"
 import { ProductCard } from "@/components/customer/product-card"
 import { Input } from "@/components/ui/input"
 import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 
 type ApiProduct = {
   id: number | string
@@ -23,6 +24,7 @@ type ApiProduct = {
 const PAGE_SIZE = 20
 
 export default function ShopPage() {
+  const searchParams = useSearchParams()
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -85,6 +87,8 @@ export default function ShopPage() {
   }
 
   useEffect(() => {
+    const q = searchParams.get("search")
+    if (q) { setSearch(q); setPage(1) }
     loadCategories()
   }, [])
 

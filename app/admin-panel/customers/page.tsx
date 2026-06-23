@@ -1,7 +1,7 @@
 "use client"
 
 import { Search, Eye, Ban, RefreshCw, Download, Edit2, Trash2, Mail } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -23,69 +23,83 @@ type Customer = {
 
 export default function CustomersManagement() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [customers, setCustomers] = useState<Customer[]>([
-    {
-      id: 1,
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "+1 234 567 8900",
-      orders: 15,
-      spent: "2,450.50 USDT",
-      joined: "Jan 15, 2024",
-      status: "Active",
-      address: "123 Main St, City, State",
-      lastOrder: "Dec 18, 2024"
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      email: "jane@example.com",
-      phone: "+1 234 567 8901",
-      orders: 8,
-      spent: "890.25 USDT",
-      joined: "Feb 20, 2024",
-      status: "Active",
-      address: "456 Oak Ave, City, State",
-      lastOrder: "Dec 17, 2024"
-    },
-    {
-      id: 3,
-      name: "Mike Johnson",
-      email: "mike@example.com",
-      phone: "+1 234 567 8902",
-      orders: 3,
-      spent: "245.75 USDT",
-      joined: "Mar 10, 2024",
-      status: "Blocked",
-      address: "789 Pine Rd, City, State",
-      lastOrder: "Dec 15, 2024"
-    },
-  ])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const cancelRef = useRef(false)
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm)
-  )
+  const fetchCustomers = async (signal?: AbortSignal) => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({ role: "customer", limit: "200" })
+      if (searchTerm.trim()) params.set("search", searchTerm.trim())
+      const res = await fetch(`/api/backend/admin/users?${params}`, { signal })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Failed to load customers")
+
+      const users = Array.isArray(data?.users) ? data.users : []
+      const mapped: Customer[] = users.map((u: any) => ({
+        id: Number(u.id),
+        name: u.full_name || "Unknown",
+        email: u.email || "",
+        phone: u.phone || "-",
+        orders: Number(u.order_count || 0),
+        spent: (Number(u.total_spent || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " USDT",
+        joined: u.created_at ? String(u.created_at).slice(0, 10) : "-",
+        status: u.is_active == 1 || u.is_active == null ? "Active" : "Blocked",
+        address: "-",
+        lastOrder: "-",
+      }))
+      if (!cancelRef.current) setCustomers(mapped)
+    } catch (e: any) {
+      if (e?.name !== "AbortError") console.error("Failed to load customers:", e)
+    } finally {
+      if (!cancelRef.current) setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    cancelRef.current = false
+    const ctrl = new AbortController()
+    fetchCustomers(ctrl.signal)
+    return () => {
+      cancelRef.current = true
+      ctrl.abort()
+    }
+  }, [searchTerm])
 
   const handleView = (customer: Customer) => {
     setSelectedCustomer(customer)
     setIsViewDialogOpen(true)
   }
 
-  const handleToggleStatus = (customerId: number) => {
-    setCustomers(customers.map(customer =>
-      customer.id === customerId
-        ? { ...customer, status: customer.status === "Active" ? "Blocked" : "Active" }
-        : customer
-    ))
+  const handleToggleStatus = async (customerId: number) => {
+    const target = customers.find((c) => c.id === customerId)
+    if (!target) return
+    const newActive = target.status === "Active" ? 0 : 1
+    try {
+      const res = await fetch("/api/backend/admin/users/status", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: customerId, is_active: newActive }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data?.error || "Failed to update status")
+        return
+      }
+      setCustomers((prev) =>
+        prev.map((c) => (c.id === customerId ? { ...c, status: newActive ? "Active" : "Blocked" } : c)),
+      )
+    } catch {
+      alert("Failed to update status")
+    }
   }
 
   const handleDelete = (customerId: number) => {
     if (confirm("Are you sure you want to delete this customer?")) {
-      setCustomers(customers.filter(customer => customer.id !== customerId))
+      setCustomers(customers.filter((customer) => customer.id !== customerId))
     }
   }
 
@@ -93,17 +107,17 @@ export default function CustomersManagement() {
     window.location.href = `mailto:${customer.email}`
   }
 
-  const handleRefresh = () => {
-    alert("Customers data refreshed!")
-  }
-
   const handleExport = () => {
-    const csvContent = "data:text/csv;charset=utf-8," + 
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
       "Name,Email,Phone,Orders,Total Spent,Joined,Status\n" +
-      customers.map(customer => 
-        `${customer.name},${customer.email},${customer.phone},${customer.orders},${customer.spent},${customer.joined},${customer.status}`
-      ).join("\n")
-    
+      customers
+        .map(
+          (customer) =>
+            `${customer.name},${customer.email},${customer.phone},${customer.orders},${customer.spent},${customer.joined},${customer.status}`,
+        )
+        .join("\n")
+
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement("a")
     link.setAttribute("href", encodedUri)
@@ -125,7 +139,7 @@ export default function CustomersManagement() {
           <p className="text-muted-foreground mt-1">Manage all registered customers</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh}>
+          <Button variant="outline" onClick={() => fetchCustomers()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -136,13 +150,12 @@ export default function CustomersManagement() {
         </div>
       </div>
 
-      {/* Search */}
       <div>
         <div className="relative">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search by name, email, or phone..."
+            placeholder="Search by name or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -150,7 +163,6 @@ export default function CustomersManagement() {
         </div>
       </div>
 
-      {/* Customers Table */}
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -168,49 +180,55 @@ export default function CustomersManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="border-b border-border hover:bg-muted/50">
-                    <td className="px-4 py-3 font-semibold">{customer.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{customer.email}</td>
-                    <td className="px-4 py-3">{customer.phone}</td>
-                    <td className="px-4 py-3">{customer.orders}</td>
-                    <td className="px-4 py-3 text-primary font-semibold">{customer.spent}</td>
-                    <td className="px-4 py-3 text-sm">{customer.joined}</td>
-                    <td className="px-4 py-3">
-                      <Badge className={getStatusColor(customer.status)}>
-                        {customer.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleView(customer)}>
-                          <Eye size={16} className="text-primary" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleSendEmail(customer)}>
-                          <Mail size={16} className="text-blue-500" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(customer.id)}>
-                          <Ban size={16} className={customer.status === "Active" ? "text-red-500" : "text-green-500"} />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(customer.id)}>
-                          <Trash2 size={16} className="text-red-500" />
-                        </Button>
-                      </div>
+                {loading ? (
+                  <tr>
+                    <td className="px-4 py-8 text-center text-muted-foreground" colSpan={8}>
+                      Loading customers...
                     </td>
                   </tr>
-                ))}
+                ) : customers.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-8 text-center text-muted-foreground" colSpan={8}>
+                      No customers found
+                    </td>
+                  </tr>
+                ) : (
+                  customers.map((customer) => (
+                    <tr key={customer.id} className="border-b border-border hover:bg-muted/50">
+                      <td className="px-4 py-3 font-semibold">{customer.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{customer.email}</td>
+                      <td className="px-4 py-3">{customer.phone}</td>
+                      <td className="px-4 py-3">{customer.orders}</td>
+                      <td className="px-4 py-3 text-primary font-semibold">{customer.spent}</td>
+                      <td className="px-4 py-3 text-sm">{customer.joined}</td>
+                      <td className="px-4 py-3">
+                        <Badge className={getStatusColor(customer.status)}>{customer.status}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleView(customer)}>
+                            <Eye size={16} className="text-primary" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleSendEmail(customer)}>
+                            <Mail size={16} className="text-blue-500" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(customer.id)}>
+                            <Ban size={16} className={customer.status === "Active" ? "text-red-500" : "text-green-500"} />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(customer.id)}>
+                            <Trash2 size={16} className="text-red-500" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
-            {filteredCustomers.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                No customers found matching your search
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* View Customer Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -226,9 +244,7 @@ export default function CustomersManagement() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Status</label>
-                  <Badge className={getStatusColor(selectedCustomer.status)}>
-                    {selectedCustomer.status}
-                  </Badge>
+                  <Badge className={getStatusColor(selectedCustomer.status)}>{selectedCustomer.status}</Badge>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Email</label>
@@ -264,9 +280,7 @@ export default function CustomersManagement() {
                   <Mail className="h-4 w-4 mr-2" />
                   Send Email
                 </Button>
-                <Button onClick={() => setIsViewDialogOpen(false)}>
-                  Close
-                </Button>
+                <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
               </div>
             </div>
           )}

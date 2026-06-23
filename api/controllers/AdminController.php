@@ -1140,45 +1140,56 @@ class AdminController {
         $role = $_GET['role'] ?? '';
         $status = $_GET['status'] ?? '';
         $search = $_GET['search'] ?? '';
-        $limit = min($_GET['limit'] ?? 20, 50);
+        $limit = min($_GET['limit'] ?? 200, 500);
         $offset = $_GET['offset'] ?? 0;
 
         try {
             $userIsActiveSelect = $this->hasUserColumn('is_active') ? 'is_active' : '1 as is_active';
             $sql = "
-                SELECT id, full_name, email, role, phone, {$userIsActiveSelect}, created_at, last_seen
-                FROM users
+                SELECT
+                    u.id,
+                    u.full_name,
+                    u.email,
+                    u.role,
+                    u.phone,
+                    {$userIsActiveSelect},
+                    u.created_at,
+                    u.last_seen,
+                    COUNT(o.id) AS order_count,
+                    COALESCE(SUM(o.total_amount), 0) AS total_spent
+                FROM users u
+                LEFT JOIN orders o ON o.customer_id = u.id
                 WHERE 1=1
             ";
             $params = [];
             
             if (!empty($role)) {
-                $sql .= " AND role = ?";
+                $sql .= " AND u.role = ?";
                 $params[] = $role;
             }
             
             if ($status === 'active') {
                 if ($this->hasUserColumn('is_active')) {
-                    $sql .= " AND is_active = 1";
+                    $sql .= " AND u.is_active = 1";
                 }
             } elseif ($status === 'inactive') {
                 if ($this->hasUserColumn('is_active')) {
-                    $sql .= " AND is_active = 0";
+                    $sql .= " AND u.is_active = 0";
                 } else {
                     $sql .= " AND 1=0";
                 }
             }
             
             if (!empty($search)) {
-                $sql .= " AND (full_name LIKE ? OR email LIKE ?)";
+                $sql .= " AND (u.full_name LIKE ? OR u.email LIKE ?)";
                 $searchParam = "%{$search}%";
                 $params[] = $searchParam;
                 $params[] = $searchParam;
             }
             
-            $sql .= " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-            $params[] = $limit;
-            $params[] = $offset;
+            $sql .= " GROUP BY u.id ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
+            $params[] = (int)$limit;
+            $params[] = (int)$offset;
             
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);

@@ -13,7 +13,7 @@ export default function CustomerOrdersPage() {
       seller: string
       amount: number
       status: string
-      items: { product_name: string; quantity: number; price: number }[]
+      items: { product_name: string; quantity: number; unit_price: number; subtotal: number }[]
     }[]
   >([])
   const [isLoading, setIsLoading] = useState(true)
@@ -52,7 +52,8 @@ export default function CustomerOrdersPage() {
           items: (o.items || []).map((i: any) => ({
             product_name: i.product_name,
             quantity: Number(i.quantity),
-            price: Number(i.price || i.total || 0),
+            unit_price: Number(i.unit_price || i.price || 0),
+            subtotal: Number(i.subtotal || 0),
           })),
         }))
 
@@ -156,7 +157,7 @@ export default function CustomerOrdersPage() {
                       <div key={i} className="flex items-center justify-between text-sm">
                         <span className="text-foreground">{item.product_name}</span>
                         <span className="text-muted-foreground">
-                          {item.quantity} × {formatCurrency(item.price)}
+                          {item.quantity} × {formatCurrency(item.unit_price)} = {formatCurrency(item.subtotal)}
                         </span>
                       </div>
                     ))}

@@ -10,16 +10,26 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { formatCurrency } from "@/lib/utils"
 
+interface OrderItem {
+  product_name: string
+  quantity: number
+  unit_price: number
+  subtotal: number
+  image_url?: string
+}
+
 interface AdminOrder {
   orderId: number
   id: string
   customer: string
   vendor: string
+  seller_email: string
   amount: string
   status: string
   paymentStatus: string
   paymentMethod: string
-  items: number
+  item_count: number
+  items: OrderItem[]
   date: string
   email: string
   phone: string
@@ -77,11 +87,19 @@ export default function OrdersManagement() {
         id: `#ORD-${String(o.id).padStart(3, "0")}`,
         customer: o.customer_name || "",
         vendor: o.store_name || o.seller_name || "",
+        seller_email: o.seller_email || "",
         amount: formatCurrency(Number(o.total_amount ?? 0)),
         status: mapStatus(o.status),
         paymentStatus: mapPaymentStatus(o.payment_status),
         paymentMethod: o.payment_method || "",
-        items: Number(o.item_count ?? 0),
+        item_count: Number(o.item_count ?? 0),
+        items: (o.items || []).map((it: any) => ({
+          product_name: it.product_name || "",
+          quantity: Number(it.quantity || 0),
+          unit_price: Number(it.unit_price || it.price || 0),
+          subtotal: Number(it.subtotal || 0),
+          image_url: it.image_url || "",
+        })),
         date: o.created_at ? new Date(o.created_at).toLocaleDateString() : "",
         email: o.customer_email || "",
         phone: o.customer_phone || "",
@@ -213,7 +231,7 @@ export default function OrdersManagement() {
     const csvContent = "data:text/csv;charset=utf-8," + 
       "Order ID,Customer,Vendor,Amount,Status,Payment Status,Items,Date\n" +
       orders.map(order => 
-        `${order.id},${order.customer},${order.vendor},${order.amount},${order.status},${order.paymentStatus},${order.items},${order.date}`
+        `${order.id},${order.customer},${order.vendor},${order.amount},${order.status},${order.paymentStatus},${order.item_count},${order.date}`
       ).join("\n")
     
     const encodedUri = encodeURI(csvContent)
@@ -334,7 +352,7 @@ export default function OrdersManagement() {
                     <td className="px-4 py-3">{order.customer}</td>
                     <td className="px-4 py-3">{order.vendor}</td>
                     <td className="px-4 py-3 font-semibold">{order.amount}</td>
-                    <td className="px-4 py-3">{order.items}</td>
+                    <td className="px-4 py-3">{order.item_count}</td>
                     <td className="px-4 py-3">
                       <Select value={order.status} onValueChange={(v) => handleStatusChange(order.orderId, v)}>
                         <SelectTrigger className="w-[140px]">
@@ -400,65 +418,107 @@ export default function OrdersManagement() {
 
       {/* View Order Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Order Details</DialogTitle>
-            <DialogDescription>View complete order information</DialogDescription>
+            <DialogTitle>Order Details — {selectedOrder?.id}</DialogTitle>
+            <DialogDescription>Complete order information with all items</DialogDescription>
           </DialogHeader>
           {selectedOrder && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6">
+              {/* Seller Info */}
+              <div>
+                <h3 className="font-semibold mb-2 text-sm text-muted-foreground uppercase tracking-wide">Seller</h3>
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Name</p>
+                    <p className="font-medium">{selectedOrder.vendor}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium">{selectedOrder.seller_email}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Info */}
+              <div>
+                <h3 className="font-semibold mb-2 text-sm text-muted-foreground uppercase tracking-wide">Customer</h3>
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Name</p>
+                    <p className="font-medium">{selectedOrder.customer}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium">{selectedOrder.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <p className="font-medium">{selectedOrder.phone || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Address</p>
+                    <p className="font-medium">{selectedOrder.address || "—"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Items */}
+              <div>
+                <h3 className="font-semibold mb-2 text-sm text-muted-foreground uppercase tracking-wide">
+                  Order Items ({selectedOrder.item_count} units)
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 px-2 text-muted-foreground">Product</th>
+                        <th className="text-right py-2 px-2 text-muted-foreground">Qty</th>
+                        <th className="text-right py-2 px-2 text-muted-foreground">Unit Price</th>
+                        <th className="text-right py-2 px-2 text-muted-foreground">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrder.items.map((item, i) => (
+                        <tr key={i} className="border-b border-border last:border-0">
+                          <td className="py-2 px-2 font-medium">{item.product_name}</td>
+                          <td className="py-2 px-2 text-right">{item.quantity}</td>
+                          <td className="py-2 px-2 text-right">{formatCurrency(item.unit_price)}</td>
+                          <td className="py-2 px-2 text-right font-semibold">{formatCurrency(item.subtotal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border font-bold">
+                        <td className="py-2 px-2" colSpan={3}>Total</td>
+                        <td className="py-2 px-2 text-right">{selectedOrder.amount}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Order Meta */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Order ID</label>
+                  <p className="text-xs text-muted-foreground">Order ID</p>
                   <p className="font-semibold">{selectedOrder.id}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Status</label>
-                  <Badge className={getStatusColor(selectedOrder.status)}>
-                    {selectedOrder.status}
-                  </Badge>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <Badge className={getStatusColor(selectedOrder.status)}>{selectedOrder.status}</Badge>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Customer</label>
-                  <p className="font-semibold">{selectedOrder.customer}</p>
+                  <p className="text-xs text-muted-foreground">Payment Status</p>
+                  <Badge className={getPaymentStatusColor(selectedOrder.paymentStatus)}>{selectedOrder.paymentStatus}</Badge>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Vendor</label>
-                  <p className="font-semibold">{selectedOrder.vendor}</p>
+                  <p className="text-xs text-muted-foreground">Payment Method</p>
+                  <p className="font-medium">{selectedOrder.paymentMethod || "—"}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Amount</label>
-                  <p className="font-semibold text-lg">{selectedOrder.amount}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Items</label>
-                  <p>{selectedOrder.items} items</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Payment Status</label>
-                  <Badge className={getPaymentStatusColor(selectedOrder.paymentStatus)}>
-                    {selectedOrder.paymentStatus}
-                  </Badge>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Payment Method</label>
-                  <p>{selectedOrder.paymentMethod || "—"}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Date</label>
-                  <p>{selectedOrder.date}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Email</label>
-                  <p>{selectedOrder.email}</p>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                  <p>{selectedOrder.phone}</p>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">Address</label>
-                  <p>{selectedOrder.address}</p>
+                  <p className="text-xs text-muted-foreground">Date</p>
+                  <p className="font-medium">{selectedOrder.date}</p>
                 </div>
               </div>
             </div>
@@ -501,8 +561,8 @@ export default function OrdersManagement() {
                   <label className="text-sm font-medium text-muted-foreground">Items</label>
                   <Input
                     type="number"
-                    value={editingOrder.items}
-                    onChange={(e) => setEditingOrder({...editingOrder, items: e.target.value === "" ? "" : parseInt(e.target.value)})}
+                    value={editingOrder.item_count}
+                    onChange={(e) => setEditingOrder({...editingOrder, item_count: e.target.value === "" ? "" : parseInt(e.target.value)})}
                   />
                 </div>
                 <div>

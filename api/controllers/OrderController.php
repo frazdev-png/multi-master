@@ -82,7 +82,7 @@ class OrderController {
                 u.full_name as customer_name,
                 u.email as customer_email,
                 u.phone as customer_phone,
-                COUNT(oi.id) as item_count,
+                COALESCE(SUM(oi.quantity), 0) as item_count,
                 COALESCE(SUM(oi.quantity * oi.{$priceCol}), o.total_amount) as total_amount
             FROM orders o
             JOIN users u ON o.customer_id = u.id
@@ -114,7 +114,7 @@ class OrderController {
 
         foreach ($orders as &$order) {
             $stmtItems = $this->db->prepare("
-                SELECT oi.*, oi.{$priceCol} as price, p.name as product_name, p.image_url
+                SELECT oi.*, oi.{$priceCol} as unit_price, (oi.quantity * oi.{$priceCol}) as subtotal, p.name as product_name, p.image_url
                 FROM order_items oi
                 JOIN products p ON oi.product_id = p.id
                 WHERE oi.order_id = ?
@@ -174,6 +174,9 @@ class OrderController {
         $status = $_GET['status'] ?? '';
         $search = $_GET['search'] ?? '';
 
+        $orderItemCols = $this->getOrderItemColumns();
+        $priceCol = $orderItemCols['price'];
+
         $sql = "
             SELECT 
                 o.*,
@@ -181,8 +184,9 @@ class OrderController {
                 cu.email as customer_email,
                 cu.phone as customer_phone,
                 su.full_name as seller_name,
+                su.email as seller_email,
                 ss.store_name,
-                COUNT(oi.id) as item_count
+                COALESCE(SUM(oi.quantity), 0) as item_count
             FROM orders o
             JOIN users cu ON o.customer_id = cu.id
             JOIN users su ON o.seller_id = su.id
@@ -212,6 +216,17 @@ class OrderController {
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($orders as &$order) {
+            $stmtItems = $this->db->prepare("
+                SELECT oi.*, oi.{$priceCol} as unit_price, (oi.quantity * oi.{$priceCol}) as subtotal, p.name as product_name, p.image_url
+                FROM order_items oi
+                JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = ?
+            ");
+            $stmtItems->execute([$order['id']]);
+            $order['items'] = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+        }
 
         header('Content-Type: application/json');
         echo json_encode(['orders' => $orders]);
@@ -306,9 +321,10 @@ class OrderController {
                 SELECT 
                     o.*,
                     u.full_name as seller_name,
+                    u.email as seller_email,
                     ss.store_name,
-                    COUNT(oi.id) as item_count,
-                    SUM(oi.quantity * oi.{$priceCol}) as total_amount
+                    COALESCE(SUM(oi.quantity), 0) as item_count,
+                    COALESCE(SUM(oi.quantity * oi.{$priceCol}), 0) as total_amount
                 FROM orders o
                 JOIN users u ON o.seller_id = u.id
                 LEFT JOIN sellers ss ON ss.user_id = u.id
@@ -334,7 +350,7 @@ class OrderController {
             // Get order items for each order
             foreach ($orders as &$order) {
                 $stmt = $this->db->prepare("
-                    SELECT oi.*, oi.{$priceCol} as price, p.name as product_name, p.image_url
+                    SELECT oi.*, oi.{$priceCol} as unit_price, (oi.quantity * oi.{$priceCol}) as subtotal, p.name as product_name, p.image_url
                     FROM order_items oi
                     JOIN products p ON oi.product_id = p.id
                     WHERE oi.order_id = ?

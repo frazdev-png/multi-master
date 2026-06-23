@@ -25,7 +25,8 @@ interface Order {
     id: number
     name: string
     quantity: number
-    price: number
+    unit_price: number
+    subtotal: number
     image: string
   }[]
   amount: number
@@ -80,7 +81,8 @@ export default function SellerOrdersPage() {
           id: Number(it.id),
           name: it.product_name || "",
           quantity: Number(it.quantity || 0),
-          price: Number(it.price || 0),
+          unit_price: Number(it.unit_price || it.price || 0),
+          subtotal: Number(it.subtotal || 0),
           image: it.image_url || "/placeholder.svg",
         })),
         amount: Number(o.total_amount || 0),
@@ -226,7 +228,7 @@ export default function SellerOrdersPage() {
       Payment Status: ${order.paymentStatus}
       Date: ${order.date}
       Items:
-      ${order.items.map(item => `- ${item.name} x${item.quantity} - ${formatCurrency(item.price)}`).join('\n')}
+      ${order.items.map(item => `- ${item.name} x${item.quantity} @ ${formatCurrency(item.unit_price)} = ${formatCurrency(item.subtotal)}`).join('\n')}
     `
     window.print()
   }
@@ -314,7 +316,7 @@ export default function SellerOrdersPage() {
                             <p className="text-xs text-muted-foreground">{order.customer.email}</p>
                           </div>
                         </td>
-                        <td className="py-3 px-4">{order.items.length} item(s)</td>
+                        <td className="py-3 px-4">{order.items.reduce((sum, it) => sum + it.quantity, 0)} units</td>
                         <td className="py-3 px-4 font-semibold">{formatCurrency(order.amount)}</td>
                         <td className="py-3 px-4">
                           <Badge className={getStatusColor(order.status)}>
@@ -416,21 +418,33 @@ export default function SellerOrdersPage() {
                   {/* Order Items */}
                   <div>
                     <h3 className="font-medium mb-3">Order Items</h3>
-                    <div className="space-y-3">
-                      {selectedOrder.items.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="h-12 w-12 bg-muted rounded-lg flex items-center justify-center">
-                              <Package className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{item.name}</p>
-                              <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
-                            </div>
-                          </div>
-                          <p className="font-medium">{formatCurrency(item.price)}</p>
-                        </div>
-                      ))}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-2 px-2 text-muted-foreground">Product</th>
+                            <th className="text-right py-2 px-2 text-muted-foreground">Qty</th>
+                            <th className="text-right py-2 px-2 text-muted-foreground">Unit Price</th>
+                            <th className="text-right py-2 px-2 text-muted-foreground">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedOrder.items.map((item) => (
+                            <tr key={item.id} className="border-b border-border last:border-0">
+                              <td className="py-2 px-2 font-medium">{item.name}</td>
+                              <td className="py-2 px-2 text-right">{item.quantity}</td>
+                              <td className="py-2 px-2 text-right">{formatCurrency(item.unit_price)}</td>
+                              <td className="py-2 px-2 text-right font-semibold">{formatCurrency(item.subtotal)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t border-border font-bold">
+                            <td className="py-2 px-2" colSpan={3}>Total</td>
+                            <td className="py-2 px-2 text-right">{formatCurrency(selectedOrder.amount)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
                   </div>
 

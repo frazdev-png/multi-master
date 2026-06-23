@@ -348,20 +348,24 @@ class ProductController {
                         p.price as base_price,
                         {$selectSellerProfit}
                         {$priceExpr} as price,
-                        (SELECT sp_first.id FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1) as seller_product_id,
-                        COALESCE((SELECT sp_first.stock FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1), p.stock) as stock,
-                        (SELECT sp_first.seller_id FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1) as seller_id,
-                        (SELECT u2.full_name FROM seller_products sp2 JOIN users u2 ON sp2.seller_id = u2.id WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as seller_name,
-                        (SELECT ss2.store_name FROM seller_products sp2 JOIN sellers ss2 ON ss2.user_id = sp2.seller_id WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as store_name,
+                        MIN(sp.id) as seller_product_id,
+                        COALESCE(MIN(sp.stock), p.stock) as stock,
+                        MIN(sp.seller_id) as seller_id,
+                        SUBSTRING_INDEX(GROUP_CONCAT(u.full_name ORDER BY sp.id SEPARATOR '|'), '|', 1) as seller_name,
+                        SUBSTRING_INDEX(GROUP_CONCAT(ss.store_name ORDER BY sp.id SEPARATOR '|'), '|', 1) as store_name,
                         {$categorySelect},
                         (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
                         (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count,
                         (SELECT COUNT(*) FROM order_items oi JOIN products pp ON oi.product_id = pp.id WHERE pp.id = p.id) as sales_count,
                         p.created_at
                     FROM products p
+                    LEFT JOIN seller_products sp ON sp.product_id = p.id AND sp.is_active = 1
+                    LEFT JOIN users u ON sp.seller_id = u.id
+                    LEFT JOIN sellers ss ON ss.user_id = sp.seller_id
                     {$categoryJoin}
                     WHERE {$activeProduct}
-                    AND EXISTS (SELECT 1 FROM seller_products sp3 WHERE sp3.product_id = p.id AND sp3.is_active = 1)
+                    AND sp.id IS NOT NULL
+                    GROUP BY p.id
                 ";
 
                 $params = [];

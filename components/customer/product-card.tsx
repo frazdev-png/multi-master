@@ -153,7 +153,7 @@ export function ProductCard({ id, name, price, originalPrice, image, rating, rev
         <span className="text-sm text-muted-foreground">({reviews})</span>
       </div>
 
-      <p className="text-xs text-muted-foreground mb-3">by {seller}</p>
+      {seller ? <p className="text-xs text-muted-foreground mb-3">by {seller}</p> : null}
 
       <div className="flex items-baseline gap-2 mb-3">
         <span className="text-xl font-bold text-foreground">{formatCurrency(price)}</span>

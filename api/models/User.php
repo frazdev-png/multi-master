@@ -37,50 +37,49 @@ class User extends BaseModel {
     private function applySellerPromoCode($userId, $promoCode) {
         $promoCode = is_string($promoCode) ? trim($promoCode) : '';
         if ($promoCode === '') {
-            return false;
+            return;
         }
 
         if (!preg_match('/^\d{4}$/', $promoCode)) {
-            return false;
+            throw new Exception('Invalid promo code');
         }
 
         if (!$this->tableExists('promo_codes')) {
-            return false;
+            throw new Exception('Invalid promo code');
         }
 
-        try {
-            $stmt = $this->conn->prepare("SELECT id, is_used, expires_at FROM promo_codes WHERE code = ? LIMIT 1 FOR UPDATE");
-            $stmt->execute([$promoCode]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$row) {
-                return false;
-            }
-
-            if ((int)($row['is_used'] ?? 0) === 1) {
-                return false;
-            }
-
-            $expiresAt = $row['expires_at'] ?? null;
-            if ($expiresAt) {
-                $stmt = $this->conn->prepare('SELECT 1 WHERE ? < NOW()');
-                $stmt->execute([(string)$expiresAt]);
-                if ($stmt->fetch(PDO::FETCH_NUM)) {
-                    return false;
-                }
-            }
-
-            $stmt = $this->conn->prepare("UPDATE promo_codes SET is_used = 1, used_by_user_id = ?, used_at = NOW() WHERE id = ? AND is_used = 0");
-            $stmt->execute([(int)$userId, (int)$row['id']]);
-            if ($stmt->rowCount() <= 0) {
-                return false;
-            }
-
-            $stmt = $this->conn->prepare("UPDATE sellers SET promo_code_used = ?, promo_exempt_guarantee = 1, guarantee_required = 0, guarantee_locked_amount = 0.00 WHERE user_id = ?");
-            $stmt->execute([$promoCode, (int)$userId]);
-            return true;
-        } catch (Exception $e) {
-            return false;
+        $stmt = $this->conn->prepare("SELECT id, is_used, is_active, expires_at FROM promo_codes WHERE code = ? LIMIT 1 FOR UPDATE");
+        $stmt->execute([$promoCode]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            throw new Exception('Invalid promo code');
         }
+
+        if (isset($row['is_active']) && (int)$row['is_active'] === 0) {
+            throw new Exception('Promo code inactive');
+        }
+
+        if ((int)($row['is_used'] ?? 0) === 1) {
+            throw new Exception('Promo code already used');
+        }
+
+        $expiresAt = $row['expires_at'] ?? null;
+        if ($expiresAt) {
+            $stmt = $this->conn->prepare('SELECT 1 WHERE ? < NOW()');
+            $stmt->execute([(string)$expiresAt]);
+            if ($stmt->fetch(PDO::FETCH_NUM)) {
+                throw new Exception('Promo code expired');
+            }
+        }
+
+        $stmt = $this->conn->prepare("UPDATE promo_codes SET is_used = 1, used_by_user_id = ?, used_at = NOW() WHERE id = ? AND is_used = 0");
+        $stmt->execute([(int)$userId, (int)$row['id']]);
+        if ($stmt->rowCount() <= 0) {
+            throw new Exception('Promo code already used');
+        }
+
+        $stmt = $this->conn->prepare("UPDATE sellers SET promo_code_used = ?, promo_exempt_guarantee = 1, guarantee_required = 0, guarantee_locked_amount = 0.00 WHERE user_id = ?");
+        $stmt->execute([$promoCode, (int)$userId]);
     }
 
     // Register a new user

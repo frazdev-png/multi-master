@@ -183,6 +183,7 @@ export default function AdminPromoCodesPage() {
     const v = String(s || "").toLowerCase()
     if (v === "used") return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
     if (v === "expired") return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+    if (v === "inactive") return "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300"
     return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
   }
 
@@ -211,6 +212,7 @@ export default function AdminPromoCodesPage() {
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
                 <SelectItem value="used">Used</SelectItem>
                 <SelectItem value="expired">Expired</SelectItem>
               </SelectContent>

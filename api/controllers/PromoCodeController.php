@@ -23,6 +23,7 @@ class PromoCodeController {
     }
 
     private function normalizeStatus($row) {
+        $isActive = !((int)($row['is_active'] ?? 1) === 0);
         $isUsed = (int)($row['is_used'] ?? 0) === 1;
         $expiresAt = $row['expires_at'] ?? null;
         $isExpired = false;
@@ -37,7 +38,9 @@ class PromoCodeController {
         }
 
         $status = 'active';
-        if ($isUsed) {
+        if (!$isActive) {
+            $status = 'inactive';
+        } elseif ($isUsed) {
             $status = 'used';
         } elseif ($isExpired) {
             $status = 'expired';
@@ -61,6 +64,7 @@ class PromoCodeController {
                     p.id,
                     p.code,
                     p.is_used,
+                    p.is_active,
                     p.used_by_user_id,
                     p.used_at,
                     p.expires_at,
@@ -77,9 +81,11 @@ class PromoCodeController {
                 if ($status === 'used') {
                     $sql .= " AND p.is_used = 1";
                 } elseif ($status === 'active') {
-                    $sql .= " AND p.is_used = 0 AND (p.expires_at IS NULL OR p.expires_at >= NOW())";
+                    $sql .= " AND p.is_used = 0 AND (p.expires_at IS NULL OR p.expires_at >= NOW()) AND (p.is_active IS NULL OR p.is_active = 1)";
                 } elseif ($status === 'expired') {
                     $sql .= " AND p.is_used = 0 AND p.expires_at IS NOT NULL AND p.expires_at < NOW()";
+                } elseif ($status === 'inactive') {
+                    $sql .= " AND p.is_active = 0";
                 }
             }
 
@@ -151,7 +157,7 @@ class PromoCodeController {
         }
 
         try {
-            $stmt = $this->db->prepare('INSERT INTO promo_codes (code, is_used, expires_at, created_at) VALUES (?, 0, ?, NOW())');
+            $stmt = $this->db->prepare('INSERT INTO promo_codes (code, is_used, is_active, expires_at, created_at) VALUES (?, 0, 1, ?, NOW())');
             $stmt->execute([$code, $expiresParam]);
             $id = (int)$this->db->lastInsertId();
 

@@ -270,7 +270,19 @@ export function CustomerNavbar() {
         <div className="md:hidden pb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-            <input type="text" placeholder="Search products..." className="input pl-10 w-full" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="input pl-10 w-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && searchQuery.trim()) {
+                  setMobileMenuOpen(false)
+                  router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`)
+                }
+              }}
+            />
           </div>
         </div>
 

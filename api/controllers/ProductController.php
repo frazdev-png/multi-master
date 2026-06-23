@@ -348,14 +348,11 @@ class ProductController {
                         p.price as base_price,
                         {$selectSellerProfit}
                         {$priceExpr} as price,
-                        (SELECT sp2.id FROM seller_products sp2 WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as seller_product_id,
-                        COALESCE(
-                            (SELECT sp2.stock FROM seller_products sp2 WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1),
-                            p.stock
-                        ) as stock,
-                        (SELECT sp2.seller_id FROM seller_products sp2 WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as seller_id,
-                        (SELECT u2.full_name FROM seller_products sp2 JOIN users u2 ON u2.id = sp2.seller_id WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as seller_name,
-                        (SELECT ss2.store_name FROM seller_products sp2 JOIN sellers ss2 ON ss2.user_id = sp2.seller_id WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as store_name,
+                        NULL as seller_product_id,
+                        p.stock as stock,
+                        NULL as seller_id,
+                        NULL as seller_name,
+                        NULL as store_name,
                         {$categorySelect},
                         (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
                         (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count,
@@ -364,7 +361,6 @@ class ProductController {
                     FROM products p
                     {$categoryJoin}
                     WHERE {$activeProduct}
-                    AND EXISTS (SELECT 1 FROM seller_products sp3 WHERE sp3.product_id = p.id AND sp3.is_active = 1)
                 ";
 
                 $params = [];

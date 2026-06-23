@@ -34,7 +34,6 @@ function resolvePublicImageUrl(src: string) {
 
 export interface ProductCardProps {
   id: string
-  sellerProductId?: string
   name: string
   price: number
   originalPrice?: number
@@ -45,7 +44,7 @@ export interface ProductCardProps {
   stock: number
 }
 
-export function ProductCard({ id, sellerProductId, name, price, originalPrice, image, rating, reviews, seller, stock }: ProductCardProps) {
+export function ProductCard({ id, name, price, originalPrice, image, rating, reviews, seller, stock }: ProductCardProps) {
   const router = useRouter()
   const [isAdding, setIsAdding] = useState(false)
   const [inWishlist, setInWishlist] = useState(false)
@@ -90,18 +89,12 @@ export function ProductCard({ id, sellerProductId, name, price, originalPrice, i
 
     try {
       setIsAdding(true)
-      const payload: Record<string, any> = { quantity: 1 }
-      if (sellerProductId) {
-        payload.seller_product_id = Number(sellerProductId)
-      } else {
-        payload.product_id = Number(id)
-      }
       const res = await fetch("/api/backend/cart", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ product_id: Number(id), quantity: 1 }),
       })
 
       const data = await res.json().catch(() => null)

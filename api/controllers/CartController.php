@@ -30,17 +30,11 @@ class CartController {
                 p.name,
                 p.price,
                 p.image_url,
-                p.stock,
-                p.seller_id,
-                u.full_name as seller_name,
-                u.email as seller_email,
-                ss.store_name
+                p.stock
             FROM cart c
             JOIN products p ON p.id = c.product_id
-            JOIN users u ON p.seller_id = u.id
-            LEFT JOIN sellers ss ON ss.user_id = u.id
             WHERE c.user_id = ?
-            ORDER BY p.seller_id, c.product_id DESC
+            ORDER BY c.product_id DESC
         ");
         $stmt->execute([$user['id']]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -69,46 +63,15 @@ class CartController {
             ];
         }
 
-        // Default first real seller on items that belong to non-seller (admin)
-        if (!empty($allSellers)) {
-            $first = $allSellers[0];
-            foreach ($items as &$item) {
-                $currentSid = (int)$item['seller_id'];
-                $isReal = false;
-                foreach ($allSellers as $s) {
-                    if ($s['seller_id'] === $currentSid) { $isReal = true; break; }
-                }
-                if (!$isReal) {
-                    $item['seller_id'] = $first['seller_id'];
-                    $item['seller_name'] = $first['seller_name'];
-                    $item['seller_email'] = $first['seller_email'];
-                    $item['store_name'] = $first['store_name'];
-                }
-            }
-        }
-
         header('Content-Type: application/json');
         echo json_encode(['items' => $items, 'all_sellers' => $allSellers]);
     }
 
     private function addToCart($user) {
         $data = $this->getJsonBody();
-        $sellerProductId = (int)($data['seller_product_id'] ?? 0);
         $productId = (int)($data['product_id'] ?? 0);
         $quantity = (int)($data['quantity'] ?? 1);
         if ($quantity <= 0) $quantity = 1;
-
-        if ($sellerProductId > 0) {
-            $stmt = $this->db->prepare("SELECT product_id, selling_price FROM seller_products WHERE id = ? AND is_active = 1");
-            $stmt->execute([$sellerProductId]);
-            $sp = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$sp) {
-                http_response_code(404);
-                echo json_encode(['error' => 'Product not available']);
-                return;
-            }
-            $productId = (int)$sp['product_id'];
-        }
 
         if ($productId <= 0) {
             http_response_code(400);

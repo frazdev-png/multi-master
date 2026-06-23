@@ -461,6 +461,33 @@ class OrderController {
         }
 
         try {
+            // Validate seller has all products in their store
+            $missingProducts = [];
+            $stmtCheckProduct = $this->db->prepare("
+                SELECT p.name FROM products p
+                WHERE p.id = ? AND NOT EXISTS (
+                    SELECT 1 FROM seller_products sp
+                    WHERE sp.product_id = p.id AND sp.seller_id = ? AND sp.is_active = 1
+                )
+            ");
+            foreach ($items as $item) {
+                $pid = (int)($item['product_id'] ?? 0);
+                if ($pid <= 0) continue;
+                $stmtCheckProduct->execute([$pid, $sellerId]);
+                $missing = $stmtCheckProduct->fetch(PDO::FETCH_ASSOC);
+                if ($missing) {
+                    $missingProducts[] = $missing['name'];
+                }
+            }
+            if (!empty($missingProducts)) {
+                http_response_code(400);
+                echo json_encode([
+                    'error' => 'This seller has not added the following products to their store yet. Please select another seller.',
+                    'missing_products' => $missingProducts
+                ]);
+                return;
+            }
+
             $this->db->beginTransaction();
 
             $orderItemCols = $this->getOrderItemColumns();

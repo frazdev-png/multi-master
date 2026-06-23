@@ -56,6 +56,7 @@ export default function CheckoutPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isPlacing, setIsPlacing] = useState(false)
   const [error, setError] = useState<string>("")
+  const [missingProducts, setMissingProducts] = useState<string[]>([])
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
@@ -66,6 +67,7 @@ export default function CheckoutPage() {
     try {
       setIsLoading(true)
       setError("")
+      setMissingProducts([])
       const res = await fetch("/api/backend/cart")
       if (res.status === 401 || res.status === 403) {
         router.push("/auth/login?role=customer")
@@ -150,6 +152,7 @@ export default function CheckoutPage() {
     try {
       setIsPlacing(true)
       setError("")
+      setMissingProducts([])
       const res = await fetch("/api/backend/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,6 +168,9 @@ export default function CheckoutPage() {
         if (res.status === 401 || res.status === 403) {
           router.push("/auth/login?role=customer")
           return
+        }
+        if (data?.missing_products) {
+          setMissingProducts(data.missing_products)
         }
         throw new Error(data?.error || "Failed to place order")
       }
@@ -190,7 +196,20 @@ export default function CheckoutPage() {
         </div>
 
         {error ? (
-          <div className="mb-6 rounded-lg border border-border bg-muted p-4 text-sm text-destructive">{error}</div>
+          <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+            <p className="text-sm font-medium text-destructive">{error}</p>
+            {missingProducts.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-destructive/80 mb-2">Missing products:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {missingProducts.map((name, i) => (
+                    <li key={i} className="text-xs text-destructive/70">{name}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-destructive/80 mt-2 font-medium">Please select a different seller.</p>
+              </div>
+            )}
+          </div>
         ) : null}
 
         {/* No sellers available warning */}

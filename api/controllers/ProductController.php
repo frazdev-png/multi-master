@@ -349,7 +349,7 @@ class ProductController {
                         {$selectSellerProfit}
                         {$priceExpr} as price,
                         (SELECT sp_first.id FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1) as seller_product_id,
-                        (SELECT sp_first.stock FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1) as stock,
+                        COALESCE((SELECT sp_first.stock FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1), p.stock) as stock,
                         (SELECT sp_first.seller_id FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1) as seller_id,
                         (SELECT u2.full_name FROM seller_products sp2 JOIN users u2 ON sp2.seller_id = u2.id WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as seller_name,
                         (SELECT ss2.store_name FROM seller_products sp2 JOIN sellers ss2 ON ss2.user_id = sp2.seller_id WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as store_name,
@@ -360,8 +360,7 @@ class ProductController {
                         p.created_at
                     FROM products p
                     {$categoryJoin}
-                    WHERE p.seller_id IN (SELECT id FROM users WHERE role = 'admin')
-                    AND {$activeProduct}
+                    WHERE {$activeProduct}
                     AND EXISTS (SELECT 1 FROM seller_products sp3 WHERE sp3.product_id = p.id AND sp3.is_active = 1)
                 ";
 

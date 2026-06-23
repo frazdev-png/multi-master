@@ -39,6 +39,8 @@
   --sidebar-accent-foreground: #0f172a;
   --sidebar-border: #e2e8f0;
   --sidebar-ring: #0052cc;
+  --danger: #dc2626;
+  --danger-foreground: #ffffff;
 }
 
 /* Enhanced dark mode with premium dark blue, slate, and cyan accents */
@@ -75,6 +77,8 @@
   --sidebar-accent-foreground: #f0f4f8;
   --sidebar-border: #1e293b;
   --sidebar-ring: #2563eb;
+  --danger: #ef4444;
+  --danger-foreground: #fecaca;
 }
 
 @theme inline {
@@ -97,6 +101,8 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);

@@ -116,7 +116,7 @@ export function CustomerNavbar() {
       {isFrozen && (
         <div className="bg-blue-600 text-white text-center py-2 px-4 text-sm font-medium">
           Your account has been frozen. You can browse but cannot place orders.{" "}
-          <Link href="/customer/support" className="underline font-bold">Contact Support</Link>
+          <Link href="/messaging" className="underline font-bold">Contact Support</Link>
         </div>
       )}
       <nav className="bg-card border-b border-border sticky top-0 z-40">

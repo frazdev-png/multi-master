@@ -357,6 +357,9 @@ export function ChatWidget() {
           if (selectedConversationIdRef.current === incomingConversationId) {
             setMessages((prev) => [...prev, incoming])
           }
+
+          // Notify navbar red dot
+          window.dispatchEvent(new Event("message:new"))
           return
         }
       }

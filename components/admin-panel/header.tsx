@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, User, Search, Settings, LogOut, Menu, X, CheckCircle, AlertCircle, Info, Package, DollarSign, Users, ShoppingCart, AlertTriangle, XCircle } from "lucide-react"
+import { Bell, User, Search, Settings, LogOut, Menu, X, CheckCircle, AlertCircle, Info, Package, DollarSign, Users, ShoppingCart, AlertTriangle, XCircle, MessageCircle } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { useUnreadMessages } from "@/lib/useUnreadMessages"
 
 interface Notification {
   id: number
@@ -92,6 +93,7 @@ export function AdminPanelHeader() {
     }
   ])
   const [adminEmail, setAdminEmail] = useState("admin@sell1mall.com")
+  const unreadMessages = useUnreadMessages()
   const [isMobile, setIsMobile] = useState(false)
   const pathname = usePathname()
 
@@ -224,6 +226,21 @@ export function AdminPanelHeader() {
           >
             <Search className="h-5 w-5" />
           </button>
+
+          {/* Messages */}
+          <Link
+            href="/messaging"
+            className="relative p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+            aria-label="Chat"
+            title="Chat"
+          >
+            <MessageCircle className="h-5 w-5" />
+            {unreadMessages > 0 ? (
+              <span className="absolute top-1.5 right-1.5 h-4 w-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {unreadMessages > 9 ? "9+" : unreadMessages}
+              </span>
+            ) : null}
+          </Link>
 
           {/* Notifications */}
           <div className="relative notification-dropdown">

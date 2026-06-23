@@ -174,6 +174,9 @@ $routes = [
     '/api/messages/{id}' => ['controller' => 'ChatController', 'method' => 'handleRequest', 'http_method' => ['PUT', 'DELETE']],
     '/api/messages/{id}/read' => ['controller' => 'ChatController', 'method' => 'markAsRead', 'http_method' => 'POST'],
     
+    // Unread message count
+    '/api/unread-messages' => ['controller' => 'ChatController', 'method' => 'getUnreadCount', 'http_method' => 'GET'],
+    
     // Product endpoints
     '/api/products' => ['controller' => 'ProductController', 'method' => 'getProducts', 'http_method' => 'GET'],
     '/api/products/{id}' => ['controller' => 'ProductController', 'method' => 'getProduct', 'http_method' => 'GET'],

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useUnreadMessages } from "@/lib/useUnreadMessages"
 
 function resolvePublicImageUrl(src: string | undefined) {
   const raw = String(src || "").trim()
@@ -38,6 +39,7 @@ export function CustomerNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState<number>(0)
   const [wishlistCount, setWishlistCount] = useState<number>(0)
+  const unreadMessages = useUnreadMessages()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [userEmail, setUserEmail] = useState("")
   const [isFrozen, setIsFrozen] = useState(false)
@@ -182,6 +184,11 @@ export function CustomerNavbar() {
               title="Chat"
             >
               <MessageCircle size={20} />
+              {unreadMessages > 0 ? (
+                <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 bg-danger text-white rounded-full text-xs flex items-center justify-center">
+                  {unreadMessages > 99 ? "99+" : unreadMessages}
+                </span>
+              ) : null}
             </Link>
 
             <Link
@@ -278,10 +285,15 @@ export function CustomerNavbar() {
               </Link>
               <Link
                 href="/messaging"
-                className="px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="px-3 py-2 rounded-lg hover:bg-muted transition-colors flex items-center gap-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Chat
+                {unreadMessages > 0 ? (
+                  <span className="min-w-5 h-5 px-1 bg-danger text-white rounded-full text-xs flex items-center justify-center">
+                    {unreadMessages > 99 ? "99+" : unreadMessages}
+                  </span>
+                ) : null}
               </Link>
               <Link
                 href="/customer/cart"

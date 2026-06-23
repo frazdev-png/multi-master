@@ -1393,6 +1393,42 @@ class ChatController {
         return null;
     }
 
+    public function getUnreadCount() {
+        $user = $this->auth->authenticate();
+
+        if (!$this->guardChatSchema()) {
+            return;
+        }
+
+        try {
+            if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
+                // Legacy schema — no unread count support
+                echo json_encode(['count' => 0]);
+                return;
+            }
+
+            $stmt = $this->db->prepare("
+                SELECT COALESCE(SUM(cnt), 0) as count FROM (
+                    SELECT COUNT(*) as cnt
+                    FROM conversation_participants cp
+                    INNER JOIN messages m ON m.conversation_id = cp.conversation_id
+                        AND m.id > cp.last_read_message_id
+                        AND m.sender_id != ?
+                    WHERE cp.user_id = ?
+                    GROUP BY cp.conversation_id
+                ) sub
+            ");
+            $stmt->execute([$user['id'], $user['id']]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            header('Content-Type: application/json');
+            echo json_encode(['count' => (int)($result['count'] ?? 0)]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
     public function handleRequest() {
         $method = $_SERVER['REQUEST_METHOD'];
         $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);

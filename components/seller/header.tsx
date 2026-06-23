@@ -1,10 +1,12 @@
 "use client"
 
-import { Bell, User, Menu, X, CheckCircle, AlertTriangle, Info, XCircle, LogOut } from "lucide-react"
+import Link from "next/link"
+import { Bell, User, Menu, X, CheckCircle, AlertTriangle, Info, XCircle, LogOut, MessageCircle } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
 import { useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useUnreadMessages } from "@/lib/useUnreadMessages"
 
 interface SellerHeaderProps {
   onMobileMenuToggle: () => void
@@ -29,6 +31,7 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [userEmail, setUserEmail] = useState("")
+  const unreadMessages = useUnreadMessages()
   const notifRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
@@ -123,6 +126,20 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
       </div>
 
       <div className="flex items-center gap-3 md:gap-6" ref={notifRef}>
+        <Link
+          href="/messaging"
+          className="relative text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Chat"
+          title="Chat"
+        >
+          <MessageCircle size={20} />
+          {unreadMessages > 0 ? (
+            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+              {unreadMessages > 99 ? "99+" : unreadMessages}
+            </span>
+          ) : null}
+        </Link>
+
         <div className="relative">
           <button className="relative text-muted-foreground hover:text-foreground transition-colors" onClick={() => { setShowNotifDropdown(!showNotifDropdown); if (!showNotifDropdown) fetchNotifications() }}>
             <Bell size={20} />

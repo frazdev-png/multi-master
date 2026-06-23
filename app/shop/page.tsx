@@ -4,7 +4,7 @@
 import { CustomerNavbar } from "@/components/customer/navbar"
 import { ProductCard } from "@/components/customer/product-card"
 import { Input } from "@/components/ui/input"
-import { Suspense, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
 type ApiProduct = {
@@ -23,14 +23,14 @@ type ApiProduct = {
 
 const PAGE_SIZE = 20
 
-function ShopPageContent() {
+export default function ShopPage() {
   const searchParams = useSearchParams()
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState(searchParams.get("search") || "")
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [minPrice, setMinPrice] = useState(0)
   const [maxPrice, setMaxPrice] = useState(10000)
@@ -87,8 +87,6 @@ function ShopPageContent() {
   }
 
   useEffect(() => {
-    const q = searchParams.get("search")
-    if (q) { setSearch(q); setPage(1) }
     loadCategories()
   }, [])
 
@@ -271,13 +269,5 @@ function ShopPageContent() {
         </div>
       </main>
     </>
-  )
-}
-
-export default function ShopPage() {
-  return (
-    <Suspense fallback={null}>
-      <ShopPageContent />
-    </Suspense>
   )
 }

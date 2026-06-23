@@ -40,6 +40,7 @@ export function CustomerNavbar() {
   const [cartCount, setCartCount] = useState<number>(0)
   const [wishlistCount, setWishlistCount] = useState<number>(0)
   const unreadMessages = useUnreadMessages()
+  const [searchQuery, setSearchQuery] = useState("")
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [userEmail, setUserEmail] = useState("")
   const [isFrozen, setIsFrozen] = useState(false)
@@ -159,7 +160,18 @@ export function CustomerNavbar() {
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
                 size={18}
               />
-              <input type="text" placeholder="Search products..." className="input pl-10 w-full" />
+              <input
+                type="text"
+                placeholder="Search products..."
+                className="input pl-10 w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && searchQuery.trim()) {
+                    router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`)
+                  }
+                }}
+              />
             </div>
           </div>
 

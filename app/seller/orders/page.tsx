@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { SellerSidebar } from "@/components/seller/sidebar"
 import { SellerHeader } from "@/components/seller/header"
-import { Package, Truck, CheckCircle, Eye, Edit, Trash2, MoreVertical, Search, Filter, Download, RefreshCw, X, Check, Clock, AlertCircle, Printer, Mail, Phone, MapPin } from "lucide-react"
+import { Package, Truck, CheckCircle, Eye, MoreVertical, Search, Download, RefreshCw, X, Check, Clock, AlertCircle, Printer, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -45,7 +45,7 @@ export default function SellerOrdersPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [showDetails, setShowDetails] = useState(false)
-  const [showEdit, setShowEdit] = useState(false)
+
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isLoading, setIsLoading] = useState(false)
@@ -184,12 +184,6 @@ export default function SellerOrdersPage() {
     }
   }
 
-  const deleteOrder = (orderId: string) => {
-    if (confirm(`Are you sure you want to cancel order ${orderId}?`)) {
-      updateOrderStatus(orderId, "Cancelled")
-    }
-  }
-
   const exportOrders = () => {
     const csvContent = [
       ["Order ID", "Customer", "Amount", "Status", "Date", "Payment Method"],
@@ -232,14 +226,6 @@ export default function SellerOrdersPage() {
       ${order.items.map(item => `- ${item.name} x${item.quantity} @ ${formatCurrency(item.unit_price)} = ${formatCurrency(item.subtotal)}`).join('\n')}
     `
     window.print()
-  }
-
-  const sendEmail = (order: Order) => {
-    alert(`Sending email to ${order.customer.email} regarding order ${order.id}`)
-  }
-
-  const callCustomer = (order: Order) => {
-    alert(`Calling ${order.customer.phone} for order ${order.id}`)
   }
 
   return (
@@ -345,31 +331,9 @@ export default function SellerOrdersPage() {
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedOrder(order)
-                                setShowEdit(true)
-                              }}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Order
-                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => printOrder(order)}>
                                 <Printer className="mr-2 h-4 w-4" />
                                 Print Order
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => sendEmail(order)}>
-                                <Mail className="mr-2 h-4 w-4" />
-                                Send Email
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => callCustomer(order)}>
-                                <Phone className="mr-2 h-4 w-4" />
-                                Call Customer
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => deleteOrder(order.id)}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Cancel Order
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

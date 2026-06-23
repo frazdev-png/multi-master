@@ -115,6 +115,7 @@ export default function OrdersManagement() {
   }
 
   useEffect(() => {
+    fetch("/api/backend/orders/mark-seen", { method: "PUT" }).catch(() => {})
     loadOrders()
   }, [statusFilter])
 

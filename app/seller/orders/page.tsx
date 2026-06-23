@@ -103,6 +103,7 @@ export default function SellerOrdersPage() {
   }
 
   useEffect(() => {
+    fetch("/api/backend/orders/mark-seen", { method: "PUT" }).catch(() => {})
     loadOrders()
   }, [])
 

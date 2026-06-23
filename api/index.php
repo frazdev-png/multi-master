@@ -191,6 +191,8 @@ $routes = [
     // Order endpoints
     '/api/orders' => ['controller' => 'OrderController', 'method' => 'handleRequest', 'http_method' => ['GET', 'POST']],
     '/api/orders/stats' => ['controller' => 'OrderController', 'method' => 'getOrderStats', 'http_method' => 'GET'],
+    '/api/unread-orders' => ['controller' => 'OrderController', 'method' => 'getUnreadOrderCount', 'http_method' => 'GET'],
+    '/api/orders/mark-seen' => ['controller' => 'OrderController', 'method' => 'markOrdersSeen', 'http_method' => 'PUT'],
 
     // Wishlist endpoints
     '/api/wishlist' => ['controller' => 'WishlistController', 'method' => 'getWishlist', 'http_method' => ['GET']],

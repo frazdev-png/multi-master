@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react"
 import { useRealtime } from "@/contexts/RealtimeContext"
+import { useUnreadOrders } from "@/lib/useUnreadOrders"
 
 interface SellerSidebarProps {
   isMobileMenuOpen: boolean
@@ -23,6 +24,7 @@ interface SellerSidebarProps {
 export function SellerSidebar({ isMobileMenuOpen, onMobileMenuClose }: SellerSidebarProps) {
   const { settings } = useRealtime()
   const pathname = usePathname()
+  const unreadOrders = useUnreadOrders()
 
   const menuItems = [
     { href: "/seller", icon: LayoutDashboard, label: "Dashboard" },
@@ -100,6 +102,11 @@ export function SellerSidebar({ isMobileMenuOpen, onMobileMenuClose }: SellerSid
               >
                 <Icon size={20} />
                 <span className="font-medium">{item.label}</span>
+                {item.label === "Orders" && unreadOrders > 0 && (
+                  <span className="ml-auto min-w-5 h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {unreadOrders > 99 ? "99+" : unreadOrders}
+                  </span>
+                )}
               </Link>
             )
           })}

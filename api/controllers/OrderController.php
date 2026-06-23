@@ -565,6 +565,52 @@ class OrderController {
         }
     }
 
+    public function getUnreadOrderCount() {
+        $user = $this->auth->authenticate();
+        $role = strtolower((string)($user['role'] ?? ''));
+
+        try {
+            if ($role === 'admin') {
+                $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM orders WHERE admin_read_at IS NULL");
+                $stmt->execute();
+            } elseif ($role === 'seller') {
+                $stmt = $this->db->prepare("SELECT COUNT(*) as count FROM orders WHERE seller_id = ? AND seller_read_at IS NULL");
+                $stmt->execute([$user['id']]);
+            } else {
+                http_response_code(403);
+                echo json_encode(['error' => 'Access denied']);
+                return;
+            }
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            header('Content-Type: application/json');
+            echo json_encode(['count' => (int)($result['count'] ?? 0)]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
+    public function markOrdersSeen() {
+        $user = $this->auth->authenticate();
+        $role = strtolower((string)($user['role'] ?? ''));
+
+        try {
+            if ($role === 'admin') {
+                $this->db->prepare("UPDATE orders SET admin_read_at = NOW() WHERE admin_read_at IS NULL")->execute();
+            } elseif ($role === 'seller') {
+                $this->db->prepare("UPDATE orders SET seller_read_at = NOW() WHERE seller_id = ? AND seller_read_at IS NULL")->execute([$user['id']]);
+            } else {
+                http_response_code(403);
+                echo json_encode(['error' => 'Access denied']);
+                return;
+            }
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
+        }
+    }
+
     public function handleRequest() {
         $method = $_SERVER['REQUEST_METHOD'];
         $requestUri = $_SERVER['REQUEST_URI'];

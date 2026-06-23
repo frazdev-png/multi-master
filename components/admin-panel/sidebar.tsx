@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
+import { useUnreadOrders } from "@/lib/useUnreadOrders"
 
 interface MenuItem {
   href: string;
@@ -42,6 +43,7 @@ export function AdminPanelSidebar() {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const unreadOrders = useUnreadOrders()
 
   useEffect(() => {
     const handleResize = () => {
@@ -227,6 +229,11 @@ export function AdminPanelSidebar() {
                 >
                   <item.icon size={18} className="mr-3" />
                   <span>{item.label}</span>
+                  {item.label === "Orders" && unreadOrders > 0 && (
+                    <span className="ml-auto min-w-5 h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {unreadOrders > 99 ? "99+" : unreadOrders}
+                    </span>
+                  )}
                 </Link>
               )
             })}

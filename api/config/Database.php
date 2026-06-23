@@ -450,6 +450,8 @@ class Database {
             $ensureColumn('orders', 'shipping_address', 'shipping_address TEXT NULL');
             $ensureColumn('orders', 'billing_address', 'billing_address TEXT NULL');
             $ensureColumn('orders', 'notes', 'notes TEXT NULL');
+            $ensureColumn('orders', 'admin_read_at', 'admin_read_at TIMESTAMP NULL');
+            $ensureColumn('orders', 'seller_read_at', 'seller_read_at TIMESTAMP NULL');
 
             $ensureColumn('order_items', 'order_id', 'order_id INT NULL');
             $ensureColumn('order_items', 'product_id', 'product_id INT NULL');

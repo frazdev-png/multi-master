@@ -4,7 +4,7 @@
 import { CustomerNavbar } from "@/components/customer/navbar"
 import { ProductCard } from "@/components/customer/product-card"
 import { Input } from "@/components/ui/input"
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
 type ApiProduct = {
@@ -23,7 +23,7 @@ type ApiProduct = {
 
 const PAGE_SIZE = 20
 
-export default function ShopPage() {
+function ShopPageContent() {
   const searchParams = useSearchParams()
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [categories, setCategories] = useState<string[]>([])
@@ -271,5 +271,13 @@ export default function ShopPage() {
         </div>
       </main>
     </>
+  )
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={null}>
+      <ShopPageContent />
+    </Suspense>
   )
 }

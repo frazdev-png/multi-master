@@ -248,6 +248,7 @@ $routes = [
     '/api/admin/accounts/frozen' => ['controller' => 'AdminController', 'method' => 'getFrozenAccounts', 'http_method' => 'GET'],
     '/api/admin/users' => ['controller' => 'AdminController', 'method' => 'getUsers', 'http_method' => 'GET'],
     '/api/admin/users/status' => ['controller' => 'AdminController', 'method' => 'updateUserStatus', 'http_method' => 'PUT'],
+    '/api/admin/users/{id}' => ['controller' => 'AdminController', 'method' => 'deleteUser', 'http_method' => 'DELETE'],
 
     // Admin promo code management (seller store creation incentive)
     '/api/admin/promo-codes' => ['controller' => 'PromoCodeController', 'method' => 'handleRequest', 'http_method' => ['GET', 'POST']],

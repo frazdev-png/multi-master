@@ -1275,6 +1275,63 @@ class AdminController {
         }
     }
 
+    public function deleteUser($userId) {
+        $user = $this->auth->authenticate();
+        if ($user['role'] !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Admin access required']);
+            return;
+        }
+
+        $userId = (int)$userId;
+        if ($userId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid user ID']);
+            return;
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            $stmt = $this->db->prepare("SELECT id, role FROM users WHERE id = ? AND role = 'customer'");
+            $stmt->execute([$userId]);
+            $target = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$target) {
+                $this->db->rollBack();
+                http_response_code(404);
+                echo json_encode(['error' => 'Customer not found']);
+                return;
+            }
+
+            // Increment token_version to invalidate all active sessions
+            $stmt = $this->db->prepare("UPDATE users SET token_version = token_version + 1 WHERE id = ?");
+            $stmt->execute([$userId]);
+
+            // Delete cart items
+            $stmt = $this->db->prepare("DELETE FROM cart WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            // Delete wishlist
+            $stmt = $this->db->prepare("DELETE FROM wishlist WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            // Delete wallet
+            $stmt = $this->db->prepare("DELETE FROM wallets WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            // Delete user
+            $stmt = $this->db->prepare("DELETE FROM users WHERE id = ? AND role = 'customer'");
+            $stmt->execute([$userId]);
+
+            $this->db->commit();
+            echo json_encode(['success' => true, 'message' => 'Customer deleted permanently']);
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
     public function handleRequest() {
         $method = $_SERVER['REQUEST_METHOD'];
         $requestUri = $_SERVER['REQUEST_URI'];

@@ -103,9 +103,18 @@ export default function CustomersManagement() {
     }
   }
 
-  const handleDelete = (customerId: number) => {
-    if (confirm("Are you sure you want to delete this customer?")) {
-      setCustomers(customers.filter((customer) => customer.id !== customerId))
+  const handleDelete = async (customerId: number) => {
+    if (!confirm("Are you sure you want to permanently delete this customer? This action cannot be undone.")) return
+    try {
+      const res = await fetch(`/api/backend/admin/users/${customerId}`, { method: "DELETE" })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data?.error || "Failed to delete customer")
+        return
+      }
+      setCustomers((prev) => prev.filter((c) => c.id !== customerId))
+    } catch {
+      alert("Failed to delete customer")
     }
   }
 

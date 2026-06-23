@@ -179,6 +179,7 @@ class OrderController {
                 o.*,
                 cu.full_name as customer_name,
                 cu.email as customer_email,
+                cu.phone as customer_phone,
                 su.full_name as seller_name,
                 ss.store_name,
                 COUNT(oi.id) as item_count

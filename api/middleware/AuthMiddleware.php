@@ -131,6 +131,11 @@ class AuthMiddleware {
             }
         }
 
+        // Check if user is blocked/suspended
+        if (isset($user['is_active']) && (int)$user['is_active'] === 0) {
+            throw new Exception('Your account has been blocked by Admin. Please contact support.');
+        }
+
         return $user;
     }
 

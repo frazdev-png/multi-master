@@ -232,6 +232,10 @@ class AuthController {
         if (!$user) {
             $this->sendError('Invalid admin credentials', 401);
         }
+
+        if (isset($user['is_active']) && (int)$user['is_active'] === 0) {
+            $this->sendError('Your admin account has been blocked. Please contact super admin.', 403);
+        }
         
         // Generate JWT token
         $token = AuthMiddleware::generateToken($user['id'], $user['role'], isset($user['token_version']) ? (int)$user['token_version'] : 1);
@@ -263,7 +267,7 @@ class AuthController {
         }
 
         if (isset($user['is_active']) && (int)$user['is_active'] === 0) {
-            $this->sendError('Your account has been suspended. Please contact admin.', 403);
+            $this->sendError('Your account has been blocked by Admin. Please contact support.', 403);
         }
         
         // Generate JWT token

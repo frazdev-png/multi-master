@@ -60,6 +60,40 @@ async function proxy(request: NextRequest, context: RouteContext) {
   const responseBody = await response.text()
   const contentType = response.headers.get("content-type") || "application/json"
 
+  // If the backend says the user is blocked or token is invalid, clear auth cookies
+  const clearAuth = (response.status === 401 || response.status === 403) &&
+    targetPath !== "auth/login" && targetPath !== "auth/admin-login"
+
+  if (clearAuth) {
+    try {
+      const body = JSON.parse(responseBody)
+      if (
+        body?.error &&
+        (
+          body.error.includes("blocked") ||
+          body.error.includes("Token invalidated") ||
+          body.error.includes("Token expired") ||
+          body.error.includes("Invalid token") ||
+          body.error.includes("Access denied")
+        )
+      ) {
+        const res = new NextResponse(responseBody, {
+          status: response.status,
+          headers: {
+            "content-type": contentType,
+            "x-proxy-target": targetUrl,
+          },
+        })
+        res.cookies.set("auth_token", "", { httpOnly: true, path: "/", maxAge: 0 })
+        res.cookies.set("user_role", "", { httpOnly: true, path: "/", maxAge: 0 })
+        res.cookies.set("user_email", "", { httpOnly: true, path: "/", maxAge: 0 })
+        res.cookies.set("admin_token", "", { path: "/", maxAge: 0 })
+        res.cookies.set("admin_email", "", { path: "/", maxAge: 0 })
+        return res
+      }
+    } catch {}
+  }
+
   return new NextResponse(responseBody, {
     status: response.status,
     headers: {

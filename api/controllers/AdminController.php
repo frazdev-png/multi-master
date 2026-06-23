@@ -777,7 +777,8 @@ class AdminController {
                 $oldActive = (int)$stmt->fetchColumn();
                 if ($oldActive !== $isActive) $statusChanged = true;
 
-                $stmt = $this->db->prepare("UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ? AND role = 'seller'");
+                $tokenBump = $isActive ? '' : ', token_version = token_version + 1';
+                $stmt = $this->db->prepare("UPDATE users SET is_active = ?, updated_at = NOW(){$tokenBump} WHERE id = ? AND role = 'seller'");
                 $stmt->execute([$isActive, $vendorId]);
             }
 
@@ -1217,6 +1218,7 @@ class AdminController {
         $data = json_decode(file_get_contents('php://input'), true);
         $userId = $data['user_id'] ?? null;
         $isActive = $data['is_active'] ?? null;
+        $blockReason = $data['block_reason'] ?? null;
 
         if (!$userId || $isActive === null) {
             http_response_code(400);
@@ -1230,16 +1232,41 @@ class AdminController {
                 echo json_encode(['error' => 'User status update is not supported (users.is_active column missing)']);
                 return;
             }
-            $stmt = $this->db->prepare("
-                UPDATE users 
-                SET is_active = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
-            $stmt->execute([$isActive, $userId]);
+
+            $isBlocking = (int)$isActive === 0;
+            $hasBlockedAt = $this->hasUserColumn('blocked_at');
+            $hasBlockReason = $this->hasUserColumn('block_reason');
+
+            $sql = "UPDATE users SET is_active = ?";
+            $params = [$isActive];
+
+            if ($isBlocking) {
+                $sql .= ", token_version = token_version + 1";
+                if ($hasBlockedAt) {
+                    $sql .= ", blocked_at = NOW()";
+                }
+                if ($hasBlockReason && $blockReason) {
+                    $sql .= ", block_reason = ?";
+                    $params[] = $blockReason;
+                }
+            } else {
+                if ($hasBlockedAt) {
+                    $sql .= ", blocked_at = NULL";
+                }
+                if ($hasBlockReason) {
+                    $sql .= ", block_reason = NULL";
+                }
+            }
+
+            $sql .= ", updated_at = NOW() WHERE id = ?";
+            $params[] = $userId;
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
             
             echo json_encode([
                 'success' => true,
-                'message' => 'User status updated successfully'
+                'message' => $isBlocking ? 'Customer blocked successfully' : 'Customer unblocked successfully'
             ]);
             
         } catch (PDOException $e) {

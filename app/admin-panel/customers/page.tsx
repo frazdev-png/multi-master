@@ -77,12 +77,18 @@ export default function CustomersManagement() {
   const handleToggleStatus = async (customerId: number) => {
     const target = customers.find((c) => c.id === customerId)
     if (!target) return
-    const newActive = target.status === "Active" ? 0 : 1
+    const isBlocking = target.status === "Active"
+    let blockReason: string | null = null
+    if (isBlocking) {
+      blockReason = window.prompt("Enter reason for blocking this customer (optional):")
+      if (blockReason === null) return // user cancelled
+    }
+    const newActive = isBlocking ? 0 : 1
     try {
       const res = await fetch("/api/backend/admin/users/status", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: customerId, is_active: newActive }),
+        body: JSON.stringify({ user_id: customerId, is_active: newActive, block_reason: blockReason || null }),
       })
       if (!res.ok) {
         const data = await res.json()

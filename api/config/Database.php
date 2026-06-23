@@ -241,6 +241,8 @@ class Database {
 
             $ensureColumn('users', 'is_super_admin', 'is_super_admin TINYINT(1) NOT NULL DEFAULT 0');
             $ensureColumn('users', 'token_version', 'token_version INT NOT NULL DEFAULT 1');
+            $ensureColumn('users', 'blocked_at', 'blocked_at TIMESTAMP NULL');
+            $ensureColumn('users', 'block_reason', 'block_reason TEXT NULL');
 
             $ensureColumn('customer_deposits', 'status', "status VARCHAR(20) NOT NULL DEFAULT 'pending'");
             $ensureColumn('customer_deposits', 'created_by_admin_id', 'created_by_admin_id INT NULL');

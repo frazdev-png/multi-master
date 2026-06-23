@@ -1,7 +1,7 @@
 "use client"
 
 import { CustomerNavbar } from "@/components/customer/navbar"
-import { Truck, Wallet, AlertCircle, Store } from "lucide-react"
+import { Truck, Wallet, AlertCircle, Store, ChevronDown } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { formatCurrency } from "@/lib/utils"
 import { useRouter } from "next/navigation"
@@ -43,11 +43,6 @@ type CartItem = {
   name?: string
   price?: number | string
   image_url?: string
-  seller_id?: number | string
-  seller_name?: string
-  seller_email?: string
-  store_name?: string
-  available_sellers?: SellerOption[]
 }
 
 export default function CheckoutPage() {
@@ -55,6 +50,9 @@ export default function CheckoutPage() {
   const router = useRouter()
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "online">("online")
   const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [allSellers, setAllSellers] = useState<SellerOption[]>([])
+  const [selectedSellerId, setSelectedSellerId] = useState<number>(0)
+  const [sellerDropdownOpen, setSellerDropdownOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isPlacing, setIsPlacing] = useState(false)
   const [error, setError] = useState<string>("")
@@ -63,7 +61,6 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState("")
   const [city, setCity] = useState("")
   const [postalCode, setPostalCode] = useState("")
-  const [selectedSellers, setSelectedSellers] = useState<Record<number, number>>({})
 
   const loadCart = async () => {
     try {
@@ -79,7 +76,13 @@ export default function CheckoutPage() {
         throw new Error(data?.error || "Failed to load cart")
       }
       const items = Array.isArray(data?.items) ? data.items : []
+      const sellers = Array.isArray(data?.all_sellers) ? data.all_sellers : []
       setCartItems(items)
+      setAllSellers(sellers)
+      // Default to first seller if none selected
+      if (sellers.length > 0 && (selectedSellerId === 0 || !sellers.find(s => s.seller_id === selectedSellerId))) {
+        setSelectedSellerId(sellers[0].seller_id)
+      }
     } catch (e: any) {
       setError(e?.message || "Failed to load cart")
     } finally {
@@ -91,57 +94,9 @@ export default function CheckoutPage() {
     loadCart()
   }, [])
 
-  // Init selected seller per product when cart loads
-  useEffect(() => {
-    if (cartItems.length === 0) return
-    setSelectedSellers((prev) => {
-      const next = { ...prev }
-      for (const item of cartItems) {
-        const pid = Number(item.product_id)
-        if (!next[pid]) {
-          next[pid] = Number(item.seller_id || 0)
-        }
-      }
-      return next
-    })
-  }, [cartItems])
-
-  // Look up seller info from available_sellers by seller_id
-  const sellerInfo = useMemo(() => {
-    const map = new Map<number, SellerOption>()
-    for (const item of cartItems) {
-      for (const s of (item.available_sellers || [])) {
-        if (!map.has(s.seller_id)) map.set(s.seller_id, s)
-      }
-    }
-    return map
-  }, [cartItems])
-
-  // Items that have no available sellers (can't be ordered)
-  const itemsWithoutSellers = useMemo(() => {
-    return cartItems.filter((item) => {
-      const sellers = item.available_sellers || []
-      return sellers.length === 0
-    })
-  }, [cartItems])
-
-  const sellerGroups = useMemo(() => {
-    const groups: { sellerId: number; sellerName: string; items: CartItem[] }[] = []
-    const map = new Map<number, typeof groups[0]>()
-    for (const item of cartItems) {
-      const sellers = item.available_sellers || []
-      if (sellers.length === 0) continue // skip items with no sellers
-      const sid = selectedSellers[item.product_id] || Number(sellers[0]?.seller_id || 0)
-      if (sid <= 0) continue
-      if (!map.has(sid)) {
-        const info = sellerInfo.get(sid)
-        map.set(sid, { sellerId: sid, sellerName: info?.store_name || info?.seller_name || `Seller #${sid}`, items: [] })
-        groups.push(map.get(sid)!)
-      }
-      map.get(sid)!.items.push(item)
-    }
-    return groups
-  }, [cartItems, selectedSellers, sellerInfo])
+  const selectedSeller = useMemo(() => {
+    return allSellers.find((s) => s.seller_id === selectedSellerId) || null
+  }, [allSellers, selectedSellerId])
 
   const { itemCount, subtotal, tax, shipping, total } = useMemo(() => {
     const count = cartItems.reduce((sum, item) => sum + (Number(item.quantity || 0) || 0), 0)
@@ -166,6 +121,11 @@ export default function CheckoutPage() {
       return
     }
 
+    if (!selectedSeller) {
+      setError("Please select a seller for your order")
+      return
+    }
+
     const shippingAddress = [
       fullName.trim(),
       phone.trim(),
@@ -176,22 +136,13 @@ export default function CheckoutPage() {
       .filter(Boolean)
       .join(", ")
 
-    // Block if any item has no available seller
-    if (itemsWithoutSellers.length > 0) {
-      setError(`Some items in your cart have no seller assigned. Please remove them and try again.`)
-      return
-    }
+    const items = cartItems.map((it) => ({
+      product_id: Number(it.product_id),
+      quantity: Number(it.quantity || 0),
+      price: Number(it.price || 0),
+    }))
 
-    const items = cartItems
-      .filter((it) => (it.available_sellers || []).length > 0)
-      .map((it) => ({
-        product_id: Number(it.product_id),
-        quantity: Number(it.quantity || 0),
-        price: Number(it.price || 0),
-        seller_id: selectedSellers[Number(it.product_id)] || Number((it.available_sellers || [])[0]?.seller_id || 0),
-      }))
-
-    if (items.some((it) => !it.product_id || !it.quantity || !it.seller_id)) {
+    if (items.some((it) => !it.product_id || !it.quantity)) {
       setError("Cart items are missing required data. Please refresh the page.")
       return
     }
@@ -206,6 +157,7 @@ export default function CheckoutPage() {
           items,
           shipping_address: shippingAddress,
           payment_method: paymentMethod,
+          seller_id: selectedSeller.seller_id,
         }),
       })
       const data = await res.json().catch(() => null)
@@ -241,40 +193,96 @@ export default function CheckoutPage() {
           <div className="mb-6 rounded-lg border border-border bg-muted p-4 text-sm text-destructive">{error}</div>
         ) : null}
 
-        {/* Items without sellers warning */}
-        {itemsWithoutSellers.length > 0 && (
+        {/* No sellers available warning */}
+        {!isLoading && allSellers.length === 0 && (
           <div className="mb-6 p-4 border border-destructive/50 rounded-lg bg-destructive/5">
             <p className="text-sm font-medium text-destructive flex items-center gap-2">
               <AlertCircle size={14} />
-              {itemsWithoutSellers.length} item(s) in your cart are not available from any seller
+              No sellers are currently available
             </p>
             <p className="text-xs text-destructive/70 mt-1">
-              Please remove these items from cart or contact support.
+              Please try again later or contact support.
             </p>
-          </div>
-        )}
-
-        {/* Seller Info */}
-        {sellerGroups.length > 0 && (
-          <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30">
-            <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-              <Store size={14} />
-              Your order will be fulfilled by:
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {sellerGroups.map((g) => (
-                <span key={g.sellerId} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  {g.sellerName}
-                </span>
-              ))}
-            </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Checkout Form */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Seller Selection */}
+            {allSellers.length > 0 && (
+              <div className="card">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Store size={24} className="text-primary" />
+                  Select Seller
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Choose which seller will fulfill your entire order.
+                </p>
+
+                {/* Dropdown trigger */}
+                <button
+                  type="button"
+                  onClick={() => setSellerDropdownOpen(!sellerDropdownOpen)}
+                  className="w-full flex items-center justify-between p-4 border border-border rounded-lg bg-background hover:border-primary transition-colors cursor-pointer"
+                >
+                  {selectedSeller ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Store size={18} className="text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-sm">{selectedSeller.store_name}</p>
+                        <p className="text-xs text-muted-foreground">{selectedSeller.seller_name}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">Select a seller...</span>
+                  )}
+                  <ChevronDown
+                    size={18}
+                    className={`text-muted-foreground transition-transform ${sellerDropdownOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {/* Dropdown list */}
+                {sellerDropdownOpen && (
+                  <div className="mt-1 border border-border rounded-lg bg-background shadow-lg overflow-hidden">
+                    {allSellers.map((seller) => (
+                      <button
+                        key={seller.seller_id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSellerId(seller.seller_id)
+                          setSellerDropdownOpen(false)
+                        }}
+                        className={`w-full flex items-center gap-3 p-4 text-left hover:bg-muted transition-colors cursor-pointer border-b border-border last:border-b-0 ${
+                          selectedSellerId === seller.seller_id ? "bg-primary/5" : ""
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          selectedSellerId === seller.seller_id
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                          <Store size={18} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm">{seller.store_name}</p>
+                            {selectedSellerId === seller.seller_id && (
+                              <span className="text-xs text-primary font-medium">Selected</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{seller.seller_name}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Shipping Address */}
             <div className="card">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -369,60 +377,40 @@ export default function CheckoutPage() {
             <div className="card sticky top-20">
               <h3 className="text-lg font-bold mb-6">Order Summary</h3>
 
-              {sellerGroups.length > 0 ? (
-                <div className="space-y-5 mb-6">
-                  {sellerGroups.map((group) => (
-                    <div key={group.sellerId}>
-                      <div className="flex items-center gap-2 mb-2 pb-1 border-b border-border">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                        <p className="text-xs font-semibold text-primary uppercase tracking-wide">
-                          {group.sellerName}
-                        </p>
-                      </div>
-                      {group.items.map((item) => {
-                        const sellers = item.available_sellers || []
-                        const curSid = selectedSellers[item.product_id] || Number(item.seller_id || 0)
-                        return (
-                        <div key={item.product_id} className="flex items-start gap-3 py-1.5">
-                          <img
-                            src={resolvePublicImageUrl(item.image_url) || "/placeholder.svg"}
-                            alt={item.name || "Product"}
-                            className="w-10 h-10 rounded-md object-cover bg-muted flex-shrink-0 mt-0.5"
-                            onError={(e) => {
-                              const el = e.currentTarget
-                              if (el.src.endsWith("/placeholder.svg")) return
-                              el.src = "/placeholder.svg"
-                            }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{item.name || "Product"}</div>
-                            <div className="text-xs text-muted-foreground">Qty: {Number(item.quantity || 0)}</div>
-                            {sellers.length >= 1 ? (
-                              <div className="mt-1">
-                                <select
-                                  value={curSid}
-                                  onChange={(e) => {
-                                    const newSid = Number(e.target.value)
-                                    setSelectedSellers((prev) => ({ ...prev, [item.product_id]: newSid }))
-                                  }}
-                                  className="text-xs border border-border rounded px-1 py-0.5 bg-background max-w-full cursor-pointer"
-                                >
-                                  {sellers.map((s) => (
-                                    <option key={s.seller_id} value={s.seller_id}>
-                                      {s.store_name || s.seller_name || `Seller #${s.seller_id}`}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            ) : null}
-                          </div>
-                          <div className="text-sm font-medium flex-shrink-0">{formatCurrency((Number(item.price || 0) || 0) * (Number(item.quantity || 0) || 0))}</div>
-                        </div>
-                      )})}
-                    </div>
-                  ))}
+              {/* Selected seller info */}
+              {selectedSeller && (
+                <div className="flex items-center gap-3 mb-6 p-3 border border-border rounded-lg bg-muted/30">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Store size={16} className="text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide text-[10px]">Fulfilled by</p>
+                    <p className="text-sm font-semibold">{selectedSeller.store_name}</p>
+                  </div>
                 </div>
-              ) : null}
+              )}
+
+              <div className="space-y-3 mb-6">
+                {cartItems.map((item) => (
+                  <div key={item.product_id} className="flex items-start gap-3 py-1.5">
+                    <img
+                      src={resolvePublicImageUrl(item.image_url) || "/placeholder.svg"}
+                      alt={item.name || "Product"}
+                      className="w-10 h-10 rounded-md object-cover bg-muted flex-shrink-0 mt-0.5"
+                      onError={(e) => {
+                        const el = e.currentTarget
+                        if (el.src.endsWith("/placeholder.svg")) return
+                        el.src = "/placeholder.svg"
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{item.name || "Product"}</div>
+                      <div className="text-xs text-muted-foreground">Qty: {Number(item.quantity || 0)}</div>
+                    </div>
+                    <div className="text-sm font-medium flex-shrink-0">{formatCurrency((Number(item.price || 0) || 0) * (Number(item.quantity || 0) || 0))}</div>
+                  </div>
+                ))}
+              </div>
 
               <div className="space-y-3 pb-6 border-b border-border">
                 <div className="flex justify-between text-sm">
@@ -454,7 +442,7 @@ export default function CheckoutPage() {
               <button
                 className="w-full btn-primary"
                 type="button"
-                disabled={isLoading || isPlacing || cartItems.length === 0 || cartItems.length === itemsWithoutSellers.length}
+                disabled={isLoading || isPlacing || cartItems.length === 0 || !selectedSeller}
                 onClick={placeOrder}
               >
                 {isPlacing ? "Placing Order..." : "Place Order"}

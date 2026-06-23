@@ -45,7 +45,7 @@ class CartController {
         $stmt->execute([$user['id']]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Get ALL sellers who have stores — customer can pick any seller for each product
+        // Get ALL sellers who have stores
         $allSellers = [];
         $stmtSellers = $this->db->prepare("
             SELECT
@@ -69,21 +69,16 @@ class CartController {
             ];
         }
 
-        // Attach all sellers to each item — customer can pick any seller
-        foreach ($items as &$item) {
-            $item['available_sellers'] = $allSellers;
-            // Default to first seller if current seller is not a real seller
-            if (!empty($allSellers)) {
+        // Default first real seller on items that belong to non-seller (admin)
+        if (!empty($allSellers)) {
+            $first = $allSellers[0];
+            foreach ($items as &$item) {
                 $currentSid = (int)$item['seller_id'];
-                $isRealSeller = false;
+                $isReal = false;
                 foreach ($allSellers as $s) {
-                    if ($s['seller_id'] === $currentSid) {
-                        $isRealSeller = true;
-                        break;
-                    }
+                    if ($s['seller_id'] === $currentSid) { $isReal = true; break; }
                 }
-                if (!$isRealSeller) {
-                    $first = $allSellers[0];
+                if (!$isReal) {
                     $item['seller_id'] = $first['seller_id'];
                     $item['seller_name'] = $first['seller_name'];
                     $item['seller_email'] = $first['seller_email'];
@@ -93,7 +88,7 @@ class CartController {
         }
 
         header('Content-Type: application/json');
-        echo json_encode(['items' => $items]);
+        echo json_encode(['items' => $items, 'all_sellers' => $allSellers]);
     }
 
     private function addToCart($user) {

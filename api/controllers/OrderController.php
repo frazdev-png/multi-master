@@ -446,10 +446,17 @@ class OrderController {
         $data = json_decode(file_get_contents('php://input'), true);
         $items = $data['items'] ?? [];
         $shippingAddress = $data['shipping_address'] ?? '';
+        $sellerId = (int)($data['seller_id'] ?? 0);
 
         if (empty($items) || empty($shippingAddress)) {
             http_response_code(400);
             echo json_encode(['error' => 'Items and shipping address are required']);
+            return;
+        }
+
+        if ($sellerId <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'seller_id is required']);
             return;
         }
 
@@ -461,96 +468,80 @@ class OrderController {
             $totalCol = $orderItemCols['total'];
             $hasSellerId = $orderItemCols['has_seller_id'];
             
-            // Group items by seller
-            $sellerItems = [];
+            // Calculate subtotal from all items
+            $subtotal = 0.0;
             foreach ($items as $item) {
-                $sellerItems[$item['seller_id']][] = $item;
-            }
-            
-            $orderIds = [];
-            
-            foreach ($sellerItems as $sellerId => $sellerItemsList) {
-                // Create order for each seller
-                $subtotal = 0.0;
-                foreach ($sellerItemsList as $item) {
-                    $qty = (int)($item['quantity'] ?? 0);
-                    $unit = (float)($item['unit_price'] ?? ($item['price'] ?? 0));
-                    if ($qty > 0) {
-                        $subtotal += ($qty * $unit);
-                    }
+                $qty = (int)($item['quantity'] ?? 0);
+                $unit = (float)($item['unit_price'] ?? ($item['price'] ?? 0));
+                if ($qty > 0) {
+                    $subtotal += ($qty * $unit);
                 }
+            }
 
-                $orderNumber = 'ORD-' . date('YmdHis') . '-' . substr(bin2hex(random_bytes(4)), 0, 8);
-                $totalAmount = $subtotal;
+            $orderNumber = 'ORD-' . date('YmdHis') . '-' . substr(bin2hex(random_bytes(4)), 0, 8);
+            $totalAmount = $subtotal;
 
+            // Create single order for the selected seller
+            $stmt = $this->db->prepare("
+                INSERT INTO orders (order_number, customer_id, seller_id, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_status, shipping_address, created_at, updated_at)
+                VALUES (?, ?, ?, 'pending', ?, 0.00, 0.00, 0.00, ?, 'pending', ?, NOW(), NOW())
+            ");
+            $stmt->execute([$orderNumber, $user['id'], $sellerId, $subtotal, $totalAmount, $shippingAddress]);
+            $orderId = (int)$this->db->lastInsertId();
+            if ($orderId <= 0) {
+                throw new Exception('Failed to create order: missing order id');
+            }
+
+            $stmtCheck = $this->db->prepare("SELECT id FROM orders WHERE id = ? LIMIT 1");
+            $stmtCheck->execute([$orderId]);
+            if (!$stmtCheck->fetch(PDO::FETCH_ASSOC)) {
+                throw new Exception('Failed to create order: order row not found after insert');
+            }
+
+            $orderIds = [$orderId];
+            
+            // Add order items — all assigned to the selected seller
+            foreach ($items as $item) {
+                $qty = (int)($item['quantity'] ?? 0);
+                $unit = (float)($item['unit_price'] ?? ($item['price'] ?? 0));
+                $productId = (int)($item['product_id'] ?? 0);
+                if ($qty <= 0) {
+                    continue;
+                }
+                if ($productId <= 0) {
+                    throw new Exception('Invalid product_id for order item');
+                }
+                $lineTotal = $qty * $unit;
+
+                if ($hasSellerId) {
                 $stmt = $this->db->prepare("
-                    INSERT INTO orders (order_number, customer_id, seller_id, status, subtotal, tax_amount, shipping_amount, discount_amount, total_amount, payment_status, shipping_address, created_at, updated_at)
-                    VALUES (?, ?, ?, 'pending', ?, 0.00, 0.00, 0.00, ?, 'pending', ?, NOW(), NOW())
+                    INSERT INTO order_items (order_id, product_id, seller_id, quantity, {$priceCol}, {$totalCol}, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
                 ");
-                $stmt->execute([$orderNumber, $user['id'], $sellerId, $subtotal, $totalAmount, $shippingAddress]);
-                $orderId = (int)$this->db->lastInsertId();
-                if ($orderId <= 0) {
-                    throw new Exception('Failed to create order: missing order id');
+                $stmt->execute([$orderId, $productId, $sellerId, $qty, $unit, $lineTotal]);
+                } else {
+                    $stmt = $this->db->prepare("
+                        INSERT INTO order_items (order_id, product_id, quantity, {$priceCol}, {$totalCol}, created_at)
+                        VALUES (?, ?, ?, ?, ?, NOW())
+                    ");
+                    $stmt->execute([$orderId, $productId, $qty, $unit, $lineTotal]);
                 }
-
-                $stmtCheck = $this->db->prepare("SELECT id FROM orders WHERE id = ? LIMIT 1");
-                $stmtCheck->execute([$orderId]);
-                if (!$stmtCheck->fetch(PDO::FETCH_ASSOC)) {
-                    throw new Exception('Failed to create order: order row not found after insert');
-                }
-                $orderIds[] = $orderId;
                 
-                // Add order items
-                foreach ($sellerItemsList as $item) {
-                    $qty = (int)($item['quantity'] ?? 0);
-                    $unit = (float)($item['unit_price'] ?? ($item['price'] ?? 0));
-                    $productId = (int)($item['product_id'] ?? 0);
-                    if ($qty <= 0) {
-                        continue;
-                    }
-                    if ($productId <= 0) {
-                        throw new Exception('Invalid product_id for order item');
-                    }
-                    $lineTotal = $qty * $unit;
-
-                    if ($hasSellerId) {
-                    $stmt = $this->db->prepare("
-                        INSERT INTO order_items (order_id, product_id, seller_id, quantity, {$priceCol}, {$totalCol}, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, NOW())
-                    ");
-                    $stmt->execute([$orderId, $productId, $sellerId, $qty, $unit, $lineTotal]);
-                    } else {
-                        $stmt = $this->db->prepare("
-                            INSERT INTO order_items (order_id, product_id, quantity, {$priceCol}, {$totalCol}, created_at)
-                            VALUES (?, ?, ?, ?, ?, NOW())
-                        ");
-                        $stmt->execute([$orderId, $productId, $qty, $unit, $lineTotal]);
-                    }
-                    
-                    // Update product stock
-                    $stmt = $this->db->prepare("
-                        UPDATE products SET stock = stock - ? WHERE id = ?
-                    ");
-                    $stmt->execute([$qty, $productId]);
-                }
+                // Update product stock
+                $stmt = $this->db->prepare("
+                    UPDATE products SET stock = stock - ? WHERE id = ?
+                ");
+                $stmt->execute([$qty, $productId]);
             }
             
-            // Update seller wallet: add order amount to pending_balance
-            foreach ($sellerItems as $sid => $sil) {
-                $sub = 0.0;
-                foreach ($sil as $it) {
-                    $q = (int)($it['quantity'] ?? 0);
-                    $u = (float)($it['unit_price'] ?? ($it['price'] ?? 0));
-                    if ($q > 0) $sub += ($q * $u);
-                }
-                if ($sub > 0) {
-                    $stmt = $this->db->prepare("SELECT user_id FROM wallets WHERE user_id = ? LIMIT 1");
-                    $stmt->execute([$sid]);
-                    if (!$stmt->fetch()) {
-                        $this->db->prepare("INSERT INTO wallets (user_id, pending_balance) VALUES (?, ?)")->execute([$sid, $sub]);
-                    } else {
-                        $this->db->prepare("UPDATE wallets SET pending_balance = pending_balance + ? WHERE user_id = ?")->execute([$sub, $sid]);
-                    }
+            // Credit selected seller's wallet
+            if ($totalAmount > 0) {
+                $stmt = $this->db->prepare("SELECT user_id FROM wallets WHERE user_id = ? LIMIT 1");
+                $stmt->execute([$sellerId]);
+                if (!$stmt->fetch()) {
+                    $this->db->prepare("INSERT INTO wallets (user_id, pending_balance) VALUES (?, ?)")->execute([$sellerId, $totalAmount]);
+                } else {
+                    $this->db->prepare("UPDATE wallets SET pending_balance = pending_balance + ? WHERE user_id = ?")->execute([$totalAmount, $sellerId]);
                 }
             }
 

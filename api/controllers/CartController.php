@@ -23,9 +23,81 @@ class CartController {
     }
 
     private function listCart($user) {
-        $stmt = $this->db->prepare("\n            SELECT\n                c.product_id,\n                c.quantity,\n                p.name,\n                p.price,\n                p.image_url,\n                p.stock,\n                p.seller_id,\n                u.full_name as seller_name,\n                u.email as seller_email,\n                ss.store_name\n            FROM cart c\n            JOIN products p ON p.id = c.product_id\n            JOIN users u ON p.seller_id = u.id\n            LEFT JOIN sellers ss ON ss.user_id = u.id\n            WHERE c.user_id = ?\n            ORDER BY p.seller_id, c.product_id DESC\n        ");
+        $stmt = $this->db->prepare("
+            SELECT
+                c.product_id,
+                c.quantity,
+                p.name,
+                p.price,
+                p.image_url,
+                p.stock,
+                p.seller_id,
+                u.full_name as seller_name,
+                u.email as seller_email,
+                ss.store_name
+            FROM cart c
+            JOIN products p ON p.id = c.product_id
+            JOIN users u ON p.seller_id = u.id
+            LEFT JOIN sellers ss ON ss.user_id = u.id
+            WHERE c.user_id = ?
+            ORDER BY p.seller_id, c.product_id DESC
+        ");
         $stmt->execute([$user['id']]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Get all available sellers for every unique product in cart
+        $productIds = [];
+        foreach ($items as $i) {
+            $pid = (int)$i['product_id'];
+            if ($pid > 0) $productIds[$pid] = true;
+        }
+        $productIds = array_keys($productIds);
+        $availableSellers = [];
+
+        if (!empty($productIds)) {
+            $placeholders = implode(',', array_fill(0, count($productIds), '?'));
+            $stmtSellers = $this->db->prepare("
+                SELECT
+                    sp.product_id,
+                    sp.seller_id,
+                    u.full_name as seller_name,
+                    u.email as seller_email,
+                    ss.store_name
+                FROM seller_products sp
+                JOIN users u ON sp.seller_id = u.id
+                LEFT JOIN sellers ss ON ss.user_id = u.id
+                WHERE sp.product_id IN ($placeholders) AND sp.is_active = 1
+            ");
+            $stmtSellers->execute($productIds);
+            $rows = $stmtSellers->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $row) {
+                $pid = $row['product_id'];
+                if (!isset($availableSellers[$pid])) {
+                    $availableSellers[$pid] = [];
+                }
+                $availableSellers[$pid][] = [
+                    'seller_id' => (int)$row['seller_id'],
+                    'seller_name' => $row['seller_name'] ?? '',
+                    'seller_email' => $row['seller_email'] ?? '',
+                    'store_name' => $row['store_name'] ?? '',
+                ];
+            }
+        }
+
+        // Attach available sellers to each item + default to first seller
+        foreach ($items as &$item) {
+            $pid = $item['product_id'];
+            $sellers = $availableSellers[$pid] ?? [];
+            $item['available_sellers'] = $sellers;
+            // If product has sellers via seller_products, default to first one instead of product owner
+            if (!empty($sellers) && !in_array($item['seller_id'], array_column($sellers, 'seller_id'))) {
+                $first = $sellers[0];
+                $item['seller_id'] = $first['seller_id'];
+                $item['seller_name'] = $first['seller_name'];
+                $item['seller_email'] = $first['seller_email'];
+                $item['store_name'] = $first['store_name'];
+            }
+        }
 
         header('Content-Type: application/json');
         echo json_encode(['items' => $items]);

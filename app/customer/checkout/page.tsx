@@ -1,7 +1,7 @@
 "use client"
 
 import { CustomerNavbar } from "@/components/customer/navbar"
-import { Truck, Wallet, AlertCircle } from "lucide-react"
+import { Truck, Wallet, AlertCircle, Store } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { formatCurrency } from "@/lib/utils"
 import { useRouter } from "next/navigation"
@@ -30,6 +30,13 @@ function resolvePublicImageUrl(src: string | undefined) {
   return raw
 }
 
+type SellerOption = {
+  seller_id: number
+  seller_name: string
+  seller_email: string
+  store_name: string
+}
+
 type CartItem = {
   product_id: number
   quantity: number
@@ -40,6 +47,7 @@ type CartItem = {
   seller_name?: string
   seller_email?: string
   store_name?: string
+  available_sellers?: SellerOption[]
 }
 
 export default function CheckoutPage() {
@@ -55,6 +63,7 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState("")
   const [city, setCity] = useState("")
   const [postalCode, setPostalCode] = useState("")
+  const [selectedSellers, setSelectedSellers] = useState<Record<number, number>>({})
 
   const loadCart = async () => {
     try {
@@ -82,20 +91,47 @@ export default function CheckoutPage() {
     loadCart()
   }, [])
 
+  // Init selected seller per product when cart loads
+  useEffect(() => {
+    if (cartItems.length === 0) return
+    setSelectedSellers((prev) => {
+      const next = { ...prev }
+      for (const item of cartItems) {
+        const pid = Number(item.product_id)
+        if (!next[pid]) {
+          next[pid] = Number(item.seller_id || 0)
+        }
+      }
+      return next
+    })
+  }, [cartItems])
+
+  // Look up seller info from available_sellers by seller_id
+  const sellerInfo = useMemo(() => {
+    const map = new Map<number, SellerOption>()
+    for (const item of cartItems) {
+      for (const s of (item.available_sellers || [])) {
+        if (!map.has(s.seller_id)) map.set(s.seller_id, s)
+      }
+    }
+    return map
+  }, [cartItems])
+
   const sellerGroups = useMemo(() => {
-    const groups: { sellerId: number; sellerName: string; sellerEmail: string; storeName: string; items: CartItem[] }[] = []
+    const groups: { sellerId: number; sellerName: string; items: CartItem[] }[] = []
     const map = new Map<number, typeof groups[0]>()
     for (const item of cartItems) {
-      const sid = Number(item.seller_id || 0)
+      const sid = selectedSellers[item.product_id] || Number(item.seller_id || 0)
       if (sid <= 0) continue
       if (!map.has(sid)) {
-        map.set(sid, { sellerId: sid, sellerName: item.seller_name || "", sellerEmail: item.seller_email || "", storeName: item.store_name || "", items: [] })
+        const info = sellerInfo.get(sid) || { seller_name: item.seller_name, store_name: item.store_name }
+        map.set(sid, { sellerId: sid, sellerName: info.store_name || info.seller_name || `Seller #${sid}`, items: [] })
         groups.push(map.get(sid)!)
       }
       map.get(sid)!.items.push(item)
     }
     return groups
-  }, [cartItems])
+  }, [cartItems, selectedSellers, sellerInfo])
 
   const { itemCount, subtotal, tax, shipping, total } = useMemo(() => {
     const count = cartItems.reduce((sum, item) => sum + (Number(item.quantity || 0) || 0), 0)
@@ -134,7 +170,7 @@ export default function CheckoutPage() {
       product_id: Number(it.product_id),
       quantity: Number(it.quantity || 0),
       price: Number(it.price || 0),
-      seller_id: Number(it.seller_id || 0),
+      seller_id: selectedSellers[Number(it.product_id)] || Number(it.seller_id || 0),
     }))
 
     if (items.some((it) => !it.product_id || !it.quantity || !it.seller_id)) {
@@ -190,12 +226,15 @@ export default function CheckoutPage() {
         {/* Seller Info */}
         {sellerGroups.length > 0 && (
           <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Your order will be fulfilled by:</p>
+            <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+              <Store size={14} />
+              Your order will be fulfilled by:
+            </p>
             <div className="flex flex-wrap gap-3">
               {sellerGroups.map((g) => (
                 <span key={g.sellerId} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  {g.storeName || g.sellerName || `Seller #${g.sellerId}`}
+                  {g.sellerName}
                 </span>
               ))}
             </div>
@@ -306,15 +345,18 @@ export default function CheckoutPage() {
                       <div className="flex items-center gap-2 mb-2 pb-1 border-b border-border">
                         <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                         <p className="text-xs font-semibold text-primary uppercase tracking-wide">
-                          {group.storeName || group.sellerName || `Seller #${group.sellerId}`}
+                          {group.sellerName}
                         </p>
                       </div>
-                      {group.items.map((item) => (
-                        <div key={item.product_id} className="flex items-center gap-3 py-1.5">
+                      {group.items.map((item) => {
+                        const sellers = item.available_sellers || []
+                        const curSid = selectedSellers[item.product_id] || Number(item.seller_id || 0)
+                        return (
+                        <div key={item.product_id} className="flex items-start gap-3 py-1.5">
                           <img
                             src={resolvePublicImageUrl(item.image_url) || "/placeholder.svg"}
                             alt={item.name || "Product"}
-                            className="w-10 h-10 rounded-md object-cover bg-muted flex-shrink-0"
+                            className="w-10 h-10 rounded-md object-cover bg-muted flex-shrink-0 mt-0.5"
                             onError={(e) => {
                               const el = e.currentTarget
                               if (el.src.endsWith("/placeholder.svg")) return
@@ -324,10 +366,33 @@ export default function CheckoutPage() {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{item.name || "Product"}</div>
                             <div className="text-xs text-muted-foreground">Qty: {Number(item.quantity || 0)}</div>
+                            {sellers.length > 1 ? (
+                              <div className="mt-1">
+                                <select
+                                  value={curSid}
+                                  onChange={(e) => {
+                                    const newSid = Number(e.target.value)
+                                    setSelectedSellers((prev) => ({ ...prev, [item.product_id]: newSid }))
+                                  }}
+                                  className="text-xs border border-border rounded px-1 py-0.5 bg-background max-w-full"
+                                >
+                                  {sellers.map((s) => (
+                                    <option key={s.seller_id} value={s.seller_id}>
+                                      {s.store_name || s.seller_name || `Seller #${s.seller_id}`}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ) : sellers.length === 1 ? (
+                              <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                                <Store size={10} />
+                                {sellers[0].store_name || sellers[0].seller_name || `Seller #${sellers[0].seller_id}`}
+                              </div>
+                            ) : null}
                           </div>
                           <div className="text-sm font-medium flex-shrink-0">{formatCurrency((Number(item.price || 0) || 0) * (Number(item.quantity || 0) || 0))}</div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   ))}
                 </div>

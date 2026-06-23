@@ -57,6 +57,7 @@ export default function CheckoutPage() {
   const [isPlacing, setIsPlacing] = useState(false)
   const [error, setError] = useState<string>("")
   const [missingProducts, setMissingProducts] = useState<string[]>([])
+  const [showErrorModal, setShowErrorModal] = useState(false)
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
@@ -171,6 +172,10 @@ export default function CheckoutPage() {
         }
         if (data?.missing_products) {
           setMissingProducts(data.missing_products)
+          setError(data?.error || "Seller hasn't added some products")
+          setShowErrorModal(true)
+          setIsPlacing(false)
+          return
         }
         throw new Error(data?.error || "Failed to place order")
       }
@@ -195,21 +200,46 @@ export default function CheckoutPage() {
           <p className="text-muted-foreground">Complete your purchase</p>
         </div>
 
-        {error ? (
-          <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
-            <p className="text-sm font-medium text-destructive">{error}</p>
-            {missingProducts.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs font-semibold text-destructive/80 mb-2">Missing products:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  {missingProducts.map((name, i) => (
-                    <li key={i} className="text-xs text-destructive/70">{name}</li>
-                  ))}
-                </ul>
-                <p className="text-xs text-destructive/80 mt-2 font-medium">Please select a different seller.</p>
+        {/* Error Modal */}
+        {showErrorModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowErrorModal(false)}>
+            <div className="bg-background rounded-xl shadow-2xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="text-center mb-4">
+                <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                  <AlertCircle size={24} className="text-destructive" />
+                </div>
+                <h3 className="text-lg font-bold">Product Not Available</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  This seller has not added the following products to their store yet. Please select another seller.
+                </p>
               </div>
-            )}
+              {missingProducts.length > 0 && (
+                <div className="mb-4 p-3 bg-muted rounded-lg">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Missing products:</p>
+                  <ul className="space-y-1">
+                    {missingProducts.map((name, i) => (
+                      <li key={i} className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <button
+                type="button"
+                className="w-full btn-primary"
+                onClick={() => setShowErrorModal(false)}
+              >
+                OK
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* Inline validation errors */}
+        {error && !showErrorModal ? (
+          <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>
         ) : null}
 
         {/* No sellers available warning */}

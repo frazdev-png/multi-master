@@ -186,11 +186,15 @@ function RegisterPageInner() {
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
-            <CheckCircle size={20} className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-              <p className="text-green-700 dark:text-green-400 text-sm">
-                Signup successful. Please login to continue.
-              </p>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+            <div className="bg-card rounded-xl p-8 max-w-sm w-full shadow-2xl text-center space-y-4">
+              <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
+                <CheckCircle size={36} className="text-green-600" />
+              </div>
+              <h3 className="text-lg font-bold">Account Created!</h3>
+              <p className="text-muted-foreground">Signup successful. Please login to continue.</p>
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            </div>
           </div>
         )}
 

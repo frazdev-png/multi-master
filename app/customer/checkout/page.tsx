@@ -117,15 +117,25 @@ export default function CheckoutPage() {
     return map
   }, [cartItems])
 
+  // Items that have no available sellers (can't be ordered)
+  const itemsWithoutSellers = useMemo(() => {
+    return cartItems.filter((item) => {
+      const sellers = item.available_sellers || []
+      return sellers.length === 0
+    })
+  }, [cartItems])
+
   const sellerGroups = useMemo(() => {
     const groups: { sellerId: number; sellerName: string; items: CartItem[] }[] = []
     const map = new Map<number, typeof groups[0]>()
     for (const item of cartItems) {
-      const sid = selectedSellers[item.product_id] || Number(item.seller_id || 0)
+      const sellers = item.available_sellers || []
+      if (sellers.length === 0) continue // skip items with no sellers
+      const sid = selectedSellers[item.product_id] || Number(sellers[0]?.seller_id || 0)
       if (sid <= 0) continue
       if (!map.has(sid)) {
-        const info = sellerInfo.get(sid) || { seller_name: item.seller_name, store_name: item.store_name }
-        map.set(sid, { sellerId: sid, sellerName: info.store_name || info.seller_name || `Seller #${sid}`, items: [] })
+        const info = sellerInfo.get(sid)
+        map.set(sid, { sellerId: sid, sellerName: info?.store_name || info?.seller_name || `Seller #${sid}`, items: [] })
         groups.push(map.get(sid)!)
       }
       map.get(sid)!.items.push(item)
@@ -166,12 +176,20 @@ export default function CheckoutPage() {
       .filter(Boolean)
       .join(", ")
 
-    const items = cartItems.map((it) => ({
-      product_id: Number(it.product_id),
-      quantity: Number(it.quantity || 0),
-      price: Number(it.price || 0),
-      seller_id: selectedSellers[Number(it.product_id)] || Number(it.seller_id || 0),
-    }))
+    // Block if any item has no available seller
+    if (itemsWithoutSellers.length > 0) {
+      setError(`Some items in your cart have no seller assigned. Please remove them and try again.`)
+      return
+    }
+
+    const items = cartItems
+      .filter((it) => (it.available_sellers || []).length > 0)
+      .map((it) => ({
+        product_id: Number(it.product_id),
+        quantity: Number(it.quantity || 0),
+        price: Number(it.price || 0),
+        seller_id: selectedSellers[Number(it.product_id)] || Number((it.available_sellers || [])[0]?.seller_id || 0),
+      }))
 
     if (items.some((it) => !it.product_id || !it.quantity || !it.seller_id)) {
       setError("Cart items are missing required data. Please refresh the page.")
@@ -222,6 +240,19 @@ export default function CheckoutPage() {
         {error ? (
           <div className="mb-6 rounded-lg border border-border bg-muted p-4 text-sm text-destructive">{error}</div>
         ) : null}
+
+        {/* Items without sellers warning */}
+        {itemsWithoutSellers.length > 0 && (
+          <div className="mb-6 p-4 border border-destructive/50 rounded-lg bg-destructive/5">
+            <p className="text-sm font-medium text-destructive flex items-center gap-2">
+              <AlertCircle size={14} />
+              {itemsWithoutSellers.length} item(s) in your cart are not available from any seller
+            </p>
+            <p className="text-xs text-destructive/70 mt-1">
+              Please remove these items from cart or contact support.
+            </p>
+          </div>
+        )}
 
         {/* Seller Info */}
         {sellerGroups.length > 0 && (
@@ -423,7 +454,7 @@ export default function CheckoutPage() {
               <button
                 className="w-full btn-primary"
                 type="button"
-                disabled={isLoading || isPlacing || cartItems.length === 0}
+                disabled={isLoading || isPlacing || cartItems.length === 0 || cartItems.length === itemsWithoutSellers.length}
                 onClick={placeOrder}
               >
                 {isPlacing ? "Placing Order..." : "Place Order"}

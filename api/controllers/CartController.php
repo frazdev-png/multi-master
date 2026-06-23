@@ -84,30 +84,13 @@ class CartController {
             }
         }
 
-        // Attach available sellers to each item + always include the current seller
+        // Attach only real sellers (from seller_products) to each item
         foreach ($items as &$item) {
             $pid = $item['product_id'];
             $sellers = $availableSellers[$pid] ?? [];
-            // Always include the product owner as a fallback seller
-            $ownerSellerId = (int)$item['seller_id'];
-            $ownerExists = false;
-            foreach ($sellers as $s) {
-                if ((int)$s['seller_id'] === $ownerSellerId) {
-                    $ownerExists = true;
-                    break;
-                }
-            }
-            if (!$ownerExists && $ownerSellerId > 0) {
-                $sellers[] = [
-                    'seller_id' => $ownerSellerId,
-                    'seller_name' => $item['seller_name'] ?? '',
-                    'seller_email' => $item['seller_email'] ?? '',
-                    'store_name' => $item['store_name'] ?? '',
-                ];
-            }
             $item['available_sellers'] = $sellers;
-            // If product has sellers via seller_products, default to first one instead of product owner
-            if (!empty($sellers) && $sellers[0]['seller_id'] !== $ownerSellerId) {
+            // Default to first real seller if available
+            if (!empty($sellers)) {
                 $first = $sellers[0];
                 $item['seller_id'] = $first['seller_id'];
                 $item['seller_name'] = $first['seller_name'];

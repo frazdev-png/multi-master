@@ -211,18 +211,11 @@ class AuthController {
             $this->sendError($msg, $status);
         }
         
-        // Get the created user
-        $user = $this->userModel->getUserWithRoleData($userId);
-        
-        // Generate JWT token
-        $token = AuthMiddleware::generateToken($userId, $data['role'], 1);
-        
-        // Return success response
+        // Do NOT generate token — signup and login are separate flows
+        // Return success response without token/session
         $this->sendResponse([
             'success' => true,
-            'message' => 'User registered successfully',
-            'user' => $user,
-            'token' => $token
+            'message' => 'Signup successful. Please login to continue.'
         ]);
     }
 

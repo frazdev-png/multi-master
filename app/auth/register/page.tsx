@@ -130,14 +130,8 @@ function RegisterPageInner() {
 
       setSuccess(true)
       setTimeout(() => {
-        if (role === "seller") {
-          router.push("/seller")
-        } else if (role === "admin") {
-          router.push("/admin-panel")
-        } else {
-          router.push("/")
-        }
-      }, 1500)
+        router.push(`/auth/login?role=${role}`)
+      }, 2000)
     } catch (err) {
       setError("An error occurred. Please try again.")
       console.log("[v0] Register error:", err)
@@ -195,7 +189,7 @@ function RegisterPageInner() {
           <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-3">
             <CheckCircle size={20} className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
               <p className="text-green-700 dark:text-green-400 text-sm">
-                Account created successfully! Signing in...
+                Signup successful. Please login to continue.
               </p>
           </div>
         )}

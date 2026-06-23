@@ -32,41 +32,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: data?.error || "Registration failed" }, { status: apiResponse.status || 500 })
     }
 
-    const res = NextResponse.json(
+    // Do NOT set any auth cookies — signup and login are separate flows
+    return NextResponse.json(
       {
         success: true,
-        role: data.user?.role || role,
-        email: data.user?.email || email,
-        message: data.message || "Registration successful",
+        message: data.message || "Signup successful. Please login to continue.",
       },
       { status: 201 },
     )
-
-    if (data.token) {
-      res.cookies.set("auth_token", data.token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/",
-      })
-      res.cookies.set("user_role", data.user?.role || role, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/",
-      })
-      res.cookies.set("user_email", email, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/",
-      })
-    }
-
-    return res
   } catch (error) {
     console.log("[v0] Register error:", error)
     return NextResponse.json({ error: "Registration failed" }, { status: 500 })

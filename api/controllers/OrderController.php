@@ -424,6 +424,8 @@ class OrderController {
             return;
         }
 
+        $this->auth->checkFrozen($user);
+
         $data = json_decode(file_get_contents('php://input'), true);
         $items = $data['items'] ?? [];
         $shippingAddress = $data['shipping_address'] ?? '';

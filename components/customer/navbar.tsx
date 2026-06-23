@@ -40,6 +40,7 @@ export function CustomerNavbar() {
   const [wishlistCount, setWishlistCount] = useState<number>(0)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [userEmail, setUserEmail] = useState("")
+  const [isFrozen, setIsFrozen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
@@ -91,6 +92,7 @@ export function CustomerNavbar() {
 
     fetch("/api/backend/auth/me").then(r => r.json()).then(d => {
       if (d?.user?.email) setUserEmail(d.user.email)
+      if (d?.user?.is_frozen == 1) setIsFrozen(true)
     }).catch(() => {})
 
     return () => {
@@ -110,7 +112,14 @@ export function CustomerNavbar() {
   }, [])
 
   return (
-    <nav className="bg-card border-b border-border sticky top-0 z-40">
+    <>
+      {isFrozen && (
+        <div className="bg-blue-600 text-white text-center py-2 px-4 text-sm font-medium">
+          Your account has been frozen. You can browse but cannot place orders.{" "}
+          <Link href="/customer/support" className="underline font-bold">Contact Support</Link>
+        </div>
+      )}
+      <nav className="bg-card border-b border-border sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -299,5 +308,6 @@ export function CustomerNavbar() {
         </div>
       </div>
     </nav>
+    </>
   )
 }

@@ -109,6 +109,11 @@ class CartController {
 
         $user = $this->auth->authenticate('customer');
 
+        // Block write actions for frozen customers
+        if ($method !== 'GET') {
+            $this->auth->checkFrozen($user);
+        }
+
         if ($path === '/api/cart') {
             if ($method === 'GET') {
                 $this->listCart($user);

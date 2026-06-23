@@ -1146,6 +1146,7 @@ class AdminController {
 
         try {
             $userIsActiveSelect = $this->hasUserColumn('is_active') ? 'is_active' : '1 as is_active';
+            $userIsFrozenSelect = $this->hasUserColumn('is_frozen') ? 'is_frozen' : '0 as is_frozen';
             $sql = "
                 SELECT
                     u.id,
@@ -1154,6 +1155,7 @@ class AdminController {
                     u.role,
                     u.phone,
                     {$userIsActiveSelect},
+                    {$userIsFrozenSelect},
                     u.created_at,
                     u.last_seen,
                     COUNT(o.id) AS order_count,
@@ -1178,6 +1180,10 @@ class AdminController {
                     $sql .= " AND u.is_active = 0";
                 } else {
                     $sql .= " AND 1=0";
+                }
+            } elseif ($status === 'frozen') {
+                if ($this->hasUserColumn('is_frozen')) {
+                    $sql .= " AND u.is_frozen = 1";
                 }
             }
             
@@ -1269,6 +1275,72 @@ class AdminController {
                 'message' => $isBlocking ? 'Customer blocked successfully' : 'Customer unblocked successfully'
             ]);
             
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
+    public function freezeUser() {
+        $user = $this->auth->authenticate();
+        if ($user['role'] !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Admin access required']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $userId = $data['user_id'] ?? null;
+        $isFrozen = $data['is_frozen'] ?? null;
+
+        if (!$userId || $isFrozen === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'User ID and freeze status are required']);
+            return;
+        }
+
+        try {
+            if (!$this->hasUserColumn('is_frozen')) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Freeze feature not supported (users.is_frozen column missing)']);
+                return;
+            }
+
+            $isFreezing = (int)$isFrozen === 1;
+            $hasFrozenAt = $this->hasUserColumn('frozen_at');
+            $hasFrozenReason = $this->hasUserColumn('frozen_reason');
+
+            $sql = "UPDATE users SET is_frozen = ?";
+            $params = [$isFrozen];
+
+            if ($isFreezing) {
+                if ($hasFrozenAt) {
+                    $sql .= ", frozen_at = NOW()";
+                }
+                if ($hasFrozenReason) {
+                    $reason = $data['frozen_reason'] ?? null;
+                    $sql .= ", frozen_reason = ?";
+                    $params[] = $reason;
+                }
+            } else {
+                if ($hasFrozenAt) {
+                    $sql .= ", frozen_at = NULL";
+                }
+                if ($hasFrozenReason) {
+                    $sql .= ", frozen_reason = NULL";
+                }
+            }
+
+            $sql .= ", updated_at = NOW() WHERE id = ?";
+            $params[] = $userId;
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+
+            echo json_encode([
+                'success' => true,
+                'message' => $isFreezing ? 'Customer frozen successfully' : 'Customer unfrozen successfully'
+            ]);
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);

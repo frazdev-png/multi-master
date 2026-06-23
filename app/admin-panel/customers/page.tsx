@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, Eye, Ban, RefreshCw, Download, Edit2, Trash2, Mail } from "lucide-react"
+import { Search, Eye, Snowflake, RefreshCw, Download, Edit2, Trash2, Mail } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ type Customer = {
   spent: string
   joined: string
   status: string
+  is_frozen: boolean
   address: string
   lastOrder: string
 }
@@ -47,7 +48,8 @@ export default function CustomersManagement() {
         orders: Number(u.order_count || 0),
         spent: (Number(u.total_spent || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " USDT",
         joined: u.created_at ? String(u.created_at).slice(0, 10) : "-",
-        status: u.is_active == 1 || u.is_active == null ? "Active" : "Blocked",
+        status: u.is_frozen == 1 ? "Frozen" : (u.is_active == 1 || u.is_active == null ? "Active" : "Blocked"),
+        is_frozen: u.is_frozen == 1,
         address: "-",
         lastOrder: "-",
       }))
@@ -74,32 +76,31 @@ export default function CustomersManagement() {
     setIsViewDialogOpen(true)
   }
 
-  const handleToggleStatus = async (customerId: number) => {
+  const handleToggleFreeze = async (customerId: number) => {
     const target = customers.find((c) => c.id === customerId)
     if (!target) return
-    const isBlocking = target.status === "Active"
-    let blockReason: string | null = null
-    if (isBlocking) {
-      blockReason = window.prompt("Enter reason for blocking this customer (optional):")
-      if (blockReason === null) return // user cancelled
+    const isFreezing = !target.is_frozen
+    let reason: string | null = null
+    if (isFreezing) {
+      reason = window.prompt("Enter reason for freezing this customer (optional):")
+      if (reason === null) return
     }
-    const newActive = isBlocking ? 0 : 1
     try {
-      const res = await fetch("/api/backend/admin/users/status", {
+      const res = await fetch("/api/backend/admin/users/freeze", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: customerId, is_active: newActive, block_reason: blockReason || null }),
+        body: JSON.stringify({ user_id: customerId, is_frozen: isFreezing ? 1 : 0, frozen_reason: reason || null }),
       })
       if (!res.ok) {
         const data = await res.json()
-        alert(data?.error || "Failed to update status")
+        alert(data?.error || "Failed to update freeze status")
         return
       }
       setCustomers((prev) =>
-        prev.map((c) => (c.id === customerId ? { ...c, status: newActive ? "Active" : "Blocked" } : c)),
+        prev.map((c) => (c.id === customerId ? { ...c, status: isFreezing ? "Frozen" : "Active", is_frozen: isFreezing } : c)),
       )
     } catch {
-      alert("Failed to update status")
+      alert("Failed to update freeze status")
     }
   }
 
@@ -143,7 +144,9 @@ export default function CustomersManagement() {
   }
 
   const getStatusColor = (status: string) => {
-    return status === "Active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+    if (status === "Active") return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+    if (status === "Frozen") return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+    return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
   }
 
   return (
@@ -227,8 +230,8 @@ export default function CustomersManagement() {
                           <Button variant="ghost" size="sm" onClick={() => handleSendEmail(customer)}>
                             <Mail size={16} className="text-blue-500" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleToggleStatus(customer.id)}>
-                            <Ban size={16} className={customer.status === "Active" ? "text-red-500" : "text-green-500"} />
+                          <Button variant="ghost" size="sm" onClick={() => handleToggleFreeze(customer.id)} title={customer.is_frozen ? "Unfreeze" : "Freeze"}>
+                            <Snowflake size={16} className={customer.is_frozen ? "text-blue-500" : "text-muted-foreground"} />
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => handleDelete(customer.id)}>
                             <Trash2 size={16} className="text-red-500" />

@@ -197,6 +197,15 @@ class AuthMiddleware {
         return $decoded;
     }
 
+    public function checkFrozen($user) {
+        if (isset($user['is_frozen']) && (int)$user['is_frozen'] === 1) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Your account has been frozen. You cannot perform this action. Please contact support.']);
+            exit;
+        }
+    }
+
     // Send unauthorized response
     private function sendUnauthorized($message = 'Unauthorized') {
         http_response_code(401);

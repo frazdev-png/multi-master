@@ -69,6 +69,7 @@ class WishlistController {
 
     public function addToWishlist() {
         $user = $this->auth->authenticate();
+        $this->auth->checkFrozen($user);
         $userId = (int)$user['id'];
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -110,6 +111,7 @@ class WishlistController {
 
     public function removeFromWishlist($productId) {
         $user = $this->auth->authenticate();
+        $this->auth->checkFrozen($user);
         $userId = (int)$user['id'];
 
         try {

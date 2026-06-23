@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Edit, Trash2, Eye } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { notify } from "@/components/ui/toast"
 
 function resolvePublicImageUrl(src: string | undefined) {
   const raw = String(src || "").trim()
@@ -250,13 +251,22 @@ export default function SellerProductsPage() {
         body: JSON.stringify({ product_id: attachProduct.id }),
       })
       const data = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(data?.error || "Failed to add product to your store")
+      if (!res.ok) {
+        if (res.status === 409) {
+          notify("Product already in your store", "error")
+          setShowAttachModal(false)
+          setAttachProduct(null)
+          return
+        }
+        throw new Error(data?.error || "Failed to add product to your store")
+      }
+      notify("Product added to your store", "success")
       setShowAttachModal(false)
       setAttachProduct(null)
       await loadAdminCatalog()
       await loadProducts()
     } catch (e: any) {
-      setError(e?.message || "Failed to add product")
+      notify(e?.message || "Failed to add product", "error")
     } finally {
       setAdoptLoading(null)
     }

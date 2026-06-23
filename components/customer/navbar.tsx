@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ShoppingCart, Search, User, Heart, Menu, X, MessageCircle, LogOut } from "lucide-react"
+import { ShoppingCart, User, Heart, Menu, X, MessageCircle, LogOut } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
@@ -39,7 +39,6 @@ export function CustomerNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [cartCount, setCartCount] = useState<number>(0)
   const [wishlistCount, setWishlistCount] = useState<number>(0)
-  const [searchQuery, setSearchQuery] = useState("")
   const unreadMessages = useUnreadMessages()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [userEmail, setUserEmail] = useState("")
@@ -155,24 +154,7 @@ export function CustomerNavbar() {
             <Link href="/customer/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
               Orders
             </Link>
-            <div className="relative flex-1 max-w-md">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="Search products..."
-                className="input pl-10 w-full"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && searchQuery.trim()) {
-                    router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`)
-                  }
-                }}
-              />
-            </div>
+            <div className="flex-1 max-w-md" />
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
@@ -267,24 +249,7 @@ export function CustomerNavbar() {
           </div>
         </div>
 
-        <div className="md:hidden pb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-            <input
-              type="text"
-              placeholder="Search products..."
-              className="input pl-10 w-full"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && searchQuery.trim()) {
-                  setMobileMenuOpen(false)
-                  router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`)
-                }
-              }}
-            />
-          </div>
-        </div>
+        <div className="md:hidden pb-4" />
 
         <div
           className={`md:hidden overflow-hidden transition-all duration-200 ${

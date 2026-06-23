@@ -366,7 +366,7 @@ export default function CheckoutPage() {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{item.name || "Product"}</div>
                             <div className="text-xs text-muted-foreground">Qty: {Number(item.quantity || 0)}</div>
-                            {sellers.length > 1 ? (
+                            {sellers.length >= 1 ? (
                               <div className="mt-1">
                                 <select
                                   value={curSid}
@@ -374,7 +374,7 @@ export default function CheckoutPage() {
                                     const newSid = Number(e.target.value)
                                     setSelectedSellers((prev) => ({ ...prev, [item.product_id]: newSid }))
                                   }}
-                                  className="text-xs border border-border rounded px-1 py-0.5 bg-background max-w-full"
+                                  className="text-xs border border-border rounded px-1 py-0.5 bg-background max-w-full cursor-pointer"
                                 >
                                   {sellers.map((s) => (
                                     <option key={s.seller_id} value={s.seller_id}>
@@ -382,11 +382,6 @@ export default function CheckoutPage() {
                                     </option>
                                   ))}
                                 </select>
-                              </div>
-                            ) : sellers.length === 1 ? (
-                              <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                                <Store size={10} />
-                                {sellers[0].store_name || sellers[0].seller_name || `Seller #${sellers[0].seller_id}`}
                               </div>
                             ) : null}
                           </div>

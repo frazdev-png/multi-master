@@ -307,7 +307,7 @@ class ProductController {
         $rating = $_GET['rating'] ?? 0;
         $sortBy = $_GET['sort'] ?? 'created_at';
         $order = $_GET['order'] ?? 'DESC';
-        $limit = min($_GET['limit'] ?? 20, 50);
+        $limit = min((int)($_GET['limit'] ?? 10), 50);
         $offset = $_GET['offset'] ?? 0;
 
         try {
@@ -348,22 +348,21 @@ class ProductController {
                         p.price as base_price,
                         {$selectSellerProfit}
                         {$priceExpr} as price,
-                        sp.id as seller_product_id,
-                        COALESCE(sp.stock, p.stock) as stock,
-                        sp.seller_id,
-                        u.full_name as seller_name,
-                        ss.store_name,
+                        (SELECT sp_first.id FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1) as seller_product_id,
+                        (SELECT sp_first.stock FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1) as stock,
+                        (SELECT sp_first.seller_id FROM seller_products sp_first WHERE sp_first.product_id = p.id AND sp_first.is_active = 1 LIMIT 1) as seller_id,
+                        (SELECT u2.full_name FROM seller_products sp2 JOIN users u2 ON sp2.seller_id = u2.id WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as seller_name,
+                        (SELECT ss2.store_name FROM seller_products sp2 JOIN sellers ss2 ON ss2.user_id = sp2.seller_id WHERE sp2.product_id = p.id AND sp2.is_active = 1 LIMIT 1) as store_name,
                         {$categorySelect},
                         (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
                         (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count,
                         (SELECT COUNT(*) FROM order_items oi JOIN products pp ON oi.product_id = pp.id WHERE pp.id = p.id) as sales_count,
                         p.created_at
-                    FROM seller_products sp
-                    JOIN products p ON p.id = sp.product_id
-                    JOIN users u ON sp.seller_id = u.id
-                    LEFT JOIN sellers ss ON ss.user_id = u.id
+                    FROM products p
                     {$categoryJoin}
-                    WHERE sp.is_active = 1 AND {$activeProduct}
+                    WHERE p.seller_id IN (SELECT id FROM users WHERE role = 'admin')
+                    AND {$activeProduct}
+                    AND EXISTS (SELECT 1 FROM seller_products sp3 WHERE sp3.product_id = p.id AND sp3.is_active = 1)
                 ";
 
                 $params = [];

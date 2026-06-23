@@ -20,7 +20,7 @@ type ApiProduct = {
   stock?: number | string
 }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 export default function ShopPage() {
   const [products, setProducts] = useState<ApiProduct[]>([])

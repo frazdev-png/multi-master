@@ -37,6 +37,9 @@ type CartItem = {
   price?: number | string
   image_url?: string
   seller_id?: number | string
+  seller_name?: string
+  seller_email?: string
+  store_name?: string
 }
 
 export default function CheckoutPage() {
@@ -78,6 +81,21 @@ export default function CheckoutPage() {
   useEffect(() => {
     loadCart()
   }, [])
+
+  const sellerGroups = useMemo(() => {
+    const groups: { sellerId: number; sellerName: string; sellerEmail: string; storeName: string; items: CartItem[] }[] = []
+    const map = new Map<number, typeof groups[0]>()
+    for (const item of cartItems) {
+      const sid = Number(item.seller_id || 0)
+      if (sid <= 0) continue
+      if (!map.has(sid)) {
+        map.set(sid, { sellerId: sid, sellerName: item.seller_name || "", sellerEmail: item.seller_email || "", storeName: item.store_name || "", items: [] })
+        groups.push(map.get(sid)!)
+      }
+      map.get(sid)!.items.push(item)
+    }
+    return groups
+  }, [cartItems])
 
   const { itemCount, subtotal, tax, shipping, total } = useMemo(() => {
     const count = cartItems.reduce((sum, item) => sum + (Number(item.quantity || 0) || 0), 0)
@@ -168,6 +186,21 @@ export default function CheckoutPage() {
         {error ? (
           <div className="mb-6 rounded-lg border border-border bg-muted p-4 text-sm text-destructive">{error}</div>
         ) : null}
+
+        {/* Seller Info */}
+        {sellerGroups.length > 0 && (
+          <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Your order will be fulfilled by:</p>
+            <div className="flex flex-wrap gap-3">
+              {sellerGroups.map((g) => (
+                <span key={g.sellerId} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  {g.storeName || g.sellerName || `Seller #${g.sellerId}`}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Checkout Form */}
@@ -266,25 +299,35 @@ export default function CheckoutPage() {
             <div className="card sticky top-20">
               <h3 className="text-lg font-bold mb-6">Order Summary</h3>
 
-              {cartItems.length > 0 ? (
-                <div className="space-y-4 mb-6">
-                  {cartItems.map((item) => (
-                    <div key={item.product_id} className="flex items-center gap-3">
-                      <img
-                        src={resolvePublicImageUrl(item.image_url) || "/placeholder.svg"}
-                        alt={item.name || "Product"}
-                        className="w-12 h-12 rounded-md object-cover bg-muted"
-                        onError={(e) => {
-                          const el = e.currentTarget
-                          if (el.src.endsWith("/placeholder.svg")) return
-                          el.src = "/placeholder.svg"
-                        }}
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">{item.name || "Product"}</div>
-                        <div className="text-xs text-muted-foreground">Qty: {Number(item.quantity || 0)}</div>
+              {sellerGroups.length > 0 ? (
+                <div className="space-y-5 mb-6">
+                  {sellerGroups.map((group) => (
+                    <div key={group.sellerId}>
+                      <div className="flex items-center gap-2 mb-2 pb-1 border-b border-border">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        <p className="text-xs font-semibold text-primary uppercase tracking-wide">
+                          {group.storeName || group.sellerName || `Seller #${group.sellerId}`}
+                        </p>
                       </div>
-                      <div className="text-sm font-medium">{formatCurrency((Number(item.price || 0) || 0) * (Number(item.quantity || 0) || 0))}</div>
+                      {group.items.map((item) => (
+                        <div key={item.product_id} className="flex items-center gap-3 py-1.5">
+                          <img
+                            src={resolvePublicImageUrl(item.image_url) || "/placeholder.svg"}
+                            alt={item.name || "Product"}
+                            className="w-10 h-10 rounded-md object-cover bg-muted flex-shrink-0"
+                            onError={(e) => {
+                              const el = e.currentTarget
+                              if (el.src.endsWith("/placeholder.svg")) return
+                              el.src = "/placeholder.svg"
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{item.name || "Product"}</div>
+                            <div className="text-xs text-muted-foreground">Qty: {Number(item.quantity || 0)}</div>
+                          </div>
+                          <div className="text-sm font-medium flex-shrink-0">{formatCurrency((Number(item.price || 0) || 0) * (Number(item.quantity || 0) || 0))}</div>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>

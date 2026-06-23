@@ -29,6 +29,7 @@ export default function ShopPage() {
   const [error, setError] = useState("")
 
   const [search, setSearch] = useState("")
+  const [searchInput, setSearchInput] = useState("")
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [minPrice, setMinPrice] = useState(0)
   const [maxPrice, setMaxPrice] = useState(10000)
@@ -86,7 +87,10 @@ export default function ShopPage() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("search")
-    if (q) setSearch(q)
+    if (q) {
+      setSearch(q)
+      setSearchInput(q)
+    }
     loadCategories()
   }, [])
 
@@ -123,10 +127,13 @@ export default function ShopPage() {
                   <Input
                     id="shop-search"
                     placeholder="Search products..."
-                    value={search}
-                    onChange={(e) => {
-                      setPage(1)
-                      setSearch(e.target.value)
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setPage(1)
+                        setSearch(searchInput)
+                      }
                     }}
                   />
                 </div>

@@ -38,7 +38,10 @@ function resolvePublicImageUrl(src: string | undefined) {
 interface Product {
   id: number
   name: string
+  description?: string
   price: number
+  seller_profit?: number
+  final_price?: number
   stock: number
   category: string
   status: "Active" | "Inactive" | "Out of Stock"
@@ -61,6 +64,7 @@ export default function SellerProductsPage() {
   const [showAttachModal, setShowAttachModal] = useState(false)
   const [attachProduct, setAttachProduct] = useState<any>(null)
   const [showEditModal, setShowEditModal] = useState(false)
+const [showViewModal, setShowViewModal] = useState(false)
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -88,11 +92,14 @@ export default function SellerProductsPage() {
           (p.status === "Active" || p.status === "active")
         
         return {
-        id: Number(p.id),
+        id: Number(p.product_id_orig || p.id),
         name: p.name,
+        description: p.description || "",
         price: Number(p.price),
-        stock: Number(p.stock),
-        category: p.category || "",
+        seller_profit: Number(p.seller_profit || 0),
+        final_price: Number(p.final_price || p.price || 0),
+        stock: Number(p.seller_stock ?? p.stock),
+        category: p.category_name || p.category || "",
         status: isActive ? "Active" : "Inactive",
         createdAt: p.created_at ? new Date(p.created_at).toISOString().slice(0, 10) : "",
         image_url: p.image_url,
@@ -416,6 +423,7 @@ export default function SellerProductsPage() {
                                 <button
                                   onClick={() => {
                                     setSelectedProduct(product)
+                                    setShowViewModal(true)
                                   }}
                                   className="text-blue-600 hover:text-blue-900"
                                 >
@@ -585,6 +593,97 @@ export default function SellerProductsPage() {
                 </Button>
                 <Button type="button" onClick={confirmAttach} disabled={adoptLoading === attachProduct.id}>
                   {adoptLoading === attachProduct.id ? "Adding..." : "Add to Store"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Product Modal */}
+      {showViewModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Product Details</h3>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-gray-500"
+                  onClick={() => setShowViewModal(false)}
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {selectedProduct.image_url && (
+                  <div className="h-48 w-full rounded-md overflow-hidden bg-gray-100">
+                    <img
+                      src={resolvePublicImageUrl(selectedProduct.image_url) || "/placeholder.svg"}
+                      alt={selectedProduct.name}
+                      className="h-full w-full object-contain"
+                      onError={(e) => { const el = e.currentTarget; if (!el.src.endsWith("/placeholder.svg")) el.src = "/placeholder.svg" }}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedProduct.name}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Description</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedProduct.description || "No description"}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Price (Base)</label>
+                    <p className="mt-1 text-sm text-gray-900">{formatCurrency(selectedProduct.price)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Seller Profit</label>
+                    <p className="mt-1 text-sm text-gray-900">{formatCurrency(selectedProduct.seller_profit || 0)}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Final Price</label>
+                    <p className="mt-1 text-sm text-gray-900 font-semibold">{formatCurrency(selectedProduct.final_price || selectedProduct.price)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Stock</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedProduct.stock} units</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Category</label>
+                    <p className="mt-1 text-sm text-gray-900">{selectedProduct.category || "N/A"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Status</label>
+                    <span className={`mt-1 inline-block ${getStatusBadge(selectedProduct.status)}`}>
+                      {selectedProduct.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Added Date</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedProduct.createdAt || "N/A"}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <Button type="button" onClick={() => setShowViewModal(false)}>
+                  Close
                 </Button>
               </div>
             </div>

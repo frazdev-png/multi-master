@@ -36,5 +36,9 @@ export function usePermissions() {
       })
   }, [])
 
-  return { permissions, loaded, hasPermission: (slug: string) => permissions.includes(slug) }
+  return {
+    permissions,
+    loaded,
+    hasPermission: (slug: string) => !loaded || permissions.includes(slug),
+  }
 }

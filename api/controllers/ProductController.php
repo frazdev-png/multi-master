@@ -354,7 +354,7 @@ class ProductController {
                         NULL as seller_name,
                         NULL as store_name,
                         {$categorySelect},
-                        (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
+                        (SELECT COALESCE(AVG(rating), p.rating, 0) FROM reviews WHERE product_id = p.id) as avg_rating,
                         (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count,
                         (SELECT COUNT(*) FROM order_items oi JOIN products pp ON oi.product_id = pp.id WHERE pp.id = p.id) as sales_count,
                         p.created_at
@@ -729,7 +729,7 @@ class ProductController {
                         {$categorySelect},
                         u.full_name as seller_name,
                         ss.store_name,
-                        (SELECT COALESCE(AVG(r.rating), 0) FROM reviews r WHERE r.product_id = p.id) as rating
+                        COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id), p.rating, 0) as rating
                     FROM products p
                     JOIN users u ON p.seller_id = u.id
                     LEFT JOIN sellers ss ON ss.user_id = u.id
@@ -824,10 +824,17 @@ class ProductController {
         }
         $isActive = isset($data['is_active']) ? (int)(!!$data['is_active']) : 1;
         $sellerProfit = isset($data['seller_profit']) ? (float)$data['seller_profit'] : 0;
+        $rating = isset($data['rating']) ? max(0, min(5, (float)$data['rating'])) : 0;
 
         $columns = ['seller_id', 'name', 'price', 'stock'];
         $placeholders = ['?', '?', '?', '?'];
         $values = [$sellerId, $name, $price, $stock];
+
+        if ($this->hasProductColumn('rating')) {
+            $columns[] = 'rating';
+            $placeholders[] = '?';
+            $values[] = $rating;
+        }
 
         $this->ensureSellerProductsTable();
         if ($this->hasProductColumn('seller_profit')) {
@@ -946,6 +953,13 @@ class ProductController {
             if ($this->hasProductColumn('seller_profit')) {
                 $fields[] = "seller_profit = ?";
                 $params[] = (float)$data['seller_profit'];
+            }
+        }
+
+        if (array_key_exists('rating', $data)) {
+            if ($this->hasProductColumn('rating')) {
+                $fields[] = "rating = ?";
+                $params[] = max(0, min(5, (float)$data['rating']));
             }
         }
 
@@ -1195,7 +1209,7 @@ class ProductController {
                         ss.store_name,
                         u.email as seller_email,
                         c.name as category_name,
-                        (SELECT AVG(rating) FROM reviews WHERE product_id = p.id) as avg_rating,
+                        (SELECT COALESCE(AVG(rating), p.rating, 0) FROM reviews WHERE product_id = p.id) as avg_rating,
                         (SELECT COUNT(*) FROM reviews WHERE product_id = p.id) as review_count
                     FROM products p
                     JOIN users u ON p.seller_id = u.id

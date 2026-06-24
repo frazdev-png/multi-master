@@ -286,6 +286,7 @@ class Database {
             $ensureColumn('products', 'image_url', 'image_url TEXT DEFAULT NULL');
             $ensureColumn('products', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
             $ensureColumn('products', 'updated_at', 'updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
+            $ensureColumn('products', 'rating', 'rating DECIMAL(3,1) NOT NULL DEFAULT 0.0');
 
             // Migrate image_url from VARCHAR(255) to TEXT for long external URLs
             try {

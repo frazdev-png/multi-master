@@ -69,6 +69,7 @@ export default function ProductsManagement() {
     name: "",
     price: "",
     seller_profit: "",
+    rating: "0",
     stock: 0,
     description: "",
     category: "",
@@ -180,6 +181,7 @@ export default function ProductsManagement() {
         image_url: imageUrl,
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
         seller_profit: Number.isFinite(sellerProfitNum) ? sellerProfitNum : 0,
+        rating: Math.min(5, Math.max(0, Number(newProduct.rating) || 0)),
         stock: Number(newProduct.stock ?? 0),
         category: newProduct.category || undefined,
       }
@@ -195,7 +197,7 @@ export default function ProductsManagement() {
       }
 
       setIsAddDialogOpen(false)
-      setNewProduct({ name: "", price: "", seller_profit: "", stock: 0, description: "", category: "" })
+      setNewProduct({ name: "", price: "", seller_profit: "", rating: "0", stock: 0, description: "", category: "" })
       setAddImageFile(null)
       setAddImagePreview("")
       await loadProducts()
@@ -317,6 +319,7 @@ export default function ProductsManagement() {
         description: editingProduct.description,
         price: Number.isFinite(priceNumber) ? priceNumber : 0,
         seller_profit: Number.isFinite(sellerProfitNum) ? sellerProfitNum : 0,
+        rating: Math.min(5, Math.max(0, Number(editingProduct.rating) ?? 0)),
         stock: Number(editingProduct.stock ?? 0),
         category: editingProduct.category || undefined,
       }
@@ -748,6 +751,17 @@ export default function ProductsManagement() {
                 {newProduct.seller_profit && Number(newProduct.seller_profit) >= 0 && (
                   <p className="text-xs text-blue-600 mt-1">Final price: {formatCurrency((Number(newProduct.price) || 0) + Number(newProduct.seller_profit))}</p>
                 )}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Rating</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="5"
+                  value={newProduct.rating}
+                  onChange={(e) => setNewProduct({ ...newProduct, rating: e.target.value })}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Stock</label>

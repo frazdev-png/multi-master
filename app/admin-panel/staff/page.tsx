@@ -21,6 +21,13 @@ type Role = {
   name: string
 }
 
+type Permission = {
+  id: number
+  name: string
+  slug: string
+  description: string
+}
+
 export default function StaffManagement() {
   const { hasPermission } = usePermissions()
   const canCreate = hasPermission("staff.create")
@@ -28,11 +35,13 @@ export default function StaffManagement() {
   const canDelete = hasPermission("staff.delete")
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [roles, setRoles] = useState<Role[]>([])
+  const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<StaffMember | null>(null)
   const [form, setForm] = useState({ email: "", password: "", full_name: "", role_id: "", status: "active" })
+  const [selectedPerms, setSelectedPerms] = useState<string[]>([])
 
   const fetchStaff = async () => {
     try {
@@ -50,19 +59,39 @@ export default function StaffManagement() {
     } catch {}
   }
 
+  const fetchPermissions = async () => {
+    try {
+      const res = await fetch("/api/backend/admin/permissions")
+      const data = await res.json()
+      if (data.success) setPermissions(data.permissions || [])
+    } catch {}
+  }
+
   useEffect(() => {
-    Promise.all([fetchStaff(), fetchRoles()]).finally(() => setLoading(false))
+    Promise.all([fetchStaff(), fetchRoles(), fetchPermissions()]).finally(() => setLoading(false))
   }, [])
 
   const openCreate = () => {
     setEditing(null)
     setForm({ email: "", password: "", full_name: "", role_id: "", status: "active" })
+    setSelectedPerms([])
     setShowModal(true)
   }
 
-  const openEdit = (member: StaffMember) => {
+  const openEdit = async (member: StaffMember) => {
     setEditing(member)
     setForm({ email: member.email, password: "", full_name: member.full_name, role_id: member.role_id?.toString() || "", status: member.status })
+    try {
+      const res = await fetch(`/api/backend/admin/staff/${member.id}`)
+      const data = await res.json()
+      if (data.success && data.staff) {
+        setSelectedPerms(data.staff.permission_slugs || [])
+      } else {
+        setSelectedPerms([])
+      }
+    } catch {
+      setSelectedPerms([])
+    }
     setShowModal(true)
   }
 
@@ -70,9 +99,8 @@ export default function StaffManagement() {
     if (!form.email) return
     const method = editing ? "PUT" : "POST"
     const url = editing ? `/api/backend/admin/staff/${editing.id}` : "/api/backend/admin/staff"
-    const body: any = { email: form.email, full_name: form.full_name, role_id: form.role_id ? parseInt(form.role_id) : null, status: form.status }
+    const body: any = { email: form.email, full_name: form.full_name, role_id: form.role_id ? parseInt(form.role_id) : null, status: form.status, permissions: selectedPerms }
     if (!editing && form.password) body.password = form.password
-    if (editing) { body.role_id = form.role_id ? parseInt(form.role_id) : null; body.status = form.status }
 
     try {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
@@ -91,6 +119,10 @@ export default function StaffManagement() {
       const data = await res.json()
       if (data.success) fetchStaff()
     } catch {}
+  }
+
+  const togglePerm = (slug: string) => {
+    setSelectedPerms((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]))
   }
 
   const filteredStaff = staff.filter((m) => {
@@ -169,7 +201,7 @@ export default function StaffManagement() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-lg border border-border p-6 w-full max-w-lg">
+          <div className="bg-card rounded-lg border border-border p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">{editing ? "Edit Staff" : "Add Staff"}</h2>
               <button onClick={() => setShowModal(false)}><X size={20} /></button>
@@ -188,7 +220,7 @@ export default function StaffManagement() {
                 <input className="input w-full" value={form.full_name} onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Role</label>
+                <label className="block text-sm font-medium mb-1">Role (optional)</label>
                 <select className="input w-full" value={form.role_id} onChange={(e) => setForm((p) => ({ ...p, role_id: e.target.value }))}>
                   <option value="">No Role</option>
                   {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -201,6 +233,20 @@ export default function StaffManagement() {
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Direct Permissions</label>
+                <p className="text-xs text-muted-foreground mb-3">Select individual permissions for this staff member. If a role is also assigned, permissions from both the role and these direct assignments will apply.</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-1 max-h-60 overflow-y-auto border border-border rounded p-2">
+                  {permissions.map((perm) => (
+                    <label key={perm.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                      <input type="checkbox" checked={selectedPerms.includes(perm.slug)} onChange={() => togglePerm(perm.slug)} className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{perm.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex gap-2 justify-end pt-4 border-t border-border">
                 <button onClick={() => setShowModal(false)} className="admin-panel-btn-secondary">Cancel</button>
                 <button onClick={handleSave} className="admin-panel-btn-primary"><Check size={16} className="mr-1" /> Save</button>

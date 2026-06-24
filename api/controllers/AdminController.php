@@ -1720,6 +1720,22 @@ class AdminController {
                 return;
             }
 
+            if ($method === 'GET' && $staffId) {
+                PermissionHelper::requirePermission($userId, 'staff.view');
+                $stmt = $conn->prepare("SELECT s.*, u.email, u.full_name, u.is_active, r.name as role_name FROM staff s JOIN users u ON s.user_id = u.id LEFT JOIN roles r ON s.role_id = r.id WHERE s.id = ?");
+                $stmt->execute([$staffId]);
+                $staff = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$staff) {
+                    $this->sendJson(['success' => false, 'error' => 'Staff not found'], 404);
+                    return;
+                }
+                $permStmt = $conn->prepare("SELECT p.slug FROM staff_permissions sp JOIN permissions p ON p.id = sp.permission_id WHERE sp.staff_id = ?");
+                $permStmt->execute([$staffId]);
+                $staff['permission_slugs'] = $permStmt->fetchAll(PDO::FETCH_COLUMN);
+                $this->sendJson(['success' => true, 'staff' => $staff]);
+                return;
+            }
+
             if ($method === 'POST') {
                 PermissionHelper::requirePermission($userId, 'staff.create');
                 $data = json_decode(file_get_contents('php://input'), true);
@@ -1733,20 +1749,33 @@ class AdminController {
                 $existingUser = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($existingUser) {
-                    $userId = $existingUser['id'];
+                    $targetUserId = $existingUser['id'];
                     $updateStmt = $conn->prepare("UPDATE users SET role = 'admin', full_name = ?, is_active = 1 WHERE id = ?");
-                    $updateStmt->execute([$data['full_name'] ?? $data['email'], $userId]);
+                    $updateStmt->execute([$data['full_name'] ?? $data['email'], $targetUserId]);
                 } else {
                     $hash = password_hash($data['password'], PASSWORD_BCRYPT);
                     $createStmt = $conn->prepare("INSERT INTO users (email, password_hash, role, full_name, is_active) VALUES (?, ?, 'admin', ?, 1)");
                     $createStmt->execute([$data['email'], $hash, $data['full_name'] ?? 'Staff']);
-                    $userId = (int)$conn->lastInsertId();
+                    $targetUserId = (int)$conn->lastInsertId();
                 }
 
                 $staffStmt = $conn->prepare("INSERT INTO staff (user_id, role_id, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role_id = VALUES(role_id), status = VALUES(status)");
                 $roleId = !empty($data['role_id']) ? (int)$data['role_id'] : null;
                 $status = !empty($data['status']) ? $data['status'] : 'active';
-                $staffStmt->execute([$userId, $roleId, $status]);
+                $staffStmt->execute([$targetUserId, $roleId, $status]);
+                $newStaffId = (int)$conn->lastInsertId();
+
+                // Save direct staff permissions
+                if (!empty($data['permissions']) && is_array($data['permissions'])) {
+                    $conn->prepare("DELETE FROM staff_permissions WHERE staff_id = ?")->execute([$newStaffId]);
+                    $pStmt = $conn->prepare("SELECT id FROM permissions WHERE slug = ?");
+                    $ipStmt = $conn->prepare("INSERT IGNORE INTO staff_permissions (staff_id, permission_id) VALUES (?, ?)");
+                    foreach ($data['permissions'] as $slug) {
+                        $pStmt->execute([$slug]);
+                        $permId = $pStmt->fetchColumn();
+                        if ($permId) $ipStmt->execute([$newStaffId, $permId]);
+                    }
+                }
 
                 $this->sendJson(['success' => true, 'message' => 'Staff saved successfully']);
                 return;
@@ -1760,6 +1789,17 @@ class AdminController {
                 }
                 if (isset($data['role_id'])) {
                     $conn->prepare("UPDATE staff SET role_id = ? WHERE id = ?")->execute([(int)$data['role_id'], $staffId]);
+                }
+                // Save direct staff permissions
+                if (isset($data['permissions']) && is_array($data['permissions'])) {
+                    $conn->prepare("DELETE FROM staff_permissions WHERE staff_id = ?")->execute([$staffId]);
+                    $pStmt = $conn->prepare("SELECT id FROM permissions WHERE slug = ?");
+                    $ipStmt = $conn->prepare("INSERT IGNORE INTO staff_permissions (staff_id, permission_id) VALUES (?, ?)");
+                    foreach ($data['permissions'] as $slug) {
+                        $pStmt->execute([$slug]);
+                        $permId = $pStmt->fetchColumn();
+                        if ($permId) $ipStmt->execute([$staffId, $permId]);
+                    }
                 }
                 $this->sendJson(['success' => true, 'message' => 'Staff updated successfully']);
                 return;

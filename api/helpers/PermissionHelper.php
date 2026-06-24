@@ -25,16 +25,20 @@ class PermissionHelper {
         $stmt->execute([$userId]);
         if (!$stmt->fetch()) return true;
 
-        // Get user's role from staff table
+        // Get user's role from staff table + direct staff_permissions
         $stmt = $conn->prepare("
-            SELECT rp.permission_id 
-            FROM staff s
-            JOIN role_permissions rp ON rp.role_id = s.role_id
-            JOIN permissions p ON p.id = rp.permission_id
+            SELECT 1 FROM staff s
+            LEFT JOIN role_permissions rp ON rp.role_id = s.role_id
+            LEFT JOIN permissions p ON p.id = rp.permission_id
+            WHERE s.user_id = ? AND p.slug = ?
+            UNION
+            SELECT 1 FROM staff s
+            JOIN staff_permissions sp ON sp.staff_id = s.id
+            JOIN permissions p ON p.id = sp.permission_id
             WHERE s.user_id = ? AND p.slug = ?
             LIMIT 1
         ");
-        $stmt->execute([$userId, $permissionSlug]);
+        $stmt->execute([$userId, $permissionSlug, $userId, $permissionSlug]);
         return (bool)$stmt->fetch();
     }
 
@@ -72,15 +76,19 @@ class PermissionHelper {
             return $slugs;
         }
 
-        // Staff user — return only their role's permissions
+        // Staff user — return role permissions + direct staff_permissions
         $stmt = $conn->prepare("
-            SELECT p.slug
-            FROM staff s
+            SELECT p.slug FROM staff s
             JOIN role_permissions rp ON rp.role_id = s.role_id
             JOIN permissions p ON p.id = rp.permission_id
             WHERE s.user_id = ?
+            UNION
+            SELECT p.slug FROM staff s
+            JOIN staff_permissions sp ON sp.staff_id = s.id
+            JOIN permissions p ON p.id = sp.permission_id
+            WHERE s.user_id = ?
         ");
-        $stmt->execute([$userId]);
+        $stmt->execute([$userId, $userId]);
         $slugs = $stmt->fetchAll(PDO::FETCH_COLUMN);
         self::$cache[$cacheKey] = $slugs;
         return $slugs;

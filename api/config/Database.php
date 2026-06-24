@@ -179,6 +179,10 @@ class Database {
                 'staff',
                 "CREATE TABLE IF NOT EXISTS staff (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL UNIQUE, role_id INT NULL, status VARCHAR(20) NOT NULL DEFAULT 'active', created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL) ENGINE=InnoDB"
             );
+            $ensureTable(
+                'staff_permissions',
+                "CREATE TABLE IF NOT EXISTS staff_permissions (staff_id INT NOT NULL, permission_id INT NOT NULL, PRIMARY KEY (staff_id, permission_id), FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE, FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE) ENGINE=InnoDB"
+            );
 
             // Seed default roles & permissions if table is empty
             try {

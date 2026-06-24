@@ -76,7 +76,6 @@ export function AdminPanelSidebar() {
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userPermissions, setUserPermissions] = useState<string[]>([])
-  const [permsLoaded, setPermsLoaded] = useState(false)
   const unreadOrders = useUnreadOrders()
 
   useEffect(() => {
@@ -84,19 +83,17 @@ export function AdminPanelSidebar() {
       .then(r => r.json())
       .then(data => {
         setUserPermissions(Array.isArray(data?.permissions) ? data.permissions : [])
-        setPermsLoaded(true)
       })
-      .catch(() => setPermsLoaded(true))
+      .catch(() => {})
   }, [])
 
   const hasPermission = (label: string) => {
+    // If permissions haven't been fetched yet, or empty (legacy admin), show all items
+    if (userPermissions.length === 0) return true
     const perm = PERMISSION_MAP[label]
     if (!perm) return true
     return userPermissions.includes(perm)
   }
-
-  const filterItems = (items: MenuItem[]): MenuItem[] =>
-    items.filter(item => hasPermission(item.label))
 
   useEffect(() => {
     const handleResize = () => {
@@ -221,13 +218,10 @@ export function AdminPanelSidebar() {
           <p className="admin-panel-subtitle">Admin Dashboard</p>
         </div>
 
-      {!permsLoaded ? (
-        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Loading...</div>
-      ) : (
       <nav className="admin-panel-nav flex-1 overflow-y-auto">
         {menuGroups.map((group) => {
-          const filteredItems = filterItems(group.items)
-          if (filteredItems.length === 0) return null
+          const filteredItems = group.items.filter(item => hasPermission(item.label))
+          if (userPermissions.length > 0 && filteredItems.length === 0) return null
           return (
           <div key={group.label} className="admin-panel-menu-group">
           <h3 className="admin-panel-menu-group-title">{group.label}</h3>
@@ -300,7 +294,6 @@ export function AdminPanelSidebar() {
         </div>
         )})}
       </nav>
-      )}
 
         <div className="mt-auto p-4 border-t border-border">
           <button 

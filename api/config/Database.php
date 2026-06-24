@@ -311,6 +311,10 @@ class Database {
             $ensureColumn('users', 'last_seen', 'last_seen TIMESTAMP NULL');
 
             $ensureColumn('users', 'is_super_admin', 'is_super_admin TINYINT(1) NOT NULL DEFAULT 0');
+            // Migrate existing admin users to super admin
+            try {
+                $conn->exec("UPDATE users SET is_super_admin = 1 WHERE role = 'admin' AND is_super_admin = 0");
+            } catch (Exception $e) {}
             $ensureColumn('users', 'token_version', 'token_version INT NOT NULL DEFAULT 1');
             $ensureColumn('users', 'blocked_at', 'blocked_at TIMESTAMP NULL');
             $ensureColumn('users', 'block_reason', 'block_reason TEXT NULL');

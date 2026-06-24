@@ -603,72 +603,72 @@ const [showViewModal, setShowViewModal] = useState(false)
       {/* View Product Modal */}
       {showViewModal && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Product Details</h3>
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-gray-500"
-                  onClick={() => setShowViewModal(false)}
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col">
+            <div className="p-6 pb-0 flex items-center justify-between shrink-0">
+              <h3 className="text-lg font-medium text-gray-900">Product Details</h3>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-500"
+                onClick={() => setShowViewModal(false)}
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-              <div className="space-y-4">
-                {selectedProduct.image_url && (
-                  <div className="h-48 w-full rounded-md overflow-hidden bg-gray-100">
-                    <img
-                      src={resolvePublicImageUrl(selectedProduct.image_url) || "/placeholder.svg"}
-                      alt={selectedProduct.name}
-                      className="h-full w-full object-contain"
-                      onError={(e) => { const el = e.currentTarget; if (!el.src.endsWith("/placeholder.svg")) el.src = "/placeholder.svg" }}
-                    />
-                  </div>
-                )}
+            <div className="p-6 overflow-y-auto">
+              {selectedProduct.image_url && (
+                <div className="h-36 sm:h-48 w-full rounded-md overflow-hidden bg-gray-100 mb-4">
+                  <img
+                    src={resolvePublicImageUrl(selectedProduct.image_url) || "/placeholder.svg"}
+                    alt={selectedProduct.name}
+                    className="h-full w-full object-contain"
+                    onError={(e) => { const el = e.currentTarget; if (!el.src.endsWith("/placeholder.svg")) el.src = "/placeholder.svg" }}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500">Name</label>
+                  <p className="text-sm text-gray-900">{selectedProduct.name}</p>
+                </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">Name</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedProduct.name}</p>
+                  <label className="block text-xs font-medium text-gray-500">Description</label>
+                  <p className="text-sm text-gray-900">{selectedProduct.description || "No description"}</p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Description</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedProduct.description || "No description"}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Price (Base)</label>
-                    <p className="mt-1 text-sm text-gray-900">{formatCurrency(selectedProduct.price)}</p>
+                    <label className="block text-xs font-medium text-gray-500">Price (Base)</label>
+                    <p className="text-sm text-gray-900">{formatCurrency(selectedProduct.price)}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Seller Profit</label>
-                    <p className="mt-1 text-sm text-gray-900">{formatCurrency(selectedProduct.seller_profit || 0)}</p>
+                    <label className="block text-xs font-medium text-gray-500">Seller Profit</label>
+                    <p className="text-sm text-gray-900">{formatCurrency(selectedProduct.seller_profit || 0)}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Final Price</label>
-                    <p className="mt-1 text-sm text-gray-900 font-semibold">{formatCurrency(selectedProduct.final_price || selectedProduct.price)}</p>
+                    <label className="block text-xs font-medium text-gray-500">Final Price</label>
+                    <p className="text-sm text-gray-900 font-semibold">{formatCurrency(selectedProduct.final_price || selectedProduct.price)}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Stock</label>
-                    <p className="mt-1 text-sm text-gray-900">{selectedProduct.stock} units</p>
+                    <label className="block text-xs font-medium text-gray-500">Stock</label>
+                    <p className="text-sm text-gray-900">{selectedProduct.stock} units</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Category</label>
-                    <p className="mt-1 text-sm text-gray-900">{selectedProduct.category || "N/A"}</p>
+                    <label className="block text-xs font-medium text-gray-500">Category</label>
+                    <p className="text-sm text-gray-900">{selectedProduct.category || "N/A"}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Status</label>
+                    <label className="block text-xs font-medium text-gray-500">Status</label>
                     <span className={`mt-1 inline-block ${getStatusBadge(selectedProduct.status)}`}>
                       {selectedProduct.status}
                     </span>
@@ -676,16 +676,16 @@ const [showViewModal, setShowViewModal] = useState(false)
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">Added Date</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedProduct.createdAt || "N/A"}</p>
+                  <label className="block text-xs font-medium text-gray-500">Added Date</label>
+                  <p className="text-sm text-gray-900">{selectedProduct.createdAt || "N/A"}</p>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-6 flex justify-end">
-                <Button type="button" onClick={() => setShowViewModal(false)}>
-                  Close
-                </Button>
-              </div>
+            <div className="p-6 pt-0 shrink-0 flex justify-end">
+              <Button type="button" onClick={() => setShowViewModal(false)}>
+                Close
+              </Button>
             </div>
           </div>
         </div>

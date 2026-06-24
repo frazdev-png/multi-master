@@ -21,9 +21,17 @@ class PermissionHelper {
         if ((int)$user['is_super_admin'] === 1) return true;
 
         // Users NOT in staff table are legacy admins — allow everything
-        $stmt = $conn->prepare("SELECT id FROM staff WHERE user_id = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, role_id FROM staff WHERE user_id = ? LIMIT 1");
         $stmt->execute([$userId]);
-        if (!$stmt->fetch()) return true;
+        $staffRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$staffRow) return true;
+
+        // Staff record exists but has NO role AND NO direct permissions — treat as legacy admin
+        if (!$staffRow['role_id']) {
+            $stmt = $conn->prepare("SELECT 1 FROM staff_permissions sp JOIN permissions p ON p.id = sp.permission_id WHERE sp.staff_id = ? AND p.slug = ? LIMIT 1");
+            $stmt->execute([$staffRow['id'], $permissionSlug]);
+            if (!$stmt->fetch()) return true;
+        }
 
         // Get user's role from staff table + direct staff_permissions
         $stmt = $conn->prepare("
@@ -67,13 +75,26 @@ class PermissionHelper {
         }
 
         // Legacy admin (no staff record) — return all permission slugs
-        $stmt = $conn->prepare("SELECT id FROM staff WHERE user_id = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, role_id FROM staff WHERE user_id = ? LIMIT 1");
         $stmt->execute([$userId]);
-        if (!$stmt->fetch()) {
+        $staffRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$staffRow) {
             $stmt = $conn->query("SELECT slug FROM permissions");
             $slugs = $stmt->fetchAll(PDO::FETCH_COLUMN);
             self::$cache[$cacheKey] = $slugs;
             return $slugs;
+        }
+
+        // Staff record exists but has NO role AND NO direct permissions — treat as legacy admin
+        if (!$staffRow['role_id']) {
+            $stmt = $conn->prepare("SELECT 1 FROM staff_permissions WHERE staff_id = ? LIMIT 1");
+            $stmt->execute([$staffRow['id']]);
+            if (!$stmt->fetch()) {
+                $stmt = $conn->query("SELECT slug FROM permissions");
+                $slugs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                self::$cache[$cacheKey] = $slugs;
+                return $slugs;
+            }
         }
 
         // Staff user — return role permissions + direct staff_permissions

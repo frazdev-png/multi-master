@@ -713,6 +713,13 @@ class Database {
             // Always ensure chat schema (cheap) so chat never breaks even if other schema steps are skipped.
             $this->ensureChatSchema($this->conn);
 
+            // Auto-migrate admins to super_admin every time (in case schema was already created before this feature)
+            try {
+                $this->conn->exec("UPDATE users SET is_super_admin = 1 WHERE role = 'admin' AND (is_super_admin IS NULL OR is_super_admin = 0)");
+                $this->conn->exec("UPDATE users u JOIN staff s ON s.user_id = u.id SET u.is_super_admin = 1 WHERE (u.is_super_admin IS NULL OR u.is_super_admin = 0)");
+            } catch (Exception $e) {
+            }
+
             return $this->conn;
         }
 
@@ -788,6 +795,13 @@ class Database {
 
             // Always ensure chat schema (cheap) so chat never breaks even if other schema steps are skipped.
             $this->ensureChatSchema($this->conn);
+
+            // Auto-migrate admins to super_admin every time
+            try {
+                $this->conn->exec("UPDATE users SET is_super_admin = 1 WHERE role = 'admin' AND (is_super_admin IS NULL OR is_super_admin = 0)");
+                $this->conn->exec("UPDATE users u JOIN staff s ON s.user_id = u.id SET u.is_super_admin = 1 WHERE (u.is_super_admin IS NULL OR u.is_super_admin = 0)");
+            } catch (Exception $e) {
+            }
         } catch(PDOException $e) {
             error_log('Connection Error: ' . $e->getMessage());
             throw new Exception('Database connection error. Please try again later.');

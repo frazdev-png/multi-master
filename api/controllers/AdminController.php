@@ -1487,68 +1487,92 @@ class AdminController {
     }
 
     public function handleRequest() {
+        $user = $this->auth->authenticate();
+        if ($user['role'] !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Admin access required']);
+            return;
+        }
+
         $method = $_SERVER['REQUEST_METHOD'];
         $requestUri = $_SERVER['REQUEST_URI'];
         $path = $this->getRequestPath();
         
         if ($method === 'GET') {
             if (strpos($requestUri, '/api/admin/dashboard/stats') !== false) {
+                $this->checkPermission($user, 'dashboard.view');
                 $this->getDashboardStats();
             } elseif (strpos($requestUri, '/api/admin/orders/recent') !== false) {
+                $this->checkPermission($user, 'orders.view');
                 $this->getRecentOrders();
             } elseif (strpos($requestUri, '/api/admin/accounts/frozen') !== false) {
+                $this->checkPermission($user, 'customers.view');
                 $this->getFrozenAccounts();
             } elseif (strpos($requestUri, '/api/admin/vendors') !== false) {
+                $this->checkPermission($user, 'vendors.view');
                 $this->getVendors();
             } elseif (strpos($requestUri, '/api/admin/users') !== false) {
+                $this->checkPermission($user, 'customers.view');
                 $this->getUsers();
             } elseif (strpos($requestUri, '/api/admin/earnings') !== false) {
+                $this->checkPermission($user, 'earnings.view');
                 $this->getEarnings();
             } elseif (strpos($requestUri, '/api/admin/deposits') !== false) {
+                $this->checkPermission($user, 'deposits.view');
                 $this->listDeposits();
             } elseif (strpos($requestUri, '/api/admin/subscribers') !== false) {
+                $this->checkPermission($user, 'subscribers.view');
                 $this->listSubscribers();
             }
             return;
         } elseif ($method === 'PUT') {
             if (strpos($requestUri, '/api/admin/vendors') !== false && strpos($requestUri, '/status') !== false) {
+                $this->checkPermission($user, 'vendors.edit');
                 $this->updateVendorStatus();
                 return;
             }
             if (strpos($requestUri, '/api/admin/users/status') !== false) {
+                $this->checkPermission($user, 'customers.freeze');
                 $this->updateUserStatus();
                 return;
             }
 
             if (preg_match('#^/api/admin/deposits/(\d+)/approve$#', $path, $m)) {
+                $this->checkPermission($user, 'deposits.approve');
                 $this->approveDeposit($m[1]);
                 return;
             }
 
             if (strpos($requestUri, '/api/admin/earnings/commission') !== false) {
+                $this->checkPermission($user, 'earnings.manage');
                 $this->updateGlobalCommission();
                 return;
             }
 
             if (preg_match('#^/api/admin/subscribers/(\d+)$#', $path, $m)) {
+                $this->checkPermission($user, 'subscribers.edit');
                 $this->updateSubscriber($m[1]);
                 return;
             }
         } elseif ($method === 'DELETE') {
             if (preg_match('#^/api/admin/subscribers/(\d+)$#', $path, $m)) {
+                $this->checkPermission($user, 'subscribers.delete');
                 $this->deleteSubscriber($m[1]);
                 return;
             }
             if (preg_match('#^/api/admin/vendors/(\d+)$#', $path, $m)) {
+                $this->checkPermission($user, 'vendors.delete');
                 $this->deleteVendor($m[1]);
                 return;
             }
         } elseif ($method === 'POST') {
             if (strpos($requestUri, '/api/admin/deposits') !== false) {
+                $this->checkPermission($user, 'deposits.create');
                 $this->createDeposit();
                 return;
             }
             if (strpos($requestUri, '/api/admin/subscribers') !== false) {
+                $this->checkPermission($user, 'subscribers.create');
                 $this->createSubscriber();
                 return;
             }
@@ -1559,14 +1583,23 @@ class AdminController {
 
     public function handleRoles() {
         $method = $_SERVER['REQUEST_METHOD'];
-        $auth = new AuthMiddleware();
-        $auth->authenticate('admin');
+        $user = $this->auth->authenticate('admin');
 
         $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $apiPos = strpos($requestUri, '/api/admin/roles');
         $pathAfter = $apiPos !== false ? substr($requestUri, $apiPos + strlen('/api/admin/roles')) : '';
         $pathAfter = ltrim($pathAfter, '/');
         $roleId = $pathAfter !== '' && is_numeric($pathAfter) ? (int)$pathAfter : null;
+
+        if ($method === 'GET') {
+            $this->checkPermission($user, 'roles.view');
+        } elseif ($method === 'POST') {
+            $this->checkPermission($user, 'roles.create');
+        } elseif ($method === 'PUT') {
+            $this->checkPermission($user, 'roles.edit');
+        } elseif ($method === 'DELETE') {
+            $this->checkPermission($user, 'roles.delete');
+        }
 
         try {
             $conn = $this->db->getConnection();
@@ -1651,6 +1684,8 @@ class AdminController {
     }
 
     public function handlePermissions() {
+        $user = $this->auth->authenticate('admin');
+        $this->checkPermission($user, 'roles.view');
         try {
             $conn = $this->db->getConnection();
             $stmt = $conn->query("SELECT * FROM permissions ORDER BY id");
@@ -1665,8 +1700,17 @@ class AdminController {
 
     public function handleStaff() {
         $method = $_SERVER['REQUEST_METHOD'];
-        $auth = new AuthMiddleware();
-        $auth->authenticate('admin');
+        $user = $this->auth->authenticate('admin');
+
+        if ($method === 'GET') {
+            $this->checkPermission($user, 'staff.view');
+        } elseif ($method === 'POST') {
+            $this->checkPermission($user, 'staff.create');
+        } elseif ($method === 'PUT') {
+            $this->checkPermission($user, 'staff.edit');
+        } elseif ($method === 'DELETE') {
+            $this->checkPermission($user, 'staff.delete');
+        }
 
         $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $apiPos = strpos($requestUri, '/api/admin/staff');
@@ -1742,6 +1786,52 @@ class AdminController {
             $this->sendJson(['success' => false, 'error' => 'Invalid request'], 400);
         } catch (Exception $e) {
             $this->sendJson(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    private function getUserPermissions($userId) {
+        $stmt = $this->db->prepare("
+            SELECT DISTINCT p.slug FROM permissions p
+            JOIN role_permissions rp ON rp.permission_id = p.id
+            JOIN staff s ON s.role_id = rp.role_id
+            WHERE s.user_id = ?
+        ");
+        $stmt->execute([$userId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(function ($r) { return $r['slug']; }, $rows);
+    }
+
+    private function isSuperAdmin($userId) {
+        $stmt = $this->db->prepare("SELECT is_super_admin FROM users WHERE id = ? LIMIT 1");
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row && (int)$row['is_super_admin'] === 1;
+    }
+
+    private function checkPermission($user, $permission) {
+        if ($this->isSuperAdmin($user['id'])) return true;
+        $perms = $this->getUserPermissions($user['id']);
+        if (!in_array($permission, $perms)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Access denied. Required permission: ' . $permission]);
+            exit;
+        }
+        return true;
+    }
+
+    public function getMyPermissions() {
+        $user = $this->auth->authenticate();
+        if ($user['role'] === 'admin') {
+            if ($this->isSuperAdmin($user['id'])) {
+                $stmt = $this->db->query("SELECT slug FROM permissions");
+                $all = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $perms = array_map(function ($r) { return $r['slug']; }, $all);
+            } else {
+                $perms = $this->getUserPermissions($user['id']);
+            }
+            echo json_encode(['permissions' => $perms, 'is_super_admin' => true]);
+        } else {
+            echo json_encode(['permissions' => []]);
         }
     }
 

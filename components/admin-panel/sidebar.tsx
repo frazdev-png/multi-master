@@ -34,7 +34,39 @@ interface MenuItem {
   href: string;
   icon: React.ElementType;
   label: string;
+  permission?: string;
   items?: MenuItem[];
+}
+
+const PERMISSION_MAP: Record<string, string> = {
+  "Dashboard": "dashboard.view",
+  "Orders": "orders.view",
+  "Categories": "categories.view",
+  "Products": "products.view",
+  "Customers": "customers.view",
+  "Vendors": "vendors.view",
+  "Riders": "riders.view",
+  "Discussions": "discussions.view",
+  "Coupons": "coupons.view",
+  "Seller Promo Codes": "promo-codes.view",
+  "Blog": "blog.view",
+  "Messages": "messages.view",
+  "General Settings": "settings.general",
+  "Home Page": "settings.homepage",
+  "Menu Settings": "settings.menu",
+  "Email Settings": "settings.email",
+  "Font Options": "settings.font",
+  "SEO Tools": "settings.seo",
+  "Staff Management": "staff.view",
+  "Roles & Permissions": "roles.view",
+  "Subscribers": "subscribers.view",
+  "Customer Deposits": "deposits.view",
+  "Wallet Management": "wallet.view",
+  "Withdrawals": "withdrawals.view",
+  "Vendor Earnings": "earnings.view",
+  "Clear Cache": "cache.manage",
+  "Addon Manager": "addons.manage",
+  "System Activation": "system.manage",
 }
 
 export function AdminPanelSidebar() {
@@ -43,7 +75,28 @@ export function AdminPanelSidebar() {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userPermissions, setUserPermissions] = useState<string[]>([])
+  const [permsLoaded, setPermsLoaded] = useState(false)
   const unreadOrders = useUnreadOrders()
+
+  useEffect(() => {
+    fetch("/api/backend/admin/my-permissions")
+      .then(r => r.json())
+      .then(data => {
+        setUserPermissions(Array.isArray(data?.permissions) ? data.permissions : [])
+        setPermsLoaded(true)
+      })
+      .catch(() => setPermsLoaded(true))
+  }, [])
+
+  const hasPermission = (label: string) => {
+    const perm = PERMISSION_MAP[label]
+    if (!perm) return true
+    return userPermissions.includes(perm)
+  }
+
+  const filterItems = (items: MenuItem[]): MenuItem[] =>
+    items.filter(item => hasPermission(item.label))
 
   useEffect(() => {
     const handleResize = () => {
@@ -168,12 +221,18 @@ export function AdminPanelSidebar() {
           <p className="admin-panel-subtitle">Admin Dashboard</p>
         </div>
 
+      {!permsLoaded ? (
+        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Loading...</div>
+      ) : (
       <nav className="admin-panel-nav flex-1 overflow-y-auto">
-        {menuGroups.map((group) => (
+        {menuGroups.map((group) => {
+          const filteredItems = filterItems(group.items)
+          if (filteredItems.length === 0) return null
+          return (
           <div key={group.label} className="admin-panel-menu-group">
           <h3 className="admin-panel-menu-group-title">{group.label}</h3>
           <div className="admin-panel-menu-items">
-            {group.items.map((item) => {
+            {filteredItems.map((item) => {
               const isActive = pathname === item.href
               const hasChildren = item.items && item.items.length > 0
               const isExpanded = expandedMenu === group.label
@@ -239,8 +298,9 @@ export function AdminPanelSidebar() {
             })}
           </div>
         </div>
-        ))}
+        )})}
       </nav>
+      )}
 
         <div className="mt-auto p-4 border-t border-border">
           <button 

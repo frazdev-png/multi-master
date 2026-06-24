@@ -187,79 +187,127 @@ class Database {
                 $roleCount = (int)$stmt->fetchColumn();
                 if ($roleCount === 0) {
                     $conn->exec("INSERT IGNORE INTO roles (name, description, permissions_count) VALUES ('Super Admin', 'Full system access', 0), ('Moderator', 'Content and user moderation', 0), ('Support Agent', 'Customer support access', 0), ('Content Manager', 'Manage site content', 0)");
-                    $conn->exec("
-                        INSERT IGNORE INTO permissions (name, slug, description) VALUES
-                        ('Dashboard View', 'dashboard.view', 'View dashboard statistics and charts'),
-                        ('Orders View', 'orders.view', 'View all orders'),
-                        ('Orders Edit', 'orders.edit', 'Update order status and payment status'),
-                        ('Orders Delete', 'orders.delete', 'Cancel/delete orders'),
-                        ('Products View', 'products.view', 'View product catalog'),
-                        ('Products Create', 'products.create', 'Create new products'),
-                        ('Products Edit', 'products.edit', 'Edit existing products'),
-                        ('Products Delete', 'products.delete', 'Delete products'),
-                        ('Categories View', 'categories.view', 'View categories'),
-                        ('Categories Create', 'categories.create', 'Create categories'),
-                        ('Categories Edit', 'categories.edit', 'Edit categories'),
-                        ('Categories Delete', 'categories.delete', 'Delete categories'),
-                        ('Customers View', 'customers.view', 'View customer accounts'),
-                        ('Customers Freeze', 'customers.freeze', 'Freeze/unfreeze customers'),
-                        ('Customers Delete', 'customers.delete', 'Delete customers'),
-                        ('Vendors View', 'vendors.view', 'View vendor accounts'),
-                        ('Vendors Edit', 'vendors.edit', 'Update vendor status and verification'),
-                        ('Vendors Delete', 'vendors.delete', 'Delete vendors'),
-                        ('Riders View', 'riders.view', 'View delivery riders'),
-                        ('Riders Create', 'riders.create', 'Create riders'),
-                        ('Riders Edit', 'riders.edit', 'Edit riders'),
-                        ('Riders Delete', 'riders.delete', 'Delete riders'),
-                        ('Staff View', 'staff.view', 'View staff members'),
-                        ('Staff Create', 'staff.create', 'Create staff accounts'),
-                        ('Staff Edit', 'staff.edit', 'Edit staff accounts'),
-                        ('Staff Delete', 'staff.delete', 'Delete staff accounts'),
-                        ('Roles View', 'roles.view', 'View roles and permissions'),
-                        ('Roles Create', 'roles.create', 'Create roles'),
-                        ('Roles Edit', 'roles.edit', 'Edit roles and assign permissions'),
-                        ('Roles Delete', 'roles.delete', 'Delete roles'),
-                        ('Messages View', 'messages.view', 'View conversations'),
-                        ('Messages Send', 'messages.send', 'Send messages/replies'),
-                        ('Promo Codes View', 'promo-codes.view', 'View promo codes'),
-                        ('Promo Codes Create', 'promo-codes.create', 'Create promo codes'),
-                        ('Promo Codes Delete', 'promo-codes.delete', 'Delete promo codes'),
-                        ('Withdrawals View', 'withdrawals.view', 'View withdrawal requests'),
-                        ('Withdrawals Approve', 'withdrawals.approve', 'Approve withdrawals'),
-                        ('Withdrawals Reject', 'withdrawals.reject', 'Reject withdrawals'),
-                        ('Deposits View', 'deposits.view', 'View deposits'),
-                        ('Deposits Create', 'deposits.create', 'Create deposits'),
-                        ('Deposits Approve', 'deposits.approve', 'Approve pending deposits'),
-                        ('Wallet View', 'wallet.view', 'View seller wallets'),
-                        ('Wallet Manage', 'wallet.manage', 'Add/deduct/hold/release funds'),
-                        ('Earnings View', 'earnings.view', 'View earnings data'),
-                        ('Earnings Manage', 'earnings.manage', 'Update global commission rate'),
-                        ('Subscribers View', 'subscribers.view', 'View subscribers'),
-                        ('Subscribers Create', 'subscribers.create', 'Add subscribers'),
-                        ('Subscribers Edit', 'subscribers.edit', 'Edit subscriber status'),
-                        ('Subscribers Delete', 'subscribers.delete', 'Delete subscribers'),
-                        ('Cache Manage', 'cache.manage', 'Clear system cache'),
-                        ('Settings General', 'settings.general', 'Manage general settings'),
-                        ('Settings Homepage', 'settings.homepage', 'Manage homepage settings'),
-                        ('Settings SEO', 'settings.seo', 'Manage SEO settings'),
-                        ('Settings Font', 'settings.font', 'Manage font settings'),
-                        ('Settings Menu', 'settings.menu', 'Manage menu settings'),
-                        ('Settings Password', 'settings.password', 'Change admin password'),
-                        ('Settings Email', 'settings.email', 'Manage email settings'),
-                        ('Discussions View', 'discussions.view', 'View discussions'),
-                        ('Discussions Manage', 'discussions.manage', 'Moderate discussions'),
-                        ('Blog View', 'blog.view', 'View blog posts'),
-                        ('Blog Create', 'blog.create', 'Create blog posts'),
-                        ('Blog Edit', 'blog.edit', 'Edit blog posts'),
-                        ('Blog Delete', 'blog.delete', 'Delete blog posts'),
-                        ('Coupons View', 'coupons.view', 'View coupons'),
-                        ('Coupons Create', 'coupons.create', 'Create coupons'),
-                        ('Coupons Edit', 'coupons.edit', 'Edit coupons'),
-                        ('Coupons Delete', 'coupons.delete', 'Delete coupons'),
-                        ('Addons Manage', 'addons.manage', 'Manage addons'),
-                        ('System Manage', 'system.manage', 'Manage system settings')
-                    ");
                 }
+            } catch (Exception $e) {
+            }
+
+            // Seed ALL permissions (idempotent — IGNORE duplicates)
+            try {
+                $allPermissions = [
+                    // Dashboard
+                    ['Dashboard', 'dashboard.view', 'View admin dashboard'],
+                    // Orders
+                    ['Orders', 'orders.view', 'View orders'],
+                    ['Orders', 'orders.edit', 'Edit/update orders'],
+                    ['Orders', 'orders.delete', 'Delete orders'],
+                    // Categories
+                    ['Categories', 'categories.view', 'View categories'],
+                    ['Categories', 'categories.create', 'Create categories'],
+                    ['Categories', 'categories.edit', 'Edit categories'],
+                    ['Categories', 'categories.delete', 'Delete categories'],
+                    // Products
+                    ['Products', 'products.view', 'View products'],
+                    ['Products', 'products.create', 'Create products'],
+                    ['Products', 'products.edit', 'Edit products'],
+                    ['Products', 'products.delete', 'Delete products'],
+                    // Customers
+                    ['Customers', 'customers.view', 'View customers'],
+                    ['Customers', 'customers.edit', 'Edit/freeze/unfreeze customers'],
+                    ['Customers', 'customers.delete', 'Delete customers'],
+                    // Vendors
+                    ['Vendors', 'vendors.view', 'View vendors'],
+                    ['Vendors', 'vendors.edit', 'Edit vendor status'],
+                    ['Vendors', 'vendors.delete', 'Delete vendors'],
+                    // Riders
+                    ['Riders', 'riders.view', 'View riders'],
+                    ['Riders', 'riders.create', 'Create riders'],
+                    ['Riders', 'riders.edit', 'Edit riders'],
+                    ['Riders', 'riders.delete', 'Delete riders'],
+                    // Discussions
+                    ['Discussions', 'discussions.view', 'View discussions'],
+                    // Coupons
+                    ['Coupons', 'coupons.view', 'View coupons'],
+                    ['Coupons', 'coupons.create', 'Create coupons'],
+                    ['Coupons', 'coupons.edit', 'Edit coupons'],
+                    ['Coupons', 'coupons.delete', 'Delete coupons'],
+                    // Promo Codes
+                    ['Promo Codes', 'promo_codes.view', 'View promo codes'],
+                    ['Promo Codes', 'promo_codes.create', 'Create promo codes'],
+                    ['Promo Codes', 'promo_codes.edit', 'Edit promo codes'],
+                    ['Promo Codes', 'promo_codes.delete', 'Delete promo codes'],
+                    // Blog
+                    ['Blog', 'blog.view', 'View blog posts'],
+                    ['Blog', 'blog.create', 'Create blog posts'],
+                    ['Blog', 'blog.edit', 'Edit blog posts'],
+                    ['Blog', 'blog.delete', 'Delete blog posts'],
+                    // Messages
+                    ['Messages', 'messages.view', 'View messages/chat'],
+                    // Settings
+                    ['Settings', 'settings.view', 'View settings'],
+                    ['Settings', 'settings.edit', 'Edit settings'],
+                    // Staff Management
+                    ['Staff', 'staff.view', 'View staff'],
+                    ['Staff', 'staff.create', 'Create staff accounts'],
+                    ['Staff', 'staff.edit', 'Edit staff accounts'],
+                    ['Staff', 'staff.delete', 'Delete/deactivate staff'],
+                    // Roles & Permissions
+                    ['Roles', 'roles.view', 'View roles & permissions'],
+                    ['Roles', 'roles.create', 'Create roles'],
+                    ['Roles', 'roles.edit', 'Edit roles'],
+                    ['Roles', 'roles.delete', 'Delete roles'],
+                    // Subscribers
+                    ['Subscribers', 'subscribers.view', 'View subscribers'],
+                    ['Subscribers', 'subscribers.create', 'Create subscribers'],
+                    ['Subscribers', 'subscribers.delete', 'Delete subscribers'],
+                    // Customer Deposits
+                    ['Deposits', 'deposits.view', 'View customer deposits'],
+                    ['Deposits', 'deposits.create', 'Create deposits'],
+                    ['Deposits', 'deposits.approve', 'Approve deposits'],
+                    // Wallet Management
+                    ['Wallet', 'wallet.view', 'View wallet management'],
+                    ['Wallet', 'wallet.manage', 'Manage wallets (credit/debit)'],
+                    // Withdrawals
+                    ['Withdrawals', 'withdrawals.view', 'View withdrawals'],
+                    ['Withdrawals', 'withdrawals.approve', 'Approve/reject withdrawals'],
+                    // Vendor Earnings
+                    ['Earnings', 'earnings.view', 'View vendor earnings'],
+                    ['Earnings', 'earnings.manage', 'Manage commissions'],
+                    // Cache
+                    ['Cache', 'cache.clear', 'Clear system cache'],
+                    // System
+                    ['System', 'system.view', 'View system information'],
+                    // Addons
+                    ['Addons', 'addons.view', 'View addon manager'],
+                    ['Addons', 'addons.manage', 'Manage addons'],
+                ];
+                $stmtPerm = $conn->prepare("INSERT IGNORE INTO permissions (name, slug, description) VALUES (?, ?, ?)");
+                foreach ($allPermissions as $p) {
+                    $stmtPerm->execute($p);
+                }
+            } catch (Exception $e) {
+            }
+
+            // Assign ALL permissions to Super Admin role, and auto-migrate legacy admins
+            try {
+                $stmt = $conn->prepare("SELECT id FROM roles WHERE name = 'Super Admin' LIMIT 1");
+                $stmt->execute();
+                $superAdminRoleId = $stmt->fetchColumn();
+                if ($superAdminRoleId) {
+                    // Link all permissions to Super Admin
+                    $stmtPerms = $conn->query("SELECT id FROM permissions");
+                    $allPermIds = $stmtPerms->fetchAll(PDO::FETCH_COLUMN);
+                    $stmtLink = $conn->prepare("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)");
+                    foreach ($allPermIds as $pid) {
+                        $stmtLink->execute([$superAdminRoleId, $pid]);
+                    }
+                    // Update permission count
+                    $conn->exec("UPDATE roles SET permissions_count = (SELECT COUNT(*) FROM role_permissions WHERE role_id = {$superAdminRoleId}) WHERE id = {$superAdminRoleId}");
+                }
+
+                // Auto-migrate legacy admins: mark all existing 'admin' role users as Super Admin
+                $conn->exec("UPDATE users SET is_super_admin = 1 WHERE role = 'admin' AND (is_super_admin IS NULL OR is_super_admin = 0)");
+                // Also mark users with staff records who aren't already super admin
+                $conn->exec("UPDATE users u JOIN staff s ON s.user_id = u.id SET u.is_super_admin = 1 WHERE (u.is_super_admin IS NULL OR u.is_super_admin = 0)");
             } catch (Exception $e) {
             }
 
@@ -311,10 +359,6 @@ class Database {
             $ensureColumn('users', 'last_seen', 'last_seen TIMESTAMP NULL');
 
             $ensureColumn('users', 'is_super_admin', 'is_super_admin TINYINT(1) NOT NULL DEFAULT 0');
-            // Migrate existing admin users to super admin
-            try {
-                $conn->exec("UPDATE users SET is_super_admin = 1 WHERE role = 'admin' AND is_super_admin = 0");
-            } catch (Exception $e) {}
             $ensureColumn('users', 'token_version', 'token_version INT NOT NULL DEFAULT 1');
             $ensureColumn('users', 'blocked_at', 'blocked_at TIMESTAMP NULL');
             $ensureColumn('users', 'block_reason', 'block_reason TEXT NULL');

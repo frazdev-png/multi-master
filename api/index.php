@@ -227,6 +227,7 @@ $routes = [
     '/api/admin/roles' => ['controller' => 'AdminController', 'method' => 'handleRoles', 'http_method' => ['GET', 'POST']],
     '/api/admin/roles/{id}' => ['controller' => 'AdminController', 'method' => 'handleRoles', 'http_method' => ['PUT', 'DELETE']],
     '/api/admin/permissions' => ['controller' => 'AdminController', 'method' => 'handlePermissions', 'http_method' => 'GET'],
+    '/api/admin/permissions/user' => ['controller' => 'AdminController', 'method' => 'handleUserPermissions', 'http_method' => 'GET'],
     '/api/admin/staff' => ['controller' => 'AdminController', 'method' => 'handleStaff', 'http_method' => ['GET', 'POST']],
     '/api/admin/staff/{id}' => ['controller' => 'AdminController', 'method' => 'handleStaff', 'http_method' => ['PUT', 'DELETE']],
 
@@ -254,7 +255,6 @@ $routes = [
     '/api/admin/users' => ['controller' => 'AdminController', 'method' => 'getUsers', 'http_method' => 'GET'],
     '/api/admin/users/status' => ['controller' => 'AdminController', 'method' => 'updateUserStatus', 'http_method' => 'PUT'],
     '/api/admin/change-password' => ['controller' => 'AdminController', 'method' => 'changePassword', 'http_method' => 'POST'],
-    '/api/admin/my-permissions' => ['controller' => 'AdminController', 'method' => 'getMyPermissions', 'http_method' => 'GET'],
     '/api/admin/users/freeze' => ['controller' => 'AdminController', 'method' => 'freezeUser', 'http_method' => 'PUT'],
     '/api/admin/users/{userId}' => ['controller' => 'AdminController', 'method' => 'deleteUser', 'http_method' => 'DELETE'],
 

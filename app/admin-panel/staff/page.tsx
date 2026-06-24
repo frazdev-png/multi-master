@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Plus, Search, Edit2, Lock, X, Check, Loader2 } from "lucide-react"
+import { usePermissions } from "@/lib/usePermissions"
 
 type StaffMember = {
   id: number
@@ -21,6 +22,10 @@ type Role = {
 }
 
 export default function StaffManagement() {
+  const { hasPermission } = usePermissions()
+  const canCreate = hasPermission("staff.create")
+  const canEdit = hasPermission("staff.edit")
+  const canDelete = hasPermission("staff.delete")
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
@@ -102,9 +107,11 @@ export default function StaffManagement() {
           <h1 className="text-3xl font-bold">Staff Management</h1>
           <p className="text-muted-foreground mt-1">Manage admin staff accounts</p>
         </div>
-        <button onClick={openCreate} className="admin-panel-btn-primary flex items-center gap-2">
-          <Plus size={18} /> Add Staff
-        </button>
+        {canCreate && (
+          <button onClick={openCreate} className="admin-panel-btn-primary flex items-center gap-2">
+            <Plus size={18} /> Add Staff
+          </button>
+        )}
       </div>
 
       <div>
@@ -141,12 +148,16 @@ export default function StaffManagement() {
                   <td className="admin-panel-table-cell">{new Date(member.created_at).toLocaleDateString()}</td>
                   <td className="admin-panel-table-cell">
                     <div className="flex gap-2">
-                      <button onClick={() => openEdit(member)} className="p-2 hover:bg-muted rounded-md transition-colors">
-                        <Edit2 size={16} className="text-blue-500" />
-                      </button>
-                      <button onClick={() => handleToggleStatus(member)} className="p-2 hover:bg-muted rounded-md transition-colors">
-                        <Lock size={16} className={member.status === "active" ? "text-orange-500" : "text-green-500"} />
-                      </button>
+                      {canEdit && (
+                        <button onClick={() => openEdit(member)} className="p-2 hover:bg-muted rounded-md transition-colors">
+                          <Edit2 size={16} className="text-blue-500" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button onClick={() => handleToggleStatus(member)} className="p-2 hover:bg-muted rounded-md transition-colors">
+                          <Lock size={16} className={member.status === "active" ? "text-orange-500" : "text-green-500"} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

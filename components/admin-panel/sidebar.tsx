@@ -29,44 +29,14 @@ import {
 import { useState, useEffect } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
 import { useUnreadOrders } from "@/lib/useUnreadOrders"
+import { usePermissions } from "@/lib/usePermissions"
 
 interface MenuItem {
   href: string;
   icon: React.ElementType;
   label: string;
-  permission?: string;
+  permissionSlug?: string;
   items?: MenuItem[];
-}
-
-const PERMISSION_MAP: Record<string, string> = {
-  "Dashboard": "dashboard.view",
-  "Orders": "orders.view",
-  "Categories": "categories.view",
-  "Products": "products.view",
-  "Customers": "customers.view",
-  "Vendors": "vendors.view",
-  "Riders": "riders.view",
-  "Discussions": "discussions.view",
-  "Coupons": "coupons.view",
-  "Seller Promo Codes": "promo-codes.view",
-  "Blog": "blog.view",
-  "Messages": "messages.view",
-  "General Settings": "settings.general",
-  "Home Page": "settings.homepage",
-  "Menu Settings": "settings.menu",
-  "Email Settings": "settings.email",
-  "Font Options": "settings.font",
-  "SEO Tools": "settings.seo",
-  "Staff Management": "staff.view",
-  "Roles & Permissions": "roles.view",
-  "Subscribers": "subscribers.view",
-  "Customer Deposits": "deposits.view",
-  "Wallet Management": "wallet.view",
-  "Withdrawals": "withdrawals.view",
-  "Vendor Earnings": "earnings.view",
-  "Clear Cache": "cache.manage",
-  "Addon Manager": "addons.manage",
-  "System Activation": "system.manage",
 }
 
 export function AdminPanelSidebar() {
@@ -75,25 +45,8 @@ export function AdminPanelSidebar() {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [userPermissions, setUserPermissions] = useState<string[]>([])
   const unreadOrders = useUnreadOrders()
-
-  useEffect(() => {
-    fetch("/api/backend/admin/my-permissions")
-      .then(r => r.json())
-      .then(data => {
-        setUserPermissions(Array.isArray(data?.permissions) ? data.permissions : [])
-      })
-      .catch(() => {})
-  }, [])
-
-  const hasPermission = (label: string) => {
-    // If permissions haven't been fetched yet, or empty (legacy admin), show all items
-    if (userPermissions.length === 0) return true
-    const perm = PERMISSION_MAP[label]
-    if (!perm) return true
-    return userPermissions.includes(perm)
-  }
+  const { hasPermission } = usePermissions()
 
   useEffect(() => {
     const handleResize = () => {
@@ -134,53 +87,53 @@ export function AdminPanelSidebar() {
   const menuGroups: { label: string; items: MenuItem[] }[] = [
     {
       label: "Main",
-      items: [{ href: "/admin-panel", icon: LayoutDashboard, label: "Dashboard" }],
+      items: [{ href: "/admin-panel", icon: LayoutDashboard, label: "Dashboard", permissionSlug: "dashboard.view" }],
     },
     {
       label: "Management",
       items: [
-        { href: "/admin-panel/orders", icon: ShoppingCart, label: "Orders" },
-        { href: "/admin-panel/categories", icon: Package, label: "Categories" },
-        { href: "/admin-panel/products", icon: Package, label: "Products" },
-        { href: "/admin-panel/customers", icon: Users, label: "Customers" },
-        { href: "/admin-panel/vendors", icon: Store, label: "Vendors" },
-        { href: "/admin-panel/riders", icon: Truck, label: "Riders" },
+        { href: "/admin-panel/orders", icon: ShoppingCart, label: "Orders", permissionSlug: "orders.view" },
+        { href: "/admin-panel/categories", icon: Package, label: "Categories", permissionSlug: "categories.view" },
+        { href: "/admin-panel/products", icon: Package, label: "Products", permissionSlug: "products.view" },
+        { href: "/admin-panel/customers", icon: Users, label: "Customers", permissionSlug: "customers.view" },
+        { href: "/admin-panel/vendors", icon: Store, label: "Vendors", permissionSlug: "vendors.view" },
+        { href: "/admin-panel/riders", icon: Truck, label: "Riders", permissionSlug: "riders.view" },
       ],
     },
     {
       label: "Content & Communication",
       items: [
-        { href: "/admin-panel/discussions", icon: MessageSquare, label: "Discussions" },
-        { href: "/admin-panel/coupons", icon: Tag, label: "Coupons" },
-        { href: "/admin-panel/promo-codes", icon: Tag, label: "Seller Promo Codes" },
-        { href: "/admin-panel/blog", icon: BookOpen, label: "Blog" },
-        { href: "/admin-panel/messages", icon: Mail, label: "Messages" },
+        { href: "/admin-panel/discussions", icon: MessageSquare, label: "Discussions", permissionSlug: "discussions.view" },
+        { href: "/admin-panel/coupons", icon: Tag, label: "Coupons", permissionSlug: "coupons.view" },
+        { href: "/admin-panel/promo-codes", icon: Tag, label: "Seller Promo Codes", permissionSlug: "promo_codes.view" },
+        { href: "/admin-panel/blog", icon: BookOpen, label: "Blog", permissionSlug: "blog.view" },
+        { href: "/admin-panel/messages", icon: Mail, label: "Messages", permissionSlug: "messages.view" },
       ],
     },
     {
       label: "Configuration",
       items: [
-        { href: "/admin-panel/settings/general", icon: Settings, label: "General Settings" },
-        { href: "/admin-panel/settings/homepage", icon: BarChart3, label: "Home Page" },
-        { href: "/admin-panel/settings/menu", icon: Menu, label: "Menu Settings" },
-        { href: "/admin-panel/settings/email", icon: Mail, label: "Email Settings" },
-        { href: "/admin-panel/settings/font", icon: BarChart3, label: "Font Options" },
-        { href: "/admin-panel/settings/seo", icon: BarChart3, label: "SEO Tools" },
+        { href: "/admin-panel/settings/general", icon: Settings, label: "General Settings", permissionSlug: "settings.view" },
+        { href: "/admin-panel/settings/homepage", icon: BarChart3, label: "Home Page", permissionSlug: "settings.view" },
+        { href: "/admin-panel/settings/menu", icon: Menu, label: "Menu Settings", permissionSlug: "settings.view" },
+        { href: "/admin-panel/settings/email", icon: Mail, label: "Email Settings", permissionSlug: "settings.view" },
+        { href: "/admin-panel/settings/font", icon: BarChart3, label: "Font Options", permissionSlug: "settings.view" },
+        { href: "/admin-panel/settings/seo", icon: BarChart3, label: "SEO Tools", permissionSlug: "settings.view" },
       ],
     },
     {
       label: "Advanced",
       items: [
-        { href: "/admin-panel/staff", icon: Users2, label: "Staff Management" },
-        { href: "/admin-panel/roles", icon: Users2, label: "Roles & Permissions" },
-        { href: "/admin-panel/subscribers", icon: Users, label: "Subscribers" },
-        { href: "/admin-panel/deposits", icon: CreditCard, label: "Customer Deposits" },
-        { href: "/admin-panel/wallet", icon: Wallet, label: "Wallet Management" },
-        { href: "/admin-panel/withdrawals", icon: CreditCard, label: "Withdrawals" },
-        { href: "/admin-panel/earnings", icon: CreditCard, label: "Vendor Earnings" },
-        { href: "/admin-panel/cache", icon: Database, label: "Clear Cache" },
-        { href: "/admin-panel/addons", icon: Zap, label: "Addon Manager" },
-        { href: "/admin-panel/system", icon: Settings, label: "System Activation" },
+        { href: "/admin-panel/staff", icon: Users2, label: "Staff Management", permissionSlug: "staff.view" },
+        { href: "/admin-panel/roles", icon: Users2, label: "Roles & Permissions", permissionSlug: "roles.view" },
+        { href: "/admin-panel/subscribers", icon: Users, label: "Subscribers", permissionSlug: "subscribers.view" },
+        { href: "/admin-panel/deposits", icon: CreditCard, label: "Customer Deposits", permissionSlug: "deposits.view" },
+        { href: "/admin-panel/wallet", icon: Wallet, label: "Wallet Management", permissionSlug: "wallet.view" },
+        { href: "/admin-panel/withdrawals", icon: CreditCard, label: "Withdrawals", permissionSlug: "withdrawals.view" },
+        { href: "/admin-panel/earnings", icon: CreditCard, label: "Vendor Earnings", permissionSlug: "earnings.view" },
+        { href: "/admin-panel/cache", icon: Database, label: "Clear Cache", permissionSlug: "cache.view" },
+        { href: "/admin-panel/addons", icon: Zap, label: "Addon Manager", permissionSlug: "addons.view" },
+        { href: "/admin-panel/system", icon: Settings, label: "System Activation", permissionSlug: "system.view" },
       ],
     },
   ]
@@ -219,14 +172,17 @@ export function AdminPanelSidebar() {
         </div>
 
       <nav className="admin-panel-nav flex-1 overflow-y-auto">
-        {menuGroups.map((group) => {
-          const filteredItems = group.items.filter(item => hasPermission(item.label))
-          if (userPermissions.length > 0 && filteredItems.length === 0) return null
-          return (
+        {menuGroups
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => !item.permissionSlug || hasPermission(item.permissionSlug)),
+          }))
+          .filter((group) => group.items.length > 0)
+          .map((group) => (
           <div key={group.label} className="admin-panel-menu-group">
           <h3 className="admin-panel-menu-group-title">{group.label}</h3>
           <div className="admin-panel-menu-items">
-            {filteredItems.map((item) => {
+            {group.items.map((item) => {
               const isActive = pathname === item.href
               const hasChildren = item.items && item.items.length > 0
               const isExpanded = expandedMenu === group.label
@@ -292,7 +248,7 @@ export function AdminPanelSidebar() {
             })}
           </div>
         </div>
-        )})}
+        ))}
       </nav>
 
         <div className="mt-auto p-4 border-t border-border">

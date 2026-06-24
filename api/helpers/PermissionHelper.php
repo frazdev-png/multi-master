@@ -4,6 +4,40 @@ require_once __DIR__ . '/../config/Database.php';
 class PermissionHelper {
     private static $cache = [];
 
+    private static $allPermissionSlugs = [
+        'dashboard.view', 'orders.view', 'orders.create', 'orders.edit', 'orders.delete',
+        'categories.view', 'categories.create', 'categories.edit', 'categories.delete',
+        'products.view', 'products.create', 'products.edit', 'products.delete',
+        'customers.view', 'customers.create', 'customers.edit', 'customers.delete',
+        'vendors.view', 'vendors.create', 'vendors.edit', 'vendors.delete',
+        'riders.view', 'riders.create', 'riders.edit', 'riders.delete',
+        'discussions.view', 'discussions.create', 'discussions.edit', 'discussions.delete',
+        'coupons.view', 'coupons.create', 'coupons.edit', 'coupons.delete',
+        'promo_codes.view', 'promo_codes.create', 'promo_codes.edit', 'promo_codes.delete',
+        'blog.view', 'blog.create', 'blog.edit', 'blog.delete',
+        'messages.view', 'messages.create', 'messages.edit', 'messages.delete',
+        'settings.view', 'settings.edit',
+        'staff.view', 'staff.create', 'staff.edit', 'staff.delete',
+        'roles.view', 'roles.create', 'roles.edit', 'roles.delete',
+        'subscribers.view', 'subscribers.create', 'subscribers.delete',
+        'deposits.view', 'deposits.create', 'deposits.approve',
+        'wallet.view', 'wallet.edit',
+        'withdrawals.view', 'withdrawals.manage',
+        'earnings.view', 'earnings.manage',
+        'cache.view', 'cache.clear',
+        'system.view', 'system.edit',
+        'addons.view', 'addons.manage',
+    ];
+
+    private static function getAllSlugs($conn) {
+        try {
+            $stmt = $conn->query("SELECT slug FROM permissions");
+            $dbSlugs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($dbSlugs)) return $dbSlugs;
+        } catch (Exception $e) {}
+        return self::$allPermissionSlugs;
+    }
+
     /**
      * Check if a user has a specific permission.
      * Super Admin bypasses all checks.
@@ -28,8 +62,8 @@ class PermissionHelper {
 
         // Staff record exists but has NO role AND NO direct permissions — treat as legacy admin
         if (!$staffRow['role_id']) {
-            $stmt = $conn->prepare("SELECT 1 FROM staff_permissions sp JOIN permissions p ON p.id = sp.permission_id WHERE sp.staff_id = ? AND p.slug = ? LIMIT 1");
-            $stmt->execute([$staffRow['id'], $permissionSlug]);
+            $stmt = $conn->prepare("SELECT 1 FROM staff_permissions WHERE staff_id = ? LIMIT 1");
+            $stmt->execute([$staffRow['id']]);
             if (!$stmt->fetch()) return true;
         }
 
@@ -68,8 +102,7 @@ class PermissionHelper {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$user) return [];
         if ((int)$user['is_super_admin'] === 1) {
-            $stmt = $conn->query("SELECT slug FROM permissions");
-            $slugs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $slugs = self::getAllSlugs($conn);
             self::$cache[$cacheKey] = $slugs;
             return $slugs;
         }
@@ -79,8 +112,7 @@ class PermissionHelper {
         $stmt->execute([$userId]);
         $staffRow = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$staffRow) {
-            $stmt = $conn->query("SELECT slug FROM permissions");
-            $slugs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $slugs = self::getAllSlugs($conn);
             self::$cache[$cacheKey] = $slugs;
             return $slugs;
         }
@@ -90,8 +122,7 @@ class PermissionHelper {
             $stmt = $conn->prepare("SELECT 1 FROM staff_permissions WHERE staff_id = ? LIMIT 1");
             $stmt->execute([$staffRow['id']]);
             if (!$stmt->fetch()) {
-                $stmt = $conn->query("SELECT slug FROM permissions");
-                $slugs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                $slugs = self::getAllSlugs($conn);
                 self::$cache[$cacheKey] = $slugs;
                 return $slugs;
             }

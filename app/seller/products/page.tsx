@@ -5,7 +5,7 @@ import { SellerSidebar } from "@/components/seller/sidebar"
 import { SellerHeader } from "@/components/seller/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Edit, Trash2, Eye } from "lucide-react"
+import { Search, Edit, Eye } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { notify } from "@/components/ui/toast"
 
@@ -61,7 +61,7 @@ export default function SellerProductsPage() {
   const [showAttachModal, setShowAttachModal] = useState(false)
   const [attachProduct, setAttachProduct] = useState<any>(null)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [adoptLoading, setAdoptLoading] = useState<number | null>(null)
@@ -169,37 +169,6 @@ export default function SellerProductsPage() {
       status: product.status,
     })
     setShowEditModal(true)
-  }
-
-  const handleDelete = (product: Product) => {
-    setSelectedProduct(product)
-    setShowDeleteModal(true)
-  }
-
-  const confirmDelete = () => {
-    const run = async () => {
-      if (!selectedProduct) return
-      try {
-        setIsLoading(true)
-        setError("")
-        const res = await fetch(`/api/backend/seller/products/${selectedProduct.id}`, {
-          method: "DELETE",
-        })
-        const data = await res.json().catch(() => null)
-        if (!res.ok) {
-          throw new Error(data?.error || "Failed to delete product")
-        }
-        setShowDeleteModal(false)
-        setSelectedProduct(null)
-        await loadProducts()
-      } catch (e: any) {
-        setError(e?.message || "Failed to delete product")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    run()
   }
 
   const submitEdit = async () => {
@@ -458,12 +427,6 @@ export default function SellerProductsPage() {
                                 >
                                   <Edit className="h-5 w-5" />
                                 </button>
-                                <button
-                                  onClick={() => handleDelete(product)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -629,44 +592,6 @@ export default function SellerProductsPage() {
         </div>
       )}
       
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mx-auto">
-                <Trash2 className="h-6 w-6 text-red-600" />
-              </div>
-              <div className="mt-3 text-center sm:mt-5">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Delete Product
-                </h3>
-                <div className="mt-2">
-                  <p className="text-sm text-gray-500">
-                    Are you sure you want to delete <span className="font-medium">{selectedProduct.name}</span>? This action cannot be undone.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg">
-              <button
-                type="button"
-                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                onClick={confirmDelete}
-              >
-                Delete
-              </button>
-              <button
-                type="button"
-                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

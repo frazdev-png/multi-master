@@ -99,6 +99,15 @@ export default function SettingsPage() {
       href: "/admin-panel/settings/font",
       status: "not-configured",
       lastUpdated: "Never"
+    },
+    {
+      id: "password",
+      title: "Change Password",
+      description: "Update admin account password, enforce strong password policy",
+      icon: <Lock className="h-5 w-5" />,
+      href: "/admin-panel/settings/password",
+      status: "configured",
+      lastUpdated: "Today"
     }
   ]
 

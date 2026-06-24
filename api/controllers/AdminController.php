@@ -1404,6 +1404,88 @@ class AdminController {
         }
     }
 
+    public function changePassword() {
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+            return;
+        }
+
+        $user = $this->auth->authenticate('admin');
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $currentPassword = $data['current_password'] ?? '';
+        $newPassword = $data['new_password'] ?? '';
+        $confirmPassword = $data['confirm_password'] ?? '';
+
+        if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'All password fields are required']);
+            return;
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            http_response_code(400);
+            echo json_encode(['error' => 'New password and confirm password do not match']);
+            return;
+        }
+
+        // Enforce strong password
+        if (strlen($newPassword) < 8) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must be at least 8 characters']);
+            return;
+        }
+        if (!preg_match('/[A-Z]/', $newPassword)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must contain an uppercase letter']);
+            return;
+        }
+        if (!preg_match('/[a-z]/', $newPassword)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must contain a lowercase letter']);
+            return;
+        }
+        if (!preg_match('/[0-9]/', $newPassword)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must contain a number']);
+            return;
+        }
+
+        // Verify current password
+        $stmt = $this->db->prepare("SELECT password_hash FROM users WHERE id = ? AND role = 'admin'");
+        $stmt->execute([$user['id']]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row || !password_verify($currentPassword, $row['password_hash'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Current password is incorrect']);
+            return;
+        }
+
+        if (password_verify($newPassword, $row['password_hash'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'New password must be different from current password']);
+            return;
+        }
+
+        try {
+            $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
+            $stmt = $this->db->prepare("UPDATE users SET password_hash = ?, token_version = token_version + 1, updated_at = NOW() WHERE id = ?");
+            $stmt->execute([$newHash, $user['id']]);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Password updated successfully',
+                'force_logout' => true
+            ]);
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
     public function handleRequest() {
         $method = $_SERVER['REQUEST_METHOD'];
         $requestUri = $_SERVER['REQUEST_URI'];

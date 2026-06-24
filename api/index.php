@@ -253,6 +253,7 @@ $routes = [
     '/api/admin/accounts/frozen' => ['controller' => 'AdminController', 'method' => 'getFrozenAccounts', 'http_method' => 'GET'],
     '/api/admin/users' => ['controller' => 'AdminController', 'method' => 'getUsers', 'http_method' => 'GET'],
     '/api/admin/users/status' => ['controller' => 'AdminController', 'method' => 'updateUserStatus', 'http_method' => 'PUT'],
+    '/api/admin/change-password' => ['controller' => 'AdminController', 'method' => 'changePassword', 'http_method' => 'POST'],
     '/api/admin/users/freeze' => ['controller' => 'AdminController', 'method' => 'freezeUser', 'http_method' => 'PUT'],
     '/api/admin/users/{userId}' => ['controller' => 'AdminController', 'method' => 'deleteUser', 'http_method' => 'DELETE'],
 

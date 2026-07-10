@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Bell, User, Menu, X, CheckCircle, AlertTriangle, Info, XCircle, LogOut, MessageCircle } from "lucide-react"
+import { Bell, User, Menu, X, CheckCircle, AlertTriangle, Info, XCircle, LogOut, MessageCircle, BadgeCheck } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { useRealtime } from "@/contexts/RealtimeContext"
 import { useRouter } from "next/navigation"
@@ -31,6 +31,7 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [userEmail, setUserEmail] = useState("")
+  const [isApproved, setIsApproved] = useState<boolean | null>(null)
   const unreadMessages = useUnreadMessages()
   const notifRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -40,7 +41,10 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
       try {
         const res = await fetch("/api/backend/auth/me")
         const data = await res.json().catch(() => null)
-        if (data?.user?.email) setUserEmail(data.user.email)
+        if (data?.user) {
+          setUserEmail(data.user.email || "")
+          setIsApproved(data.user.is_approved ? true : false)
+        }
       } catch {}
     }
     fetchUser()
@@ -195,7 +199,14 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <User className="h-4 w-4" />
             </div>
-            <span className="hidden sm:inline text-sm font-medium">Seller</span>
+            <span className="hidden sm:inline-flex items-center gap-1 text-sm font-medium">
+              Seller
+              {isApproved === true ? (
+                <BadgeCheck size={16} className="text-green-500" />
+              ) : isApproved === false ? (
+                <XCircle size={16} className="text-red-500" />
+              ) : null}
+            </span>
           </button>
 
           {showUserMenu && (
@@ -204,7 +215,14 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
               <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-card border border-border z-50">
                 <div className="px-4 py-3 border-b border-border">
                   <p className="text-sm font-medium truncate">{userEmail || "Seller"}</p>
-                  <p className="text-xs text-muted-foreground">Seller</p>
+                  <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                    Seller
+                    {isApproved === true ? (
+                      <BadgeCheck size={14} className="text-green-500" />
+                    ) : isApproved === false ? (
+                      <XCircle size={14} className="text-red-500" />
+                    ) : null}
+                  </p>
                 </div>
                 <div className="p-1">
                   <div className="flex items-center justify-between px-4 py-2 text-sm">

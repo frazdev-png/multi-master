@@ -29,11 +29,10 @@ async function proxy(request: NextRequest, context: RouteContext) {
   let body: BodyInit | undefined
   if (request.method !== "GET" && request.method !== "HEAD") {
     const contentType = request.headers.get("content-type") || ""
-    headers["Content-Type"] = contentType
     if (/multipart\/form-data/i.test(contentType)) {
-      const ab = await request.arrayBuffer()
-      body = new Uint8Array(ab)
+      body = await request.formData()
     } else {
+      headers["Content-Type"] = contentType
       body = await request.text()
     }
   }

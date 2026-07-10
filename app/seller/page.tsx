@@ -16,6 +16,7 @@ export default function SellerDashboard() {
   const [me, setMe] = useState<any>(null)
   const [orders, setOrders] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
+  const [wallet, setWallet] = useState<any>(null)
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen)
@@ -33,10 +34,11 @@ export default function SellerDashboard() {
         setIsLoading(true)
         setError("")
 
-        const [meRes, ordersRes, productsRes] = await Promise.all([
+        const [meRes, ordersRes, productsRes, walletRes] = await Promise.all([
           fetch("/api/backend/auth/me"),
           fetch("/api/backend/seller/orders?limit=20"),
           fetch("/api/backend/seller/products?limit=200"),
+          fetch("/api/backend/seller/wallet"),
         ])
 
         const meData = await meRes.json().catch(() => null)
@@ -54,9 +56,12 @@ export default function SellerDashboard() {
           throw new Error(productsData?.error || "Failed to load seller products")
         }
 
+        const walletData = await walletRes.json().catch(() => null)
+
         if (cancelled) return
         setOrders(Array.isArray(ordersData?.orders) ? ordersData.orders : [])
         setProducts(Array.isArray(productsData?.products) ? productsData.products : [])
+        setWallet(walletData?.wallet || null)
       } catch (e: any) {
         if (cancelled) return
         setError(e?.message || "Failed to load dashboard")
@@ -101,8 +106,8 @@ export default function SellerDashboard() {
       },
       {
         title: "Wallet Balance",
-        value: "—",
-        subtitle: "Not available",
+        value: wallet ? formatCurrency(Number(wallet.available_balance || 0), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—",
+        subtitle: wallet ? `${formatCurrency(Number(wallet.pending_balance || 0), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pending` : "Not available",
         icon: <Wallet size={28} />,
       },
       {
@@ -112,7 +117,7 @@ export default function SellerDashboard() {
         icon: <Star size={28} />,
       },
     ]
-  }, [orders, products])
+  }, [orders, products, wallet])
 
   const recentOrders = useMemo(() => {
     return [...orders].slice(0, 4)

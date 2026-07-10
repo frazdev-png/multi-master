@@ -1200,6 +1200,10 @@ class ChatController {
             $statusSelect = $this->hasConversationColumn('status') ? 'c.status,' : "'open' as status,";
             $subjectSelect = $this->hasConversationColumn('subject') ? 'c.subject,' : 'NULL as subject,';
 
+            $verifiedSelect = 'COALESCE(s.is_approved, 0) as other_user_verified,';
+
+            $sellerJoin = 'LEFT JOIN sellers s ON u.id = s.user_id';
+
             // If legacy columns exist, use them directly — covers ALL conversations
             if ($this->hasConversationColumn('user1_id') && $this->hasConversationColumn('user2_id')) {
                 $sql = "
@@ -1216,12 +1220,14 @@ class ChatController {
                         u.role as other_user_role,
                         {$onlineSelect}
                         {$lastSeenSelect}
+                        {$verifiedSelect}
                         {$lastMessageExpr} as last_message,
                         m.created_at as last_message_at,
                         m.sender_id as last_message_sender_id,
                         0 as unread_count
                     FROM conversations c
                     JOIN users u ON u.id = (CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END)
+                    {$sellerJoin}
                     LEFT JOIN messages m ON (
                         m.id = (
                             SELECT id FROM messages 
@@ -1248,6 +1254,7 @@ class ChatController {
                         u.role as other_user_role,
                         {$onlineSelect}
                         {$lastSeenSelect}
+                        {$verifiedSelect}
                         {$lastMessageExpr} as last_message,
                         m.created_at as last_message_at,
                         m.sender_id as last_message_sender_id,
@@ -1259,6 +1266,7 @@ class ChatController {
                     JOIN conversation_participants cp ON c.id = cp.conversation_id
                     JOIN conversation_participants cp2 ON c.id = cp2.conversation_id
                     JOIN users u ON cp2.user_id = u.id
+                    {$sellerJoin}
                     LEFT JOIN messages m ON (
                         m.id = (
                             SELECT id FROM messages 

@@ -1,6 +1,6 @@
 "use client"
 
-import { Send, Search, RefreshCw, Paperclip, Image, FileText, X, ChevronDown } from "lucide-react"
+import { Send, Search, RefreshCw, Paperclip, Image, FileText, X, ChevronDown, BadgeCheck } from "lucide-react"
 import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +30,7 @@ interface Conversation {
   other_user_name: string
   other_user_email: string
   other_user_role: string
+  other_user_verified?: boolean | number
   last_message: string | null
   last_message_at: string | null
   unread_count: number | string
@@ -90,6 +91,12 @@ export default function AdminMessagesPage() {
 
   useEffect(() => { loadConversations() }, [])
 
+  // Poll conversations list every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(loadConversations, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
   const selectConversation = async (conv: Conversation) => {
     setSelectedConvId(conv.conversation_id)
     await loadMessages(conv.conversation_id)
@@ -97,6 +104,15 @@ export default function AdminMessagesPage() {
       prev.map((c) => (c.conversation_id === conv.conversation_id ? { ...c, unread_count: 0 } : c)),
     )
   }
+
+  // Poll for new messages every 5 seconds when a conversation is selected
+  useEffect(() => {
+    if (!selectedConvId) return
+    const interval = setInterval(() => {
+      loadMessages(selectedConvId)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [selectedConvId])
 
   const handleSendMessage = async () => {
     if (!selectedConvId || !messageInput.trim()) return
@@ -249,7 +265,12 @@ export default function AdminMessagesPage() {
                           <AvatarFallback className="text-xs">{(conv.other_user_name || "?").charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{conv.other_user_name}</p>
+                          <p className="text-sm font-medium truncate">
+                            {conv.other_user_name}
+                            {conv.other_user_verified && Number(conv.other_user_verified) === 1 && (
+                              <BadgeCheck size={14} className="inline ml-1 text-blue-500 -mt-0.5" />
+                            )}
+                          </p>
                           <p className="text-[10px] text-muted-foreground capitalize">{conv.other_user_role}</p>
                         </div>
                       </div>
@@ -281,7 +302,12 @@ export default function AdminMessagesPage() {
                 <div className="p-4 border-b border-border flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold">{selectedConv.other_user_name}</h3>
+                      <h3 className="font-bold">
+                        {selectedConv.other_user_name}
+                        {selectedConv.other_user_verified && Number(selectedConv.other_user_verified) === 1 && (
+                          <BadgeCheck size={16} className="inline ml-1 text-blue-500 -mt-0.5" />
+                        )}
+                      </h3>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full capitalize bg-muted text-muted-foreground">{selectedConv.other_user_role}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{selectedConv.other_user_email}</p>

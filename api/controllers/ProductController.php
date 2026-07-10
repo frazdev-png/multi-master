@@ -594,6 +594,10 @@ class ProductController {
                 return $stmt->fetchAll(PDO::FETCH_ASSOC);
             });
 
+            $existingStmt = $this->db->prepare("SELECT product_id FROM seller_products WHERE seller_id = ?");
+            $existingStmt->execute([$user['id']]);
+            $existingIds = $existingStmt->fetchAll(PDO::FETCH_COLUMN);
+
             $products = [];
             foreach ($rows as $row) {
                 $products[] = [
@@ -607,7 +611,8 @@ class ProductController {
                     'is_active' => isset($row['is_active']) ? (int)$row['is_active'] : 1,
                     'created_at' => $row['created_at'],
                     'image_url' => $row['image_url'] ?? null,
-                    'description' => $row['description'] ?? ''
+                    'description' => $row['description'] ?? '',
+                    'already_in_store' => in_array((int)$row['id'], $existingIds)
                 ];
             }
 

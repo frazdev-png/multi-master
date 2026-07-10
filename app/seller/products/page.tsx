@@ -138,6 +138,7 @@ const [showViewModal, setShowViewModal] = useState(false)
         status: "Active" as Product["status"],
         createdAt: p.created_at ? new Date(p.created_at).toISOString().slice(0, 10) : "",
         image_url: p.image_url,
+        already_in_store: !!p.already_in_store,
       }))
       setAdminCatalog(mapped)
     } catch {
@@ -229,6 +230,7 @@ const [showViewModal, setShowViewModal] = useState(false)
       const data = await res.json().catch(() => null)
       if (!res.ok) {
         if (res.status === 409) {
+          setAdminCatalog(prev => prev.map(p => p.id === attachProduct.id ? { ...p, already_in_store: true } : p))
           notify("Product already in your store", "error")
           setShowAttachModal(false)
           setAttachProduct(null)
@@ -239,7 +241,7 @@ const [showViewModal, setShowViewModal] = useState(false)
       notify("Product added to your store", "success")
       setShowAttachModal(false)
       setAttachProduct(null)
-      await loadAdminCatalog()
+      setAdminCatalog(prev => prev.map(p => p.id === attachProduct.id ? { ...p, already_in_store: true } : p))
       await loadProducts()
     } catch (e: any) {
       notify(e?.message || "Failed to add product", "error")
@@ -488,9 +490,15 @@ const [showViewModal, setShowViewModal] = useState(false)
                         <p className="text-base font-bold text-gray-900 mt-2">{formatCurrency(product.price)}</p>
                         <p className="text-xs text-gray-500 mt-1">Stock: <span className="font-medium">{product.stock}</span></p>
                         <div className="mt-auto pt-4">
-                          <Button size="sm" className="w-full" onClick={() => handleAttach(product)} disabled={adoptLoading === product.id}>
-                            {adoptLoading === product.id ? "Adding..." : "Add to my store"}
-                          </Button>
+                          {(product as any).already_in_store ? (
+                            <Button size="sm" className="w-full" disabled variant="secondary">
+                              Already in store
+                            </Button>
+                          ) : (
+                            <Button size="sm" className="w-full" onClick={() => handleAttach(product)} disabled={adoptLoading === product.id}>
+                              {adoptLoading === product.id ? "Adding..." : "Add to my store"}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}

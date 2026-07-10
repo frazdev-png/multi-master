@@ -64,6 +64,9 @@ export default function ProductsManagement() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const perPage = 20
 
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -84,11 +87,15 @@ export default function ProductsManagement() {
     } catch {}
   }
 
-  const loadProducts = async () => {
+  const loadProducts = async (p?: number) => {
     try {
       setIsLoading(true)
       setError("")
-      const res = await fetch("/api/backend/admin/products")
+      const currentPage = p ?? page
+      const params = new URLSearchParams({ page: String(currentPage), limit: String(perPage) })
+      if (searchTerm) params.set("search", searchTerm)
+      if (categoryFilter && categoryFilter !== "all") params.set("category", categoryFilter)
+      const res = await fetch(`/api/backend/admin/products?${params}`)
       const data = await res.json().catch(() => null)
       if (!res.ok) {
         throw new Error(data?.error || "Failed to load products")
@@ -122,6 +129,8 @@ export default function ProductsManagement() {
       })
 
       setProducts(mapped)
+      setPage(data.page || currentPage)
+      setTotal(data.total || 0)
     } catch (e: any) {
       setError(e?.message || "Failed to load products")
     } finally {
@@ -209,24 +218,14 @@ export default function ProductsManagement() {
   }
 
   useEffect(() => {
-    loadProducts()
+    loadProducts(1)
     loadCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const categoryOptions = useMemo(() => {
-    const set = new Set<string>()
-    for (const p of products) {
-      if (p.category) set.add(p.category)
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [products])
+  const totalPages = Math.max(1, Math.ceil(total / perPage))
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
-    return matchesSearch && matchesCategory
-  })
+  const categoryOptions = categories
 
   const handleView = (product: Product) => {
     setSelectedProduct(product)
@@ -390,10 +389,11 @@ export default function ProductsManagement() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
+              onKeyDown={(e) => { if (e.key === "Enter") loadProducts(1) }}
             />
           </div>
         </div>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); loadProducts(1) }}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
@@ -404,7 +404,7 @@ export default function ProductsManagement() {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={() => {setSearchTerm(""); setCategoryFilter("all")}}>
+        <Button variant="outline" onClick={() => {setSearchTerm(""); setCategoryFilter("all"); loadProducts(1)}}>
           Clear Filters
         </Button>
       </div>
@@ -431,7 +431,7 @@ export default function ProductsManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.map((product) => (
+                {products.map((product) => (
                   <tr key={product.id} className="border-b border-border hover:bg-muted/50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -500,7 +500,7 @@ export default function ProductsManagement() {
                 ))}
               </tbody>
             </table>
-            {!isLoading && filteredProducts.length === 0 && (
+            {!isLoading && products.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 No products found matching your criteria
               </div>
@@ -508,6 +508,56 @@ export default function ProductsManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
+          <p className="text-muted-foreground">
+            Showing {Math.min((page - 1) * perPage + 1, total)}–{Math.min(page * perPage, total)} of {total} products
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => loadProducts(page - 1)}
+            >
+              Previous
+            </Button>
+            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              let pageNum: number
+              if (totalPages <= 7) {
+                pageNum = i + 1
+              } else if (page <= 4) {
+                pageNum = i + 1
+              } else if (page >= totalPages - 3) {
+                pageNum = totalPages - 6 + i
+              } else {
+                pageNum = page - 3 + i
+              }
+              return (
+                <Button
+                  key={pageNum}
+                  variant={pageNum === page ? "default" : "outline"}
+                  size="sm"
+                  className="min-w-9"
+                  onClick={() => loadProducts(pageNum)}
+                >
+                  {pageNum}
+                </Button>
+              )
+            })}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => loadProducts(page + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* View Product Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>

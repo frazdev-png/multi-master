@@ -711,11 +711,12 @@ class ProductController {
     private function listAdminProducts($user) {
         $search = $_GET['search'] ?? '';
         $category = $_GET['category'] ?? '';
-        $limit = min($_GET['limit'] ?? 50, 100);
-        $offset = $_GET['offset'] ?? 0;
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = min((int)($_GET['limit'] ?? 20), 100);
+        $offset = ($page - 1) * $limit;
 
         try {
-            $rows = $this->runWithIsActiveFallback(function () use ($search, $category, $limit, $offset) {
+            $result = $this->runWithIsActiveFallback(function () use ($search, $category, $page, $limit, $offset) {
                 $categoryJoin = '';
                 $categorySelect = "'' as category_name";
                 if ($this->hasProductColumn('category_id')) {
@@ -723,46 +724,53 @@ class ProductController {
                     $categorySelect = 'c.name as category_name';
                 }
 
-                $sql = "
-                    SELECT
-                        p.*,
-                        {$categorySelect},
-                        u.full_name as seller_name,
-                        ss.store_name,
-                        COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id), p.rating, 0) as rating
+                $baseFrom = "
                     FROM products p
                     JOIN users u ON p.seller_id = u.id
                     LEFT JOIN sellers ss ON ss.user_id = u.id
                     {$categoryJoin}
                     WHERE u.role = 'admin'
                 ";
-                $params = [];
+                $whereParams = [];
 
+                $where = '';
                 if ($search !== '') {
-                    $sql .= " AND (p.name LIKE ? OR u.full_name LIKE ? OR ss.store_name LIKE ?)";
+                    $where .= " AND (p.name LIKE ? OR u.full_name LIKE ? OR ss.store_name LIKE ?)";
                     $s = "%{$search}%";
-                    $params[] = $s;
-                    $params[] = $s;
-                    $params[] = $s;
+                    $whereParams[] = $s;
+                    $whereParams[] = $s;
+                    $whereParams[] = $s;
                 }
 
                 if ($category !== '' && $category !== 'all' && $categoryJoin !== '') {
-                    $sql .= " AND c.name = ?";
-                    $params[] = $category;
+                    $where .= " AND c.name = ?";
+                    $whereParams[] = $category;
                 }
 
-                $orderBy = $this->hasProductColumn('created_at') ? 'p.created_at' : 'p.id';
-                $sql .= " ORDER BY {$orderBy} DESC LIMIT ? OFFSET ?";
-                $params[] = (int)$limit;
-                $params[] = (int)$offset;
+                // Count total
+                $countSql = "SELECT COUNT(*) {$baseFrom}{$where}";
+                $countStmt = $this->db->prepare($countSql);
+                $countStmt->execute($whereParams);
+                $total = (int)$countStmt->fetchColumn();
 
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute($params);
-                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+                // Fetch page
+                $orderBy = $this->hasProductColumn('created_at') ? 'p.created_at' : 'p.id';
+                $dataSql = "
+                    SELECT p.*, {$categorySelect}, u.full_name as seller_name, ss.store_name,
+                        COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id), p.rating, 0) as rating
+                    {$baseFrom}{$where}
+                    ORDER BY {$orderBy} DESC LIMIT ? OFFSET ?
+                ";
+                $dataParams = array_merge($whereParams, [(int)$limit, (int)$offset]);
+                $stmt = $this->db->prepare($dataSql);
+                $stmt->execute($dataParams);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                return ['products' => $rows, 'total' => $total, 'page' => $page, 'limit' => $limit];
             });
 
             header('Content-Type: application/json');
-            echo json_encode(['products' => $rows]);
+            echo json_encode($result);
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);

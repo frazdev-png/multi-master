@@ -125,26 +125,26 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
         </div>
       </div>
 
-      <div className="flex items-center gap-3 md:gap-6" ref={notifRef}>
+      <div className="flex items-center gap-1 md:gap-2" ref={notifRef}>
         <Link
           href="/messaging"
-          className="relative text-muted-foreground hover:text-foreground transition-colors"
+          className="relative flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Chat"
           title="Chat"
         >
           <MessageCircle size={20} />
           {unreadMessages > 0 ? (
-            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+            <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
               {unreadMessages > 99 ? "99+" : unreadMessages}
             </span>
           ) : null}
         </Link>
 
         <div className="relative">
-          <button className="relative text-muted-foreground hover:text-foreground transition-colors" onClick={() => { setShowNotifDropdown(!showNotifDropdown); if (!showNotifDropdown) fetchNotifications() }}>
+          <button className="relative flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" onClick={() => { setShowNotifDropdown(!showNotifDropdown); if (!showNotifDropdown) fetchNotifications() }}>
             <Bell size={20} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+              <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}

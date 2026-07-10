@@ -458,21 +458,36 @@ const [showViewModal, setShowViewModal] = useState(false)
                   <p className="text-sm text-gray-500">Browse products added by admin and add them to your store</p>
                 </div>
                 {adminCatalog.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 p-4">
                     {adminCatalog.map((product) => (
-                      <div key={product.id} className="border rounded-lg p-4 flex flex-col">
-                        <div className="h-32 w-full rounded-md overflow-hidden bg-gray-100 mb-3">
+                      <div key={product.id} className="border border-gray-200 rounded-xl p-4 flex flex-col hover:shadow-md transition-shadow bg-white">
+                        <div className="relative w-full rounded-lg overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 mb-3" style={{ aspectRatio: "4/3" }}>
                           {product.image_url ? (
-                            <img src={resolvePublicImageUrl(product.image_url) || "/placeholder.svg"} alt={product.name} className="h-full w-full object-cover" onError={(e) => { const el = e.currentTarget; if (!el.src.endsWith("/placeholder.svg")) el.src = "/placeholder.svg" }} />
+                            <img
+                              src={resolvePublicImageUrl(product.image_url) || "/placeholder.svg"}
+                              alt={product.name}
+                              className="h-full w-full object-contain p-2 transition-transform duration-300 hover:scale-105"
+                              onError={(e) => {
+                                const el = e.currentTarget;
+                                if (el.src.endsWith("/placeholder.svg")) return;
+                                el.src = "/placeholder.svg";
+                              }}
+                              loading="lazy"
+                            />
                           ) : (
-                            <div className="h-full w-full flex items-center justify-center text-gray-400 text-sm">No Image</div>
+                            <div className="h-full w-full flex flex-col items-center justify-center text-gray-300">
+                              <svg className="w-10 h-10 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-xs text-gray-400">No Image</span>
+                            </div>
                           )}
                         </div>
-                        <h3 className="text-sm font-medium text-gray-900 truncate">{product.name}</h3>
-                        <p className="text-sm text-gray-500 mt-1">{product.category}</p>
-                        <p className="text-sm font-semibold text-gray-900 mt-1">{formatCurrency(product.price)}</p>
-                        <p className="text-xs text-gray-500 mt-1">Stock: {product.stock}</p>
-                        <div className="mt-auto pt-3">
+                        <h3 className="text-sm font-semibold text-gray-900 truncate">{product.name}</h3>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">{product.category}</p>
+                        <p className="text-base font-bold text-gray-900 mt-2">{formatCurrency(product.price)}</p>
+                        <p className="text-xs text-gray-500 mt-1">Stock: <span className="font-medium">{product.stock}</span></p>
+                        <div className="mt-auto pt-4">
                           <Button size="sm" className="w-full" onClick={() => handleAttach(product)} disabled={adoptLoading === product.id}>
                             {adoptLoading === product.id ? "Adding..." : "Add to my store"}
                           </Button>

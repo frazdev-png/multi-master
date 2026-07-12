@@ -583,6 +583,8 @@ class Database {
             $ensureColumn('order_items', 'quantity', 'quantity INT NOT NULL DEFAULT 1');
             $ensureColumn('order_items', 'unit_price', 'unit_price DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             $ensureColumn('order_items', 'total_price', 'total_price DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('order_items', 'base_price', 'base_price DECIMAL(10,2) NOT NULL DEFAULT 0.00');
+            $ensureColumn('order_items', 'seller_profit', 'seller_profit DECIMAL(10,2) NOT NULL DEFAULT 0.00');
             $ensureColumn('order_items', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');
 
             $ensureColumn('cart', 'created_at', 'created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP');

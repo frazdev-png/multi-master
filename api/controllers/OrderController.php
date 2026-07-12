@@ -528,6 +528,7 @@ class OrderController {
             $orderIds = [$orderId];
             
             // Add order items — all assigned to the selected seller
+            $stmtGetProductPrice = $this->db->prepare("SELECT price, COALESCE(seller_profit, 0) as seller_profit FROM products WHERE id = ?");
             foreach ($items as $item) {
                 $qty = (int)($item['quantity'] ?? 0);
                 $unit = (float)($item['unit_price'] ?? ($item['price'] ?? 0));
@@ -540,12 +541,23 @@ class OrderController {
                 }
                 $lineTotal = $qty * $unit;
 
+                $basePrice = $unit;
+                $sellerProfit = 0;
+                if ($productId > 0) {
+                    $stmtGetProductPrice->execute([$productId]);
+                    $productRow = $stmtGetProductPrice->fetch(PDO::FETCH_ASSOC);
+                    if ($productRow) {
+                        $basePrice = (float)$productRow['price'];
+                        $sellerProfit = (float)$productRow['seller_profit'];
+                    }
+                }
+
                 if ($hasSellerId) {
                 $stmt = $this->db->prepare("
-                    INSERT INTO order_items (order_id, product_id, seller_id, quantity, {$priceCol}, {$totalCol}, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                    INSERT INTO order_items (order_id, product_id, seller_id, quantity, {$priceCol}, {$totalCol}, base_price, seller_profit, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 ");
-                $stmt->execute([$orderId, $productId, $sellerId, $qty, $unit, $lineTotal]);
+                $stmt->execute([$orderId, $productId, $sellerId, $qty, $unit, $lineTotal, $basePrice, $sellerProfit]);
                 } else {
                     $stmt = $this->db->prepare("
                         INSERT INTO order_items (order_id, product_id, quantity, {$priceCol}, {$totalCol}, created_at)

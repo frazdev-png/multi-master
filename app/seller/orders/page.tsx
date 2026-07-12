@@ -27,6 +27,8 @@ interface Order {
     quantity: number
     unit_price: number
     subtotal: number
+    base_price: number
+    seller_profit: number
     image: string
   }[]
   amount: number
@@ -83,6 +85,8 @@ export default function SellerOrdersPage() {
           quantity: Number(it.quantity || 0),
           unit_price: Number(it.unit_price || it.price || 0),
           subtotal: Number(it.subtotal || 0),
+          base_price: Number(it.base_price ?? it.unit_price ?? it.price ?? 0),
+          seller_profit: Number(it.seller_profit ?? 0),
           image: it.image_url || "/placeholder.svg",
         })),
         amount: Number(o.total_amount || 0),
@@ -389,6 +393,8 @@ export default function SellerOrdersPage() {
                           <tr className="border-b border-border">
                             <th className="text-left py-2 px-2 text-muted-foreground">Product</th>
                             <th className="text-right py-2 px-2 text-muted-foreground">Qty</th>
+                            <th className="text-right py-2 px-2 text-muted-foreground">Base Price</th>
+                            <th className="text-right py-2 px-2 text-muted-foreground">Your Profit</th>
                             <th className="text-right py-2 px-2 text-muted-foreground">Unit Price</th>
                             <th className="text-right py-2 px-2 text-muted-foreground">Subtotal</th>
                           </tr>
@@ -398,6 +404,8 @@ export default function SellerOrdersPage() {
                             <tr key={item.id} className="border-b border-border last:border-0">
                               <td className="py-2 px-2 font-medium">{item.name}</td>
                               <td className="py-2 px-2 text-right">{item.quantity}</td>
+                              <td className="py-2 px-2 text-right text-muted-foreground">{formatCurrency(item.base_price)}</td>
+                              <td className="py-2 px-2 text-right text-green-600 font-medium">+{formatCurrency(item.seller_profit)}</td>
                               <td className="py-2 px-2 text-right">{formatCurrency(item.unit_price)}</td>
                               <td className="py-2 px-2 text-right font-semibold">{formatCurrency(item.subtotal)}</td>
                             </tr>
@@ -405,8 +413,14 @@ export default function SellerOrdersPage() {
                         </tbody>
                         <tfoot>
                           <tr className="border-t border-border font-bold">
-                            <td className="py-2 px-2" colSpan={3}>Total</td>
+                            <td className="py-2 px-2" colSpan={5}>Total</td>
                             <td className="py-2 px-2 text-right">{formatCurrency(selectedOrder.amount)}</td>
+                          </tr>
+                          <tr className="text-sm">
+                            <td className="py-1 px-2" colSpan={5}>Your Total Profit</td>
+                            <td className="py-1 px-2 text-right text-green-600 font-semibold">
+                              +{formatCurrency(selectedOrder.items.reduce((sum, i) => sum + i.seller_profit * i.quantity, 0))}
+                            </td>
                           </tr>
                         </tfoot>
                       </table>

@@ -131,7 +131,7 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
             className="h-10 w-auto object-contain"
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg" }}
           />
-          <span className="text-lg font-semibold text-foreground hidden sm:inline">Welcome to {settings.website_name || "Sell1Mall"}</span>
+          <span className="text-lg font-semibold text-foreground truncate">Welcome to {settings.website_name || "Sell1Mall"}</span>
         </Link>
       </div>
 

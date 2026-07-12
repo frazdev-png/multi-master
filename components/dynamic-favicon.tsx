@@ -30,7 +30,7 @@ export function DynamicFavicon() {
     prevUrl.current = url
 
     if (url) {
-      addFavicon(url + "?v=" + Date.now())
+      addFavicon(url)
     } else {
       const existing = document.querySelectorAll<HTMLLinkElement>("link[rel~='icon']")
       existing.forEach((el) => el.remove())

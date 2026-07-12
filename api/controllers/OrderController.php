@@ -348,16 +348,19 @@ class OrderController {
             $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             // Get order items for each order
-            foreach ($orders as &$order) {
-                $stmt = $this->db->prepare("
-                    SELECT oi.*, oi.{$priceCol} as unit_price, (oi.quantity * oi.{$priceCol}) as subtotal, p.name as product_name, p.image_url
-                    FROM order_items oi
-                    JOIN products p ON oi.product_id = p.id
-                    WHERE oi.order_id = ?
-                ");
-                $stmt->execute([$order['id']]);
-                $order['items'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            }
+        foreach ($orders as &$order) {
+            $stmtItems = $this->db->prepare("
+                SELECT oi.*, oi.{$priceCol} as unit_price, (oi.quantity * oi.{$priceCol}) as subtotal,
+                    p.name as product_name, p.image_url,
+                    COALESCE(oi.base_price, p.price, 0) as base_price,
+                    COALESCE(oi.seller_profit, 0) as seller_profit
+                FROM order_items oi
+                JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = ?
+            ");
+            $stmtItems->execute([$order['id']]);
+            $order['items'] = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+        }
             
             header('Content-Type: application/json');
             echo json_encode(['orders' => $orders]);

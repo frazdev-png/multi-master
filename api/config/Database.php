@@ -345,8 +345,15 @@ class Database {
                     if (!$stmt->fetch(PDO::FETCH_NUM)) {
                         $conn->exec("ALTER TABLE {$table} ADD COLUMN {$definition}");
                     }
-                } catch (Exception $e) {
-                }
+            } catch (Exception $e) {
+            }
+
+            // Backfill base_price and seller_profit for existing order_items
+            try {
+                $conn->exec("UPDATE order_items oi JOIN products p ON oi.product_id = p.id SET oi.base_price = p.price WHERE (oi.base_price IS NULL OR oi.base_price = 0) AND p.price IS NOT NULL");
+                $conn->exec("UPDATE order_items oi JOIN products p ON oi.product_id = p.id SET oi.seller_profit = COALESCE(p.seller_profit, 0) WHERE (oi.seller_profit IS NULL OR oi.seller_profit = 0)");
+            } catch (Exception $e) {
+            }
             };
 
             $ensureColumn('users', 'email', 'email VARCHAR(255) NULL');

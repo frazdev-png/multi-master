@@ -21,16 +21,32 @@ export const viewport = {
   userScalable: "no",
 }
 
-export default function RootLayout({
+async function getInitialSettings() {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/settings", {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    })
+    const data = await res.json()
+    if (data?.success && data?.data) {
+      return data.data
+    }
+  } catch {}
+  return null
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const initialSettings = await getInitialSettings()
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <RealtimeProvider>
+          <RealtimeProvider initialSettings={initialSettings}>
             {children}
             <DynamicFavicon />
             <ChatWidget />

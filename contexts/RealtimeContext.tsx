@@ -52,13 +52,16 @@ export const useRealtime = () => {
 
 interface RealtimeProviderProps {
   children: ReactNode
+  initialSettings?: WebsiteSettings | null
 }
 
-export const RealtimeProvider: React.FC<RealtimeProviderProps> = ({ children }) => {
-  const [settings, setSettings] = useState<WebsiteSettings>(defaultSettings)
-  const [isConnected, setIsConnected] = useState(false)
+export const RealtimeProvider: React.FC<RealtimeProviderProps> = ({ children, initialSettings }) => {
+  const [settings, setSettings] = useState<WebsiteSettings>(initialSettings || defaultSettings)
+  const [isConnected, setIsConnected] = useState(!!initialSettings)
 
   useEffect(() => {
+    if (initialSettings) return
+
     let isMounted = true
 
     const loadSettings = async () => {
@@ -87,7 +90,7 @@ export const RealtimeProvider: React.FC<RealtimeProviderProps> = ({ children }) 
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [initialSettings])
 
   const updateSettings = async (newSettings: Partial<WebsiteSettings>) => {
     try {

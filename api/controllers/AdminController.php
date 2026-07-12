@@ -1363,16 +1363,23 @@ class AdminController {
             return;
         }
 
+        // Prevent self-deletion
+        if ((int)$user['id'] === $userId) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Cannot delete your own account']);
+            return;
+        }
+
         try {
             $this->db->beginTransaction();
 
-            $stmt = $this->db->prepare("SELECT id, role FROM users WHERE id = ? AND role = 'customer'");
+            $stmt = $this->db->prepare("SELECT id, role FROM users WHERE id = ?");
             $stmt->execute([$userId]);
             $target = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$target) {
                 $this->db->rollBack();
                 http_response_code(404);
-                echo json_encode(['error' => 'Customer not found']);
+                echo json_encode(['error' => 'User not found']);
                 return;
             }
 
@@ -1393,11 +1400,11 @@ class AdminController {
             $stmt->execute([$userId]);
 
             // Delete user
-            $stmt = $this->db->prepare("DELETE FROM users WHERE id = ? AND role = 'customer'");
+            $stmt = $this->db->prepare("DELETE FROM users WHERE id = ?");
             $stmt->execute([$userId]);
 
             $this->db->commit();
-            echo json_encode(['success' => true, 'message' => 'Customer deleted permanently']);
+            echo json_encode(['success' => true, 'message' => 'User deleted permanently']);
         } catch (PDOException $e) {
             $this->db->rollBack();
             http_response_code(500);

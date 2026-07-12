@@ -20,7 +20,7 @@ interface WebsiteSettings {
 
 interface RealtimeContextType {
   settings: WebsiteSettings
-  updateSettings: (newSettings: Partial<WebsiteSettings>) => void
+  updateSettings: (newSettings: Partial<WebsiteSettings>) => Promise<void>
   isConnected: boolean
 }
 
@@ -89,36 +89,32 @@ export const RealtimeProvider: React.FC<RealtimeProviderProps> = ({ children }) 
     }
   }, [])
 
-  const updateSettings = (newSettings: Partial<WebsiteSettings>) => {
-    const run = async () => {
-      try {
-        const res = await fetch('/api/settings', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(newSettings),
-        })
-        const data = await res.json().catch(() => null)
+  const updateSettings = async (newSettings: Partial<WebsiteSettings>) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newSettings),
+      })
+      const data = await res.json().catch(() => null)
 
-        if (!res.ok || !data?.success) {
-          setIsConnected(false)
-          return
-        }
-
-        if (data?.data) {
-          setSettings((prev) => ({
-            ...prev,
-            ...data.data,
-          }))
-        }
-        setIsConnected(true)
-      } catch {
+      if (!res.ok || !data?.success) {
         setIsConnected(false)
+        return
       }
-    }
 
-    run()
+      if (data?.data) {
+        setSettings((prev) => ({
+          ...prev,
+          ...data.data,
+        }))
+      }
+      setIsConnected(true)
+    } catch {
+      setIsConnected(false)
+    }
   }
 
   const value: RealtimeContextType = {

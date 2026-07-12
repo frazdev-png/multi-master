@@ -114,7 +114,7 @@ export default function GeneralSettings() {
       }
 
       // Send real-time update
-      updateSettings(realtimeUpdate)
+      await updateSettings(realtimeUpdate)
 
       setSaveMessage(`Settings saved successfully! ${isConnected ? "(Real-time updates enabled)" : "(Real-time disconnected)"}`)
       setSettings((prev) => ({

@@ -5,6 +5,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { RealtimeProvider } from "@/contexts/RealtimeContext"
+import { DynamicFavicon } from "@/components/dynamic-favicon"
 import { ChatWidget } from "@/components/chat/chat-widget"
 import { ToastContainer } from "@/components/ui/toast"
 
@@ -13,23 +14,6 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Sell1Mall - Multi-Vendor Marketplace",
   description: "Multi-vendor e-commerce platform for vendors and customers",
-  icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
-  },
 }
 
 export const viewport = {
@@ -48,6 +32,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <RealtimeProvider>
             {children}
+            <DynamicFavicon />
             <ChatWidget />
             <ToastContainer />
           </RealtimeProvider>

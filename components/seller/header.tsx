@@ -124,9 +124,14 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
           {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
 
-        <div>
-          <h2 className="text-lg font-semibold text-foreground truncate">Welcome to {settings.website_name || "Sell1Mall"}</h2>
-        </div>
+        <Link href="/seller" className="flex items-center gap-2 shrink-0">
+          <img
+            src={settings.logo_url || "/sell1mall-logo.png"}
+            alt={settings.website_name || "Sell1Mall"}
+            className="h-8 w-auto object-contain"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg" }}
+          />
+        </Link>
       </div>
 
       <div className="flex items-center gap-1 md:gap-2" ref={notifRef}>

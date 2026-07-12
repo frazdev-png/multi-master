@@ -10,24 +10,30 @@ const DEFAULT_ICONS = [
   { rel: "apple-touch-icon", url: "/apple-icon.png" },
 ]
 
+function addFavicon(href: string) {
+  let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']")
+  if (!link) {
+    link = document.createElement("link")
+    link.rel = "icon"
+    document.head.appendChild(link)
+  }
+  link.href = href
+}
+
 export function DynamicFavicon() {
   const { settings } = useRealtime()
-  const injectedRef = useRef(false)
+  const prevUrl = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
     const url = settings.favicon_url
-
-    const existing = document.querySelectorAll<HTMLLinkElement>("link[rel~='icon'], link[rel='apple-touch-icon']")
-    existing.forEach((el) => el.remove())
-
-    injectedRef.current = false
+    if (url === prevUrl.current) return
+    prevUrl.current = url
 
     if (url) {
-      const link = document.createElement("link")
-      link.rel = "icon"
-      link.href = url
-      document.head.appendChild(link)
+      addFavicon(url + "?v=" + Date.now())
     } else {
+      const existing = document.querySelectorAll<HTMLLinkElement>("link[rel~='icon']")
+      existing.forEach((el) => el.remove())
       DEFAULT_ICONS.forEach(({ rel, url, media, type }) => {
         const link = document.createElement("link")
         link.rel = rel

@@ -180,6 +180,9 @@ export default function GeneralSettings() {
                 />
                 <label htmlFor="logo-upload" className="cursor-pointer">
                   <Upload size={32} className="mx-auto text-muted-foreground mb-2" />
+                  {realtimeSettings.logo_url && !settings.logo ? (
+                    <img src={realtimeSettings.logo_url} alt="Logo" className="mx-auto max-h-12 object-contain mb-2" />
+                  ) : null}
                   <p className="text-sm">
                     {settings.logo
                       ? settings.logo.name
@@ -203,6 +206,9 @@ export default function GeneralSettings() {
                 />
                 <label htmlFor="favicon-upload" className="cursor-pointer">
                   <Upload size={32} className="mx-auto text-muted-foreground mb-2" />
+                  {realtimeSettings.favicon_url && !settings.favicon ? (
+                    <img src={realtimeSettings.favicon_url} alt="Favicon" className="mx-auto h-8 w-8 object-contain mb-2" />
+                  ) : null}
                   <p className="text-sm">
                     {settings.favicon
                       ? settings.favicon.name

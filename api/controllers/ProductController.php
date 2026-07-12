@@ -477,8 +477,9 @@ class ProductController {
         $search = $_GET['search'] ?? '';
         $category = $_GET['category'] ?? '';
         $status = $_GET['status'] ?? '';
-        $limit = min($_GET['limit'] ?? 50, 100);
-        $offset = $_GET['offset'] ?? 0;
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = min((int)($_GET['limit'] ?? 20), 100);
+        $offset = ($page - 1) * $limit;
 
         try {
             $this->ensureSellerProductsTable();
@@ -490,7 +491,42 @@ class ProductController {
                 $categorySelect = 'c.name as category_name';
             }
 
-            $sql = "
+            $baseFrom = "
+                FROM seller_products sp
+                JOIN products p ON p.id = sp.product_id
+                {$categoryJoin}
+                WHERE sp.seller_id = ?
+            ";
+            $countParams = [$user['id']];
+            $whereParams = [];
+
+            $where = '';
+            if ($search !== '') {
+                $where .= " AND (p.name LIKE ? OR p.description LIKE ?)";
+                $s = "%{$search}%";
+                $whereParams[] = $s;
+                $whereParams[] = $s;
+            }
+
+            if ($category !== '' && $category !== 'all' && $categoryJoin !== '') {
+                $where .= " AND c.name = ?";
+                $whereParams[] = $category;
+            }
+
+            if ($status !== '' && $status !== 'all') {
+                if ($status === 'Active') {
+                    $where .= " AND sp.is_active = 1";
+                } elseif ($status === 'Inactive') {
+                    $where .= " AND sp.is_active = 0";
+                }
+            }
+
+            $countSql = "SELECT COUNT(*) {$baseFrom}{$where}";
+            $countStmt = $this->db->prepare($countSql);
+            $countStmt->execute(array_merge($countParams, $whereParams));
+            $total = (int)$countStmt->fetchColumn();
+
+            $dataSql = "
                 SELECT
                     sp.id as seller_product_id,
                     sp.product_id,
@@ -507,39 +543,12 @@ class ProductController {
                     " . ($this->hasProductColumn('seller_profit') ? "(p.price + p.seller_profit) as final_price" : "p.price as final_price") . ",
                     p.is_active as admin_active,
                     {$categorySelect}
-                FROM seller_products sp
-                JOIN products p ON p.id = sp.product_id
-                {$categoryJoin}
-                WHERE sp.seller_id = ?
+                {$baseFrom}{$where}
+                ORDER BY sp.id DESC LIMIT ? OFFSET ?
             ";
-            $params = [$user['id']];
-
-            if ($search !== '') {
-                $sql .= " AND (p.name LIKE ? OR p.description LIKE ?)";
-                $s = "%{$search}%";
-                $params[] = $s;
-                $params[] = $s;
-            }
-
-            if ($category !== '' && $category !== 'all' && $categoryJoin !== '') {
-                $sql .= " AND c.name = ?";
-                $params[] = $category;
-            }
-
-            if ($status !== '' && $status !== 'all') {
-                if ($status === 'Active') {
-                    $sql .= " AND sp.is_active = 1";
-                } elseif ($status === 'Inactive') {
-                    $sql .= " AND sp.is_active = 0";
-                }
-            }
-
-            $sql .= " ORDER BY sp.id DESC LIMIT ? OFFSET ?";
-            $params[] = (int)$limit;
-            $params[] = (int)$offset;
-
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute($params);
+            $dataParams = array_merge($countParams, $whereParams, [(int)$limit, (int)$offset]);
+            $stmt = $this->db->prepare($dataSql);
+            $stmt->execute($dataParams);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $products = [];
@@ -563,7 +572,7 @@ class ProductController {
             }
 
             header('Content-Type: application/json');
-            echo json_encode(['products' => $products]);
+            echo json_encode(['products' => $products, 'total' => $total, 'page' => $page, 'limit' => $limit]);
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
@@ -571,8 +580,12 @@ class ProductController {
     }
 
     private function listAdminCatalog($user) {
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = min((int)($_GET['limit'] ?? 20), 100);
+        $offset = ($page - 1) * $limit;
+
         try {
-            $rows = $this->runWithIsActiveFallback(function () {
+            $result = $this->runWithIsActiveFallback(function () use ($page, $limit, $offset) {
                 $stockSelect = $this->stockSelectExpr('p');
                 $categoryJoin = '';
                 $categorySelect = "'' as category_name";
@@ -581,17 +594,28 @@ class ProductController {
                     $categorySelect = 'c.name as category_name';
                 }
 
-                $sql = "
-                    SELECT p.*, {$stockSelect}, {$categorySelect}
+                $baseFrom = "
                     FROM products p
                     {$categoryJoin}
                     WHERE p.seller_id IN (SELECT id FROM users WHERE role = 'admin')
                       AND " . $this->activeProductCondition('p') . "
                 ";
 
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute();
-                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $countSql = "SELECT COUNT(*) {$baseFrom}";
+                $countStmt = $this->db->prepare($countSql);
+                $countStmt->execute();
+                $total = (int)$countStmt->fetchColumn();
+
+                $dataSql = "
+                    SELECT p.*, {$stockSelect}, {$categorySelect}
+                    {$baseFrom}
+                    ORDER BY p.id DESC LIMIT ? OFFSET ?
+                ";
+                $stmt = $this->db->prepare($dataSql);
+                $stmt->execute([(int)$limit, (int)$offset]);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                return ['rows' => $rows, 'total' => $total, 'page' => $page, 'limit' => $limit];
             });
 
             $existingStmt = $this->db->prepare("SELECT product_id FROM seller_products WHERE seller_id = ?");
@@ -599,7 +623,7 @@ class ProductController {
             $existingIds = $existingStmt->fetchAll(PDO::FETCH_COLUMN);
 
             $products = [];
-            foreach ($rows as $row) {
+            foreach ($result['rows'] as $row) {
                 $products[] = [
                     'id' => (int)$row['id'],
                     'name' => $row['name'],
@@ -617,7 +641,7 @@ class ProductController {
             }
 
             header('Content-Type: application/json');
-            echo json_encode(['products' => $products]);
+            echo json_encode(['products' => $products, 'total' => $result['total'], 'page' => $result['page'], 'limit' => $result['limit']]);
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);

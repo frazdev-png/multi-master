@@ -462,7 +462,7 @@ const [showViewModal, setShowViewModal] = useState(false)
                     </tbody>
                   </table>
                 {total > 0 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-200 text-sm">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-200 text-sm sm:pr-14">
                     <p className="text-muted-foreground">
                       Showing {Math.min((page - 1) * perPage + 1, total)}–{Math.min(page * perPage, total)} of {total} products
                     </p>
@@ -551,7 +551,7 @@ const [showViewModal, setShowViewModal] = useState(false)
                   </div>
                 )}
                 {catalogTotal > 0 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-200 text-sm">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-200 text-sm sm:pr-14">
                     <p className="text-muted-foreground">
                       Showing {Math.min((catalogPage - 1) * perPage + 1, catalogTotal)}–{Math.min(catalogPage * perPage, catalogTotal)} of {catalogTotal} products
                     </p>

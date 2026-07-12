@@ -511,7 +511,7 @@ export default function ProductsManagement() {
 
       {/* Pagination */}
       {total > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm sm:pr-14">
           <p className="text-muted-foreground">
             Showing {Math.min((page - 1) * perPage + 1, total)}–{Math.min(page * perPage, total)} of {total} products
           </p>

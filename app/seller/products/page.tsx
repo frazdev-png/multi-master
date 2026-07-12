@@ -365,8 +365,7 @@ const [showViewModal, setShowViewModal] = useState(false)
 
             {!showAdminCatalog ? (
               /* Products Table */
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
+              <div className="bg-white shadow rounded-lg overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -462,7 +461,6 @@ const [showViewModal, setShowViewModal] = useState(false)
                       )}
                     </tbody>
                   </table>
-                </div>
                 {total > 0 && (
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-200 text-sm">
                     <p className="text-muted-foreground">
@@ -498,7 +496,7 @@ const [showViewModal, setShowViewModal] = useState(false)
               </div>
             ) : (
               /* Admin Catalog */
-              <div className="bg-white shadow rounded-lg overflow-hidden">
+              <div className="bg-white shadow rounded-lg overflow-x-auto">
                 <div className="p-4 border-b border-gray-200">
                   <h2 className="text-lg font-semibold text-gray-900">Admin Product Catalog</h2>
                   <p className="text-sm text-gray-500">Browse products added by admin and add them to your store</p>

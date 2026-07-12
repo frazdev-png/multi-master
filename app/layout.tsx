@@ -12,11 +12,6 @@ import { ToastContainer } from "@/components/ui/toast"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: "Sell1Mall - Multi-Vendor Marketplace",
-  description: "Multi-vendor e-commerce platform for vendors and customers",
-}
-
 export const viewport = {
   themeColor: "#2563eb",
   userScalable: "no",
@@ -34,6 +29,19 @@ async function getInitialSettings() {
     }
   } catch {}
   return null
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getInitialSettings()
+  const faviconUrl = settings?.favicon_url || "/icon.svg"
+
+  return {
+    title: "Sell1Mall - Multi-Vendor Marketplace",
+    description: "Multi-vendor e-commerce platform for vendors and customers",
+    icons: {
+      icon: faviconUrl,
+    },
+  }
 }
 
 export default async function RootLayout({

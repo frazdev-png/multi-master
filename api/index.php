@@ -162,6 +162,7 @@ $routes = [
     '/api/auth/admin-login' => ['controller' => 'AuthController', 'method' => 'adminLogin', 'http_method' => 'POST', 'endpoint' => 'admin-login'],
     '/api/auth/profile' => ['controller' => 'AuthController', 'method' => 'profile', 'http_method' => ['GET', 'PUT'], 'endpoint' => 'profile'],
     '/api/auth/me' => ['controller' => 'AuthController', 'method' => 'me', 'http_method' => 'GET', 'endpoint' => 'me'],
+    '/api/auth/heartbeat' => ['controller' => 'AuthController', 'method' => 'heartbeat', 'http_method' => 'POST', 'endpoint' => 'heartbeat'],
     
     // Chat endpoints
     '/api/conversations' => ['controller' => 'ChatController', 'method' => 'conversations', 'http_method' => ['GET', 'POST']],

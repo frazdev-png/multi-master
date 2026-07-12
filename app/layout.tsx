@@ -6,6 +6,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { RealtimeProvider } from "@/contexts/RealtimeContext"
 import { DynamicFavicon } from "@/components/dynamic-favicon"
+import { Heartbeat } from "@/components/heartbeat"
 import { ChatWidget } from "@/components/chat/chat-widget"
 import { ToastContainer } from "@/components/ui/toast"
 
@@ -48,6 +49,7 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <RealtimeProvider initialSettings={initialSettings}>
             {children}
+            <Heartbeat />
             <DynamicFavicon />
             <ChatWidget />
             <ToastContainer />

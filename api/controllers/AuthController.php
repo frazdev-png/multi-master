@@ -335,6 +335,21 @@ class AuthController {
         ]);
     }
 
+    public function heartbeat() {
+        $user = $this->auth->authenticate();
+        try {
+            $db = new Database();
+            $conn = $db->getConnection();
+            $input = json_decode(file_get_contents('php://input'), true);
+            $isOnline = !($input['offline'] ?? false);
+            $stmt = $conn->prepare("UPDATE users SET is_online = ?, last_seen = NOW() WHERE id = ?");
+            $stmt->execute([$isOnline ? 1 : 0, $user['id']]);
+            $this->sendResponse(['success' => true]);
+        } catch (Exception $e) {
+            $this->sendResponse(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
     // Get JSON input from request
     private function getRequestData() {
         $contentType = $_SERVER['CONTENT_TYPE'] ?? ($_SERVER['HTTP_CONTENT_TYPE'] ?? '');

@@ -31,6 +31,7 @@ interface Conversation {
   other_user_email: string
   other_user_role: string
   other_user_verified?: boolean | number
+  other_user_online?: boolean | number
   last_message: string | null
   last_message_at: string | null
   unread_count: number | string
@@ -260,10 +261,15 @@ export default function AdminMessagesPage() {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <Avatar className="h-7 w-7 shrink-0">
-                          <AvatarImage src={""} />
-                          <AvatarFallback className="text-xs">{(conv.other_user_name || "?").charAt(0)}</AvatarFallback>
-                        </Avatar>
+                        <div className="relative shrink-0">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={""} />
+                            <AvatarFallback className="text-xs">{(conv.other_user_name || "?").charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          {conv.other_user_online ? (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-card rounded-full" />
+                          ) : null}
+                        </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">
                             {conv.other_user_name}
@@ -302,15 +308,25 @@ export default function AdminMessagesPage() {
                 <div className="p-4 border-b border-border flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold">
-                        {selectedConv.other_user_name}
-                        {selectedConv.other_user_verified && Number(selectedConv.other_user_verified) === 1 && (
-                          <BadgeCheck size={16} className="inline ml-1 text-blue-500 -mt-0.5" />
-                        )}
-                      </h3>
+                      <div className="relative">
+                        <h3 className="font-bold">
+                          {selectedConv.other_user_name}
+                          {selectedConv.other_user_verified && Number(selectedConv.other_user_verified) === 1 && (
+                            <BadgeCheck size={16} className="inline ml-1 text-blue-500 -mt-0.5" />
+                          )}
+                        </h3>
+                        {selectedConv.other_user_online ? (
+                          <span className="absolute -top-0.5 -right-2.5 w-2 h-2 bg-green-500 rounded-full" />
+                        ) : null}
+                      </div>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full capitalize bg-muted text-muted-foreground">{selectedConv.other_user_role}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{selectedConv.other_user_email}</p>
+                    {selectedConv.other_user_online ? (
+                      <p className="text-[11px] text-green-600 font-medium mt-0.5">Online</p>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground mt-0.5">Offline</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Select

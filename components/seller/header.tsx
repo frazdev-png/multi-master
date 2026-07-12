@@ -128,7 +128,7 @@ export function SellerHeader({ onMobileMenuToggle, isMobileMenuOpen }: SellerHea
           <img
             src={settings.logo_url || "/sell1mall-logo.png"}
             alt={settings.website_name || "Sell1Mall"}
-            className="h-10 sm:h-14 w-auto object-contain"
+            className="h-16 w-auto object-contain"
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg" }}
           />
           <span className="text-sm sm:text-lg font-semibold text-foreground truncate">Welcome</span>

@@ -76,7 +76,7 @@ export default function HomepageSettings() {
         bannerUrl = await uploadAsset("homepage_banner", heroBannerFile)
       }
 
-      updateSettings({
+      await updateSettings({
         homepage_settings: {
           hero_banner_url: bannerUrl,
           hero_headline: headline,

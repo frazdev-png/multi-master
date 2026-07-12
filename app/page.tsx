@@ -38,6 +38,10 @@ export default function Home() {
 
   const heroBannerUrl = resolvePublicImageUrl((settings as any)?.homepage_settings?.hero_banner_url)
   const logoUrl = resolvePublicImageUrl((settings as any)?.logo_url)
+  const hs = (settings as any)?.homepage_settings || {}
+  const heroHeadline = hs.hero_headline || settings.tagline || "Your Multi-Vendor Marketplace"
+  const heroSubheadline = hs.hero_subheadline || "Experience seamless shopping with trusted sellers, powerful seller tools, and a growing community. All in one professional platform."
+  const heroCtaText = hs.hero_cta_text || "Start Shopping"
   
   return (
     <div className="min-h-screen bg-background">
@@ -144,17 +148,16 @@ export default function Home() {
           <div className="space-y-8">
             <div className="space-y-6">
               <h1 className="text-5xl lg:text-6xl font-bold text-balance leading-tight">
-                {settings.tagline || "Your Multi-Vendor Marketplace"}
+                {heroHeadline}
               </h1>
               <p className="text-xl text-muted-foreground text-balance leading-relaxed">
-                Experience seamless shopping with trusted sellers, powerful seller tools, and a growing community. All
-                in one professional platform.
+                {heroSubheadline}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-4">
               <Link href="/shop" className="btn-primary inline-flex items-center gap-2 text-base">
-                Start Shopping
+                {heroCtaText}
                 <ArrowRight size={20} />
               </Link>
               <Link href="/auth/register?role=seller" className="btn-secondary text-base">

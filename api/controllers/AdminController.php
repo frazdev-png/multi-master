@@ -884,7 +884,7 @@ class AdminController {
                     s.document_type,
                     s.id_front_image_url,
                     s.id_back_image_url,
-                    (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.id AND {$activeProduct}) as products,
+                    (SELECT COUNT(*) FROM products p WHERE p.seller_id = u.id) as products,
                     (SELECT COUNT(*) FROM orders o WHERE o.seller_id = u.id) as orders,
                     (SELECT COALESCE(SUM(o.total_amount),0) FROM orders o WHERE o.seller_id = u.id AND o.status != 'cancelled') as earnings
                 FROM users u

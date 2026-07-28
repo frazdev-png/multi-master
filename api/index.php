@@ -276,6 +276,13 @@ $routes = [
     '/api/settings/update' => ['controller' => 'SettingsController', 'method' => 'updateSettings', 'http_method' => 'POST'],
     '/api/settings/upload' => ['controller' => 'SettingsController', 'method' => 'uploadAsset', 'http_method' => 'POST'],
 
+    // Guest chat endpoints
+    '/api/guest/contact' => ['controller' => 'GuestChatController', 'method' => 'handleRequest', 'http_method' => ['GET', 'POST']],
+    '/api/guest/conversations/{token}' => ['controller' => 'GuestChatController', 'method' => 'handleRequest', 'http_method' => ['GET', 'POST']],
+    '/api/guest/conversations/{token}/messages' => ['controller' => 'GuestChatController', 'method' => 'handleRequest', 'http_method' => 'POST'],
+    '/api/admin/guest-conversations' => ['controller' => 'GuestChatController', 'method' => 'handleRequest', 'http_method' => 'GET'],
+    '/api/admin/guest-conversations/{id}/messages' => ['controller' => 'GuestChatController', 'method' => 'handleRequest', 'http_method' => 'GET'],
+
 ];
 
 // Handle static files in uploads directory

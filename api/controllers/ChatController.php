@@ -1303,6 +1303,54 @@ class ChatController {
             $stmt->execute($params);
             $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Also fetch guest conversations and merge
+            if ($this->hasConversationColumn('is_guest')) {
+                $guestSql = "
+                    SELECT 
+                        c.id as conversation_id,
+                        c.created_at,
+                        c.updated_at,
+                        {$statusSelect}
+                        {$subjectSelect}
+                        0 as other_user_id,
+                        c.guest_name as other_user_name,
+                        '' as other_user_email,
+                        NULL as other_user_avatar,
+                        'guest' as other_user_role,
+                        0 as other_user_online,
+                        NULL as other_user_last_seen,
+                        0 as other_user_verified,
+                        {$lastMessageExpr} as last_message,
+                        m.created_at as last_message_at,
+                        m.sender_id as last_message_sender_id,
+                        0 as unread_count
+                    FROM conversations c
+                    LEFT JOIN messages m ON (
+                        m.id = (
+                            SELECT id FROM messages 
+                            WHERE conversation_id = c.id 
+                            ORDER BY created_at DESC 
+                            LIMIT 1
+                        )
+                    )
+                    WHERE c.is_guest = 1
+                ";
+                $guestParams = [];
+                if ($status !== '' && $this->hasConversationColumn('status')) {
+                    $guestSql .= " AND c.status = ?";
+                    $guestParams[] = $status;
+                }
+                if ($search !== '') {
+                    $guestSql .= " AND c.guest_name LIKE ?";
+                    $guestParams[] = "%$search%";
+                }
+                $guestSql .= " ORDER BY COALESCE(m.created_at, c.updated_at, c.created_at) DESC";
+                $gStmt = $this->db->prepare($guestSql);
+                $gStmt->execute($guestParams);
+                $guestConvs = $gStmt->fetchAll(PDO::FETCH_ASSOC);
+                $conversations = array_merge($guestConvs, $conversations);
+            }
+
             header('Content-Type: application/json');
             echo json_encode(['conversations' => $conversations]);
         } catch (PDOException $e) {

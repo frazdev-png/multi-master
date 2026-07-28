@@ -39,18 +39,6 @@ interface Conversation {
   subject: string | null
 }
 
-interface GuestConversation {
-  conversation_id: number
-  guest_name: string
-  status: string
-  created_at: string
-  updated_at: string
-  last_message: string | null
-  last_message_at: string | null
-  last_message_sender_id: number | null
-  is_guest: true
-}
-
 const statusColors: Record<string, string> = {
   open: "bg-green-100 text-green-700",
   under_review: "bg-yellow-100 text-yellow-700",
@@ -59,7 +47,7 @@ const statusColors: Record<string, string> = {
 }
 
 export default function AdminMessagesPage() {
-  const [conversations, setConversations] = useState<(Conversation | GuestConversation)[]>([])
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConvId, setSelectedConvId] = useState<number | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [messageInput, setMessageInput] = useState("")
@@ -72,6 +60,8 @@ export default function AdminMessagesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  const isGuestConv = (conv: Conversation) => conv.other_user_role === "guest"
+
   const loadConversations = async () => {
     try {
       setIsLoading(true)
@@ -82,20 +72,7 @@ export default function AdminMessagesPage() {
       const res = await fetch(`/api/backend/admin/conversations?${qs.toString()}`)
       const data = await res.json().catch(() => null)
       if (!res.ok) throw new Error(data?.error || "Failed to load conversations")
-      const normal = Array.isArray(data?.conversations) ? data.conversations : []
-
-      // Also fetch guest conversations
-      let guest: GuestConversation[] = []
-      try {
-        const guestRes = await fetch("/api/backend/admin/guest-conversations")
-        const guestData = await guestRes.json().catch(() => null)
-        if (guestRes.ok && Array.isArray(guestData?.conversations)) {
-          guest = guestData.conversations.map((g: any) => ({ ...g, is_guest: true as const }))
-        }
-      } catch {}
-
-      // Merge: guest conversations first, then normal
-      setConversations([...guest, ...normal])
+      setConversations(Array.isArray(data?.conversations) ? data.conversations : [])
     } catch (e: any) {
       setError(e?.message || "Failed to load conversations")
     } finally {
@@ -128,8 +105,8 @@ export default function AdminMessagesPage() {
     return () => clearInterval(interval)
   }, [])
 
-  const selectConversation = async (conv: Conversation | GuestConversation) => {
-    const isGuest = "is_guest" in conv && conv.is_guest
+  const selectConversation = async (conv: Conversation) => {
+    const isGuest = conv.other_user_role === "guest"
     setSelectedIsGuest(isGuest)
     setSelectedConvId(conv.conversation_id)
     await loadMessages(conv.conversation_id, isGuest)
@@ -227,8 +204,6 @@ export default function AdminMessagesPage() {
 
   const selectedConv = conversations.find((c) => c.conversation_id === selectedConvId)
 
-  const isGuestConv = (conv: any): conv is GuestConversation => conv?.is_guest === true
-
   const formatTime = (iso?: string) => {
     if (!iso) return ""
     const d = new Date(iso)
@@ -300,21 +275,21 @@ export default function AdminMessagesPage() {
                         <div className="relative shrink-0">
                           <Avatar className="h-7 w-7">
                             <AvatarImage src={""} />
-                            <AvatarFallback className="text-xs">{isGuest ? "G" : (conv as Conversation).other_user_name?.charAt(0) || "?"}</AvatarFallback>
+                            <AvatarFallback className="text-xs">{isGuest ? "G" : conv.other_user_name?.charAt(0) || "?"}</AvatarFallback>
                           </Avatar>
-                          {!isGuest && (conv as Conversation).other_user_online ? (
+                          {!isGuest && conv.other_user_online ? (
                             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-card rounded-full" />
                           ) : null}
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {isGuest ? (conv as GuestConversation).guest_name : (conv as Conversation).other_user_name}
+                            {conv.other_user_name}
                             {isGuest && <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">Guest</Badge>}
-                            {!isGuest && (conv as Conversation).other_user_verified && Number((conv as Conversation).other_user_verified) === 1 && (
+                            {!isGuest && conv.other_user_verified && Number(conv.other_user_verified) === 1 && (
                               <BadgeCheck size={14} className="inline ml-1 text-blue-500 -mt-0.5" />
                             )}
                           </p>
-                          <p className="text-[10px] text-muted-foreground capitalize">{isGuest ? "guest" : (conv as Conversation).other_user_role}</p>
+                          <p className="text-[10px] text-muted-foreground capitalize">{isGuest ? "guest" : conv.other_user_role}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -348,20 +323,20 @@ export default function AdminMessagesPage() {
                     <div className="flex items-center gap-2">
                       <div className="relative">
                         <h3 className="font-bold">
-                          {isGuestConv(selectedConv) ? selectedConv.guest_name : (selectedConv as Conversation).other_user_name}
+                          {selectedConv.other_user_name}
                           {isGuestConv(selectedConv) && <Badge variant="secondary" className="ml-2 text-[9px] px-1 py-0">Guest</Badge>}
-                          {!isGuestConv(selectedConv) && (selectedConv as Conversation).other_user_verified && Number((selectedConv as Conversation).other_user_verified) === 1 && (
+                          {!isGuestConv(selectedConv) && selectedConv.other_user_verified && Number(selectedConv.other_user_verified) === 1 && (
                             <BadgeCheck size={16} className="inline ml-1 text-blue-500 -mt-0.5" />
                           )}
                         </h3>
-                        {!isGuestConv(selectedConv) && (selectedConv as Conversation).other_user_online ? (
+                        {!isGuestConv(selectedConv) && selectedConv.other_user_online ? (
                           <span className="absolute -top-0.5 -right-2.5 w-2 h-2 bg-green-500 rounded-full" />
                         ) : null}
                       </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full capitalize bg-muted text-muted-foreground">{isGuestConv(selectedConv) ? "guest" : (selectedConv as Conversation).other_user_role}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full capitalize bg-muted text-muted-foreground">{isGuestConv(selectedConv) ? "guest" : selectedConv.other_user_role}</span>
                     </div>
-                    {!isGuestConv(selectedConv) && <p className="text-xs text-muted-foreground">{(selectedConv as Conversation).other_user_email}</p>}
-                    {!isGuestConv(selectedConv) && ((selectedConv as Conversation).other_user_online ? (
+                    {!isGuestConv(selectedConv) && <p className="text-xs text-muted-foreground">{selectedConv.other_user_email}</p>}
+                    {!isGuestConv(selectedConv) && (selectedConv.other_user_online ? (
                       <p className="text-[11px] text-green-600 font-medium mt-0.5">Online</p>
                     ) : (
                       <p className="text-[11px] text-muted-foreground mt-0.5">Offline</p>

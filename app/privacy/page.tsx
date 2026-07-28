@@ -66,7 +66,7 @@ export default function PrivacyPage() {
             <h2 className="text-2xl font-semibold mt-8">7. Contact Us</h2>
             <p>
               If you have any questions about this Privacy Policy, please contact us at
-              support@sell1mall.com.
+              {settings.email || "support@sell1mall.com"}.
             </p>
           </div>
         </div>

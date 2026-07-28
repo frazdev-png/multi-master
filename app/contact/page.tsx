@@ -29,7 +29,7 @@ export default function ContactPage() {
               <Mail className="w-6 h-6 text-primary mt-1" />
               <div>
                 <h3 className="font-semibold mb-1">Email</h3>
-                <p className="text-muted-foreground">support@sell1mall.com</p>
+                <p className="text-muted-foreground">{settings.email || "support@sell1mall.com"}</p>
                 <p className="text-muted-foreground">We reply within 24 hours</p>
               </div>
             </div>
@@ -37,7 +37,7 @@ export default function ContactPage() {
               <Phone className="w-6 h-6 text-primary mt-1" />
               <div>
                 <h3 className="font-semibold mb-1">Phone</h3>
-                <p className="text-muted-foreground">+1 (555) 123-4567</p>
+                <p className="text-muted-foreground">{settings.phone || "+1 (555) 123-4567"}</p>
                 <p className="text-muted-foreground">Mon-Fri 9AM-6PM</p>
               </div>
             </div>
@@ -45,8 +45,8 @@ export default function ContactPage() {
               <MapPin className="w-6 h-6 text-primary mt-1" />
               <div>
                 <h3 className="font-semibold mb-1">Address</h3>
-                <p className="text-muted-foreground">123 Commerce Street</p>
-                <p className="text-muted-foreground">New York, NY 10001</p>
+                <p className="text-muted-foreground">{settings.address || "123 Commerce Street, New York, NY 10001"}</p>
+                {settings.address && settings.address.includes(",") ? null : <p className="text-muted-foreground">New York, NY 10001</p>}
               </div>
             </div>
             <div className="flex items-start gap-4 p-6 bg-card rounded-lg border border-border">

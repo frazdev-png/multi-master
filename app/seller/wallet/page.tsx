@@ -70,7 +70,7 @@ export default function SellerWalletPage() {
 
   const [withdrawForm, setWithdrawForm] = useState({
     email: "",
-    payment_method: "binance" as "binance" | "paypal",
+    payment_method: "binance" as "binance" | "paypal" | "usdt" | "trustwallet",
     payout_account: "",
     account_holder_name: "",
     amount: "",
@@ -272,6 +272,8 @@ export default function SellerWalletPage() {
                 <SelectContent>
                   <SelectItem value="binance">Binance</SelectItem>
                   <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="usdt">USDT</SelectItem>
+                  <SelectItem value="trustwallet">Trust Wallet</SelectItem>
                 </SelectContent>
               </Select>
             </div>

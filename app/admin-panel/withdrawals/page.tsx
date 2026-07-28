@@ -216,6 +216,8 @@ export default function AdminWithdrawalsPage() {
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="binance">Binance</SelectItem>
                 <SelectItem value="paypal">PayPal</SelectItem>
+                <SelectItem value="usdt">USDT</SelectItem>
+                <SelectItem value="trustwallet">Trust Wallet</SelectItem>
               </SelectContent>
             </Select>
           </div>

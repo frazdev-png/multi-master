@@ -117,7 +117,7 @@ class WithdrawalController {
 
     private function validatePaymentMethod($method) {
         $m = strtolower(trim((string)$method));
-        return in_array($m, ['binance', 'paypal'], true) ? $m : null;
+        return in_array($m, ['binance', 'paypal', 'usdt', 'trustwallet'], true) ? $m : null;
     }
 
     private function parseAmount($amount) {

@@ -90,16 +90,6 @@ export function ChatWidget() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Guest chat state
-  const [isGuest, setIsGuest] = useState(false)
-  const [guestToken, setGuestToken] = useState<string | null>(null)
-  const [guestName, setGuestName] = useState("")
-  const [guestEmail, setGuestEmail] = useState("")
-  const [guestMsg, setGuestMsg] = useState("")
-  const [guestConvId, setGuestConvId] = useState<number | null>(null)
-
-  const GUEST_TOKEN_KEY = "multi_master_guest_token"
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }

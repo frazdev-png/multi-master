@@ -4,7 +4,25 @@ import { Save, Upload } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRealtime } from "@/contexts/RealtimeContext"
+
+const STAT_ICONS = [
+  { value: "cart", label: "Cart" },
+  { value: "users", label: "Users" },
+  { value: "star", label: "Star" },
+  { value: "trending", label: "Trending Up" },
+  { value: "dollar", label: "Dollar" },
+  { value: "package", label: "Package" },
+  { value: "heart", label: "Heart" },
+  { value: "zap", label: "Zap" },
+]
+
+interface StatConfig {
+  value: string;
+  label: string;
+  icon: string;
+}
 
 export default function HomepageSettings() {
   const { settings: realtimeSettings, updateSettings } = useRealtime()
@@ -27,6 +45,14 @@ export default function HomepageSettings() {
   const [showFeaturedProducts, setShowFeaturedProducts] = useState(true)
   const [showPromotionalBanners, setShowPromotionalBanners] = useState(false)
 
+  const defaultStats: StatConfig[] = [
+    { value: "1K+", label: "Products Listed", icon: "cart" },
+    { value: "500K+", label: "Active Sellers", icon: "users" },
+    { value: "50M+", label: "Happy Customers", icon: "star" },
+    { value: "2M+", label: "Monthly Sales", icon: "trending" },
+  ]
+  const [stats, setStats] = useState<StatConfig[]>(defaultStats)
+
   useEffect(() => {
     const hs = (realtimeSettings as any)?.homepage_settings || {}
     setHeroBannerUrl(typeof hs.hero_banner_url === "string" ? hs.hero_banner_url : null)
@@ -38,6 +64,10 @@ export default function HomepageSettings() {
     setShowFeaturedCategories(hs.show_featured_categories !== false)
     setShowFeaturedProducts(hs.show_featured_products !== false)
     setShowPromotionalBanners(Boolean(hs.show_promotional_banners))
+
+    if (Array.isArray(hs.stats)) {
+      setStats(hs.stats)
+    }
   }, [realtimeSettings, defaultHeadline])
 
   const uploadAsset = async (type: "homepage_banner", file: File) => {
@@ -86,6 +116,7 @@ export default function HomepageSettings() {
           show_featured_categories: showFeaturedCategories,
           show_featured_products: showFeaturedProducts,
           show_promotional_banners: showPromotionalBanners,
+          stats,
         },
       })
 
@@ -175,6 +206,41 @@ export default function HomepageSettings() {
             <span>Show Promotional Banners</span>
           </label>
         </div>
+      </div>
+
+      {/* Stats Section */}
+      <div className="admin-panel-table p-6 space-y-4">
+        <h2 className="text-xl font-bold">Stats Section</h2>
+        <p className="text-sm text-muted-foreground">Configure the statistics shown on homepage</p>
+        {stats.map((stat, i) => (
+          <div key={i} className="grid grid-cols-3 gap-3 items-end border-b border-border pb-3">
+            <div>
+              <label className="block text-xs font-medium mb-1">Label</label>
+              <Input value={stat.label} onChange={(e) => {
+                const s = [...stats]; s[i] = { ...s[i], label: e.target.value }; setStats(s)
+              }} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Value</label>
+              <Input value={stat.value} onChange={(e) => {
+                const s = [...stats]; s[i] = { ...s[i], value: e.target.value }; setStats(s)
+              }} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Icon</label>
+              <Select value={stat.icon} onValueChange={(v) => {
+                const s = [...stats]; s[i] = { ...s[i], icon: v }; setStats(s)
+              }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {STAT_ICONS.map((ic) => (
+                    <SelectItem key={ic.value} value={ic.value}>{ic.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="flex justify-end">

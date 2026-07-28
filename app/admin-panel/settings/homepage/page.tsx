@@ -22,6 +22,8 @@ interface StatConfig {
   value: string;
   label: string;
   icon: string;
+  imageUrl?: string;
+  imageFile?: File;
 }
 
 export default function HomepageSettings() {
@@ -106,6 +108,20 @@ export default function HomepageSettings() {
         bannerUrl = await uploadAsset("homepage_banner", heroBannerFile)
       }
 
+      const updatedStats = await Promise.all(stats.map(async (s) => {
+        const copy = { ...s }
+        if (s.imageFile) {
+          const formData = new FormData()
+          formData.append("type", "homepage_banner")
+          formData.append("file", s.imageFile)
+          const res = await fetch("/api/backend/settings/upload", { method: "POST", body: formData })
+          const d = await res.json()
+          if (d?.success && d?.url) copy.imageUrl = String(d.url)
+          delete copy.imageFile
+        }
+        return copy
+      }))
+
       await updateSettings({
         homepage_settings: {
           hero_banner_url: bannerUrl,
@@ -116,7 +132,7 @@ export default function HomepageSettings() {
           show_featured_categories: showFeaturedCategories,
           show_featured_products: showFeaturedProducts,
           show_promotional_banners: showPromotionalBanners,
-          stats,
+          stats: updatedStats,
         },
       })
 
@@ -213,31 +229,52 @@ export default function HomepageSettings() {
         <h2 className="text-xl font-bold">Stats Section</h2>
         <p className="text-sm text-muted-foreground">Configure the statistics shown on homepage</p>
         {stats.map((stat, i) => (
-          <div key={i} className="grid grid-cols-3 gap-3 items-end border-b border-border pb-3">
-            <div>
-              <label className="block text-xs font-medium mb-1">Label</label>
-              <Input value={stat.label} onChange={(e) => {
-                const s = [...stats]; s[i] = { ...s[i], label: e.target.value }; setStats(s)
-              }} />
+          <div key={i} className="border-b border-border pb-4 space-y-2">
+            <div className="grid grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-medium mb-1">Label</label>
+                <Input value={stat.label} onChange={(e) => {
+                  const s = [...stats]; s[i] = { ...s[i], label: e.target.value }; setStats(s)
+                }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Value</label>
+                <Input value={stat.value} onChange={(e) => {
+                  const s = [...stats]; s[i] = { ...s[i], value: e.target.value }; setStats(s)
+                }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Icon</label>
+                <Select value={stat.icon} onValueChange={(v) => {
+                  const s = [...stats]; s[i] = { ...s[i], icon: v }; setStats(s)
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STAT_ICONS.map((ic) => (
+                      <SelectItem key={ic.value} value={ic.value}>{ic.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">Value</label>
-              <Input value={stat.value} onChange={(e) => {
-                const s = [...stats]; s[i] = { ...s[i], value: e.target.value }; setStats(s)
-              }} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Icon</label>
-              <Select value={stat.icon} onValueChange={(v) => {
-                const s = [...stats]; s[i] = { ...s[i], icon: v }; setStats(s)
-              }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {STAT_ICONS.map((ic) => (
-                    <SelectItem key={ic.value} value={ic.value}>{ic.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="block text-xs font-medium mb-1">Custom Image (optional — replaces icon)</label>
+              <div className="flex items-center gap-3">
+                <input type="file" accept="image/*" className="text-xs" onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) {
+                    const s = [...stats]; s[i] = { ...s[i], imageFile: f, imageUrl: URL.createObjectURL(f) }; setStats(s)
+                  }
+                }} />
+                {stat.imageUrl && (
+                  <div className="relative">
+                    <img src={stat.imageUrl} alt="" className="h-8 w-8 object-contain rounded" />
+                    <button type="button" className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] rounded-full h-4 w-4 flex items-center justify-center" onClick={() => {
+                      const s = [...stats]; s[i] = { ...s[i], imageUrl: undefined, imageFile: undefined }; setStats(s)
+                    }}>×</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ))}

@@ -265,7 +265,13 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {stats.map((stat, i) => (
             <div key={i} className="card text-center">
-              <div className="text-primary mb-3 flex justify-center">{statIcons[stat.icon] || statIcons.star}</div>
+              <div className="text-primary mb-3 flex justify-center">
+                {stat.imageUrl ? (
+                  <img src={stat.imageUrl} alt="" className="h-8 w-8 object-contain" />
+                ) : (
+                  statIcons[stat.icon] || statIcons.star
+                )}
+              </div>
               <p className="text-4xl font-bold text-foreground mb-2">{stat.value}</p>
               <p className="text-muted-foreground text-sm">{stat.label}</p>
             </div>

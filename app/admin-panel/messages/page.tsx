@@ -403,6 +403,10 @@ export default function AdminMessagesPage() {
                                 {msg.content && <p className="text-sm">{msg.content}</p>}
                                 <img src={msg.attachment_url} alt="Attachment" className="max-w-full rounded cursor-pointer" style={{ maxHeight: 200 }} onClick={() => window.open(msg.attachment_url, "_blank")} />
                               </div>
+                            ) : msg.message_type === "image" && msg.content && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(msg.content) ? (
+                              <div className="space-y-1">
+                                <img src={msg.content} alt="Image" className="max-w-full rounded cursor-pointer" style={{ maxHeight: 200 }} onClick={() => window.open(msg.content, "_blank")} />
+                              </div>
                             ) : msg.attachment_url && msg.attachment_type === "document" ? (
                               <div className="flex items-center gap-2">
                                 <FileText size={16} />

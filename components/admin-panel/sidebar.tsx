@@ -108,6 +108,7 @@ export function AdminPanelSidebar() {
         { href: "/admin-panel/promo-codes", icon: Tag, label: "Seller Promo Codes", permissionSlug: "promo_codes.view" },
         { href: "/admin-panel/blog", icon: BookOpen, label: "Blog", permissionSlug: "blog.view" },
         { href: "/admin-panel/messages", icon: Mail, label: "Messages", permissionSlug: "messages.view" },
+        { href: "/admin-panel/guest-messages", icon: Mail, label: "Guest Messages", permissionSlug: "messages.view" },
       ],
     },
     {

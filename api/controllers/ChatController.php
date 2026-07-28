@@ -1490,7 +1490,9 @@ class ChatController {
         $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         
         // Parse the request to determine which method to call
-        if (strpos($requestUri, '/api/conversations') !== false) {
+        if (strpos($requestUri, '/api/admin/conversations') !== false) {
+            $this->adminGetAllConversations();
+        } elseif (strpos($requestUri, '/api/conversations') !== false) {
             if (preg_match('/\/api\/conversations\/(\d+)\/status/', $requestUri, $matches)) {
                 if ($method === 'PUT') {
                     $this->updateConversationStatus();
@@ -1509,8 +1511,6 @@ class ChatController {
             } else {
                 $this->conversations();
             }
-        } elseif (strpos($requestUri, '/api/admin/conversations') !== false) {
-            $this->adminGetAllConversations();
         } elseif ($requestUri === '/api/messages/upload') {
             $this->uploadAttachment();
         } elseif (strpos($requestUri, '/api/messages') !== false) {

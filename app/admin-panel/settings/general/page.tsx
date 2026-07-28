@@ -91,8 +91,7 @@ export default function GeneralSettings() {
     setIsSaving(true)
     setSaveMessage("")
     
-    // Update real-time settings with database field names
-    const realtimeUpdate: any = {
+    const payload: any = {
       website_name: settings.websiteName,
       tagline: settings.tagline,
       currency: settings.currency,
@@ -107,16 +106,29 @@ export default function GeneralSettings() {
 
     try {
       if (settings.logo) {
-        realtimeUpdate.logo_url = await uploadAsset("logo", settings.logo)
+        payload.logo_url = await uploadAsset("logo", settings.logo)
       }
       if (settings.favicon) {
-        realtimeUpdate.favicon_url = await uploadAsset("favicon", settings.favicon)
+        payload.favicon_url = await uploadAsset("favicon", settings.favicon)
       }
 
-      // Send real-time update
-      await updateSettings(realtimeUpdate)
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json().catch(() => null)
 
-      setSaveMessage(`Settings saved successfully! ${isConnected ? "(Real-time updates enabled)" : "(Real-time disconnected)"}`)
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "Failed to save settings")
+      }
+
+      // Update context with fresh data from server (best-effort)
+      if (data?.data) {
+        try { await updateSettings(data.data) } catch {}
+      }
+
+      setSaveMessage(`Settings saved successfully!`)
       setSettings((prev) => ({
         ...prev,
         logo: null,

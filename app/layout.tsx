@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { RealtimeProvider } from "@/contexts/RealtimeContext"
 import { DynamicFavicon } from "@/components/dynamic-favicon"
 import { Heartbeat } from "@/components/heartbeat"
-import { ChatSupport } from "@/components/chat/chat-support"
+import { ChatWidget } from "@/components/chat/chat-widget"
 import { ToastContainer } from "@/components/ui/toast"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -59,7 +59,7 @@ export default async function RootLayout({
             {children}
             <Heartbeat />
             <DynamicFavicon />
-            <ChatSupport />
+            <ChatWidget />
             <ToastContainer />
           </RealtimeProvider>
         </ThemeProvider>

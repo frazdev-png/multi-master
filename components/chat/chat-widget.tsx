@@ -90,6 +90,16 @@ export function ChatWidget() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // Guest chat state
+  const [isGuest, setIsGuest] = useState(false)
+  const [guestToken, setGuestToken] = useState<string | null>(null)
+  const [guestName, setGuestName] = useState("")
+  const [guestEmail, setGuestEmail] = useState("")
+  const [guestMsg, setGuestMsg] = useState("")
+  const [guestConvId, setGuestConvId] = useState<number | null>(null)
+
+  const GUEST_TOKEN_KEY = "multi_master_guest_token"
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -154,7 +164,7 @@ export function ChatWidget() {
         isOnline: true,
       })
     } catch (e: any) {
-      setError(e?.message || "Failed to load current user")
+      setIsGuest(true)
     }
   }, [])
 
@@ -270,6 +280,113 @@ export function ChatWidget() {
     }
   }, [loadMessages])
 
+  // Guest: fetch existing conversation from saved token
+  const loadGuestConversation = useCallback(async (token: string) => {
+    try {
+      const res = await fetch(`/api/backend/guest/conversations/${token}`)
+      const data = await res.json()
+      if (data?.success && data?.conversation) {
+        setGuestConvId(data.conversation.id)
+        setGuestToken(token)
+        setShowInbox(false)
+        const msgs: Message[] = (data.messages || []).map((m: any) => ({
+          id: String(m.id),
+          text: m.content || "",
+          sender: m.sender_name || "",
+          senderId: String(m.sender_id),
+          timestamp: m.created_at ? new Date(m.created_at) : new Date(),
+          isRead: false,
+        }))
+        setMessages(msgs)
+      } else {
+        localStorage.removeItem(GUEST_TOKEN_KEY)
+      }
+    } catch {}
+  }, [])
+
+  // Guest: start new contact
+  const startGuestContact = async () => {
+    if (!guestName.trim() || !guestMsg.trim()) return
+    setError("")
+    setIsLoading(true)
+    try {
+      const res = await fetch("/api/backend/guest/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: guestName.trim(), email: guestEmail.trim(), message: guestMsg.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Failed to send")
+      if (!data?.token) throw new Error("No token received")
+
+      localStorage.setItem(GUEST_TOKEN_KEY, data.token)
+      setGuestToken(data.token)
+      setGuestConvId(data.conversation_id)
+      setMessages([{
+        id: "tmp-1",
+        text: guestMsg.trim(),
+        sender: guestName.trim(),
+        senderId: "0",
+        timestamp: new Date(),
+        isRead: false,
+      }])
+      setGuestMsg("")
+    } catch (e: any) {
+      setError(e?.message || "Something went wrong")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Guest: send message
+  const sendGuestMessage = async (content: string) => {
+    if (!content.trim() || !guestToken) return
+    const text = content.trim()
+    setMessage("")
+    setMessages(prev => [...prev, {
+      id: `tmp-${Date.now()}`,
+      text,
+      sender: guestName || "You",
+      senderId: "0",
+      timestamp: new Date(),
+      isRead: false,
+    }])
+    try {
+      const res = await fetch(`/api/backend/guest/conversations/${guestToken}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "Failed to send")
+    } catch (e: any) {
+      setError(e?.message || "Failed to send")
+    }
+  }
+
+  // Guest: poll for new messages
+  useEffect(() => {
+    if (!isGuest || !guestToken || !guestConvId) return
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/backend/guest/conversations/${guestToken}`)
+        const data = await res.json()
+        if (data?.success && data?.messages) {
+          const msgs: Message[] = data.messages.map((m: any) => ({
+            id: String(m.id),
+            text: m.content || "",
+            sender: m.sender_name || "",
+            senderId: String(m.sender_id),
+            timestamp: m.created_at ? new Date(m.created_at) : new Date(),
+            isRead: false,
+          }))
+          setMessages(msgs)
+        }
+      } catch {}
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [isGuest, guestToken, guestConvId])
+
   const connectWebSocket = useCallback(async () => {
     if (wsRef.current) return
     try {
@@ -373,6 +490,13 @@ export function ChatWidget() {
   useEffect(() => {
     if (!isOpen) return
     loadCurrentUser()
+
+    // Check for saved guest token
+    const saved = localStorage.getItem(GUEST_TOKEN_KEY)
+    if (saved) {
+      loadGuestConversation(saved)
+    }
+
     loadConversations()
     connectWebSocket()
     return () => {
@@ -382,14 +506,22 @@ export function ChatWidget() {
       }
       setWsStatus('disconnected')
     }
-  }, [connectWebSocket, isOpen, loadConversations, loadCurrentUser])
+  }, [connectWebSocket, isOpen, loadConversations, loadCurrentUser, loadGuestConversation])
 
   useEffect(() => {
     selectedConversationIdRef.current = selectedUser?.conversationId ?? null
   }, [selectedUser?.conversationId])
 
   const sendMessage = async () => {
-    if (!message.trim() || !selectedUser?.conversationId || !currentUser) return
+    if (!message.trim()) return
+
+    // Guest mode
+    if (isGuest) {
+      await sendGuestMessage(message)
+      return
+    }
+
+    if (!selectedUser?.conversationId || !currentUser) return
 
     const optimistic: Message = {
       id: `tmp-${Date.now()}`,
@@ -710,9 +842,27 @@ export function ChatWidget() {
                   </div>
                   <ScrollArea className="h-[calc(100%-45px)]">
                     <div className="py-1">
-                      {isLoading && !chatUsers.length ? (
+                      {isLoading && !chatUsers.length && !isGuest ? (
                         <div className="flex items-center justify-center py-12">
                           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : isGuest && !guestConvId ? (
+                        <div className="p-4 space-y-3">
+                          <p className="text-sm font-medium text-center mb-2">Contact Admin</p>
+                          <Input placeholder="Your name *" value={guestName} onChange={e => setGuestName(e.target.value)} />
+                          <Input placeholder="Email (optional)" type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} />
+                          <textarea
+                            placeholder="Your message *"
+                            className="w-full min-h-[80px] rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                            value={guestMsg}
+                            onChange={e => setGuestMsg(e.target.value)}
+                          />
+                          {error && <p className="text-xs text-destructive">{error}</p>}
+                          <Button className="w-full" onClick={startGuestContact} disabled={isLoading || !guestName.trim() || !guestMsg.trim()}>
+                            {isLoading ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                            <span className="ml-2">Send Message</span>
+                          </Button>
+                          <p className="text-[10px] text-muted-foreground text-center">No account needed.</p>
                         </div>
                       ) : chatUsers.length === 0 ? (
                         <div className="py-12 text-center px-4">
@@ -786,7 +936,7 @@ export function ChatWidget() {
                 </div>
 
                 {/* Chat Area */}
-                {selectedUser && (
+                {(selectedUser || (isGuest && guestConvId)) && (
                   <div className={cn(
                     "flex-1 flex flex-col",
                     showInbox ? "hidden" : "flex"
@@ -794,33 +944,40 @@ export function ChatWidget() {
                     {/* Chat Header */}
                     <div className="px-4 py-3 border-b border-border bg-background/50 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-3 min-w-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 shrink-0"
-                          onClick={handleBackToInbox}
-                        >
-                          <ArrowLeft className="h-4 w-4" />
-                        </Button>
+                        {!isGuest && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={handleBackToInbox}
+                          >
+                            <ArrowLeft className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarImage src={selectedUser.avatar} />
+                          <AvatarImage src={selectedUser?.avatar} />
                           <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {selectedUser.name.charAt(0).toUpperCase()}
+                            {selectedUser ? selectedUser.name.charAt(0).toUpperCase() : "G"}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{selectedUser.name}</p>
+                          <p className="text-sm font-medium truncate">{selectedUser?.name || "Guest"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {formatLastSeen(selectedUser.isOnline)}
+                            {selectedUser ? formatLastSeen(selectedUser.isOnline) : "Guest"}
                           </p>
                         </div>
                       </div>
-                      {selectedUser.conversationId && (
+                      {!isGuest && selectedUser?.conversationId && (
                         <div className="flex items-center gap-1 shrink-0">
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={deleteSelectedConversation}>
                             <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                           </Button>
                         </div>
+                      )}
+                      {isGuest && (
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setGuestConvId(null); setMessages([]); setShowInbox(true); }}>
+                          <X className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
 
@@ -843,15 +1000,13 @@ export function ChatWidget() {
                                 key={msg.id}
                                 className={cn(
                                   "group flex flex-col",
-                                  msg.senderId === currentUser?.id ? "items-end" : "items-start"
+                                  isGuest ? (msg.senderId === "0" ? "items-end" : "items-start") : (msg.senderId === currentUser?.id ? "items-end" : "items-start")
                                 )}
                               >
                                 <div
                                   className={cn(
                                     "relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5",
-                                    msg.senderId === currentUser?.id
-                                      ? "bg-primary text-primary-foreground rounded-br-md"
-                                      : "bg-muted rounded-bl-md"
+                                    isGuest ? (msg.senderId === "0" ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md") : (msg.senderId === currentUser?.id ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md")
                                   )}
                                 >
                                   {editingMessageId === msg.id ? (
@@ -884,7 +1039,7 @@ export function ChatWidget() {
                                           >
                                             <Download className="h-4 w-4 text-white" />
                                           </button>
-                                          {msg.senderId === currentUser?.id && (
+                                          {!isGuest && msg.senderId === currentUser?.id && (
                                             <button
                                               onClick={() => deleteMessageById(msg.id)}
                                               className="h-8 w-8 rounded-lg bg-red-500/70 flex items-center justify-center hover:bg-red-600 transition-colors"
@@ -902,17 +1057,15 @@ export function ChatWidget() {
                                   {editingMessageId !== msg.id && (
                                     <div className={cn(
                                       "flex items-center justify-between gap-2 mt-1.5",
-                                      msg.senderId === currentUser?.id ? "flex-row-reverse" : "flex-row"
+                                      isGuest ? (msg.senderId === "0" ? "flex-row-reverse" : "flex-row") : (msg.senderId === currentUser?.id ? "flex-row-reverse" : "flex-row")
                                     )}>
                                       <p className={cn(
                                         "text-[10px]",
-                                        msg.senderId === currentUser?.id
-                                          ? "text-primary-foreground/60"
-                                          : "text-muted-foreground/60"
+                                        isGuest ? (msg.senderId === "0" ? "text-primary-foreground/60" : "text-muted-foreground/60") : (msg.senderId === currentUser?.id ? "text-primary-foreground/60" : "text-muted-foreground/60")
                                       )}>
                                         {formatTime(msg.timestamp)}
                                       </p>
-                                      {msg.senderId === currentUser?.id && msg.message_type !== "image" && (
+                                      {!isGuest && msg.senderId === currentUser?.id && msg.message_type !== "image" && (
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                           <button
                                             className="h-5 w-5 rounded flex items-center justify-center hover:bg-primary-foreground/10 transition-colors"

@@ -245,10 +245,10 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-6 py-24">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {[
-            { value: "10K+", label: "Products Listed", icon: <ShoppingCart size={24} /> },
+            { value: "1K+", label: "Products Listed", icon: <ShoppingCart size={24} /> },
             { value: "500K+", label: "Active Sellers", icon: <Users size={24} /> },
             { value: "50M+", label: "Happy Customers", icon: <Star size={24} /> },
-            { value: "50K+ USDT", label: "Monthly Sales", icon: <TrendingUp size={24} /> },
+            { value: "2M+", label: "Monthly Sales", icon: <TrendingUp size={24} /> },
           ].map((stat, i) => (
             <div key={i} className="card text-center">
               <div className="text-primary mb-3 flex justify-center">{stat.icon}</div>

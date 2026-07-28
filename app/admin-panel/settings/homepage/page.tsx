@@ -47,6 +47,9 @@ export default function HomepageSettings() {
   const [showFeaturedProducts, setShowFeaturedProducts] = useState(true)
   const [showPromotionalBanners, setShowPromotionalBanners] = useState(false)
 
+  const [heroAvatars, setHeroAvatars] = useState<string[]>(["", "", ""])
+  const [heroAvatarFiles, setHeroAvatarFiles] = useState<(File | null)[]>([null, null, null])
+
   const defaultStats: StatConfig[] = [
     { value: "1K+", label: "Products Listed", icon: "cart" },
     { value: "500K+", label: "Active Sellers", icon: "users" },
@@ -69,6 +72,10 @@ export default function HomepageSettings() {
 
     if (Array.isArray(hs.stats)) {
       setStats(hs.stats)
+    }
+
+    if (Array.isArray(hs.hero_avatars)) {
+      setHeroAvatars(hs.hero_avatars)
     }
   }, [realtimeSettings, defaultHeadline])
 
@@ -122,6 +129,18 @@ export default function HomepageSettings() {
         return copy
       }))
 
+      const updatedAvatars = await Promise.all(heroAvatarFiles.map(async (file, idx) => {
+        if (file) {
+          const formData = new FormData()
+          formData.append("type", "homepage_banner")
+          formData.append("file", file)
+          const res = await fetch("/api/backend/settings/upload", { method: "POST", body: formData })
+          const d = await res.json()
+          return d?.success && d?.url ? String(d.url) : heroAvatars[idx]
+        }
+        return heroAvatars[idx]
+      }))
+
       await updateSettings({
         homepage_settings: {
           hero_banner_url: bannerUrl,
@@ -133,6 +152,7 @@ export default function HomepageSettings() {
           show_featured_products: showFeaturedProducts,
           show_promotional_banners: showPromotionalBanners,
           stats: updatedStats,
+          hero_avatars: updatedAvatars,
         },
       })
 
@@ -197,6 +217,32 @@ export default function HomepageSettings() {
         <div>
           <label className="block text-sm font-medium mb-2">CTA Button Text</label>
           <Input value={ctaText} onChange={(e) => setCtaText(e.target.value)} />
+        </div>
+
+        {/* Hero Avatars */}
+        <div>
+          <label className="block text-sm font-medium mb-2">Customer Avatars (3 images shown below buttons)</label>
+          <div className="grid grid-cols-3 gap-4">
+            {heroAvatars.map((url, idx) => (
+              <div key={idx} className="border border-dashed border-border rounded-lg p-3 text-center">
+                <input type="file" accept="image/*" className="hidden" id={`hero-avatar-${idx}`} onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) {
+                    const a = [...heroAvatarFiles]; a[idx] = f; setHeroAvatarFiles(a)
+                    const u = [...heroAvatars]; u[idx] = URL.createObjectURL(f); setHeroAvatars(u)
+                  }
+                }} />
+                <label htmlFor={`hero-avatar-${idx}`} className="cursor-pointer block">
+                  {url ? (
+                    <img src={url} alt="" className="w-12 h-12 rounded-full object-cover mx-auto" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-primary/20 mx-auto flex items-center justify-center text-xs text-muted-foreground">+</div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">Avatar {idx + 1}</p>
+                </label>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

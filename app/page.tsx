@@ -187,8 +187,14 @@ export default function Home() {
             <div className="flex items-center gap-8 pt-4">
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="w-8 h-8 bg-primary/20 rounded-full border-2 border-card"></div>
+                  {(Array.isArray(hs.hero_avatars) ? hs.hero_avatars : []).map((avatarUrl: string, i: number) => (
+                    avatarUrl ? (
+                      <img key={i} src={avatarUrl} alt="" className="w-8 h-8 rounded-full border-2 border-card object-cover" />
+                    ) : (
+                      <div key={i} className="w-8 h-8 bg-primary/20 rounded-full border-2 border-card flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      </div>
+                    )
                   ))}
                 </div>
                 <span className="text-sm text-muted-foreground">50M+ happy customers</span>

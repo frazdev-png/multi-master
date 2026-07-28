@@ -508,6 +508,13 @@ export function ChatWidget() {
     }
   }, [connectWebSocket, isOpen, loadConversations, loadCurrentUser, loadGuestConversation])
 
+  // Poll conversations every 10s for real-time notification badge update
+  useEffect(() => {
+    if (!isOpen) return
+    const interval = setInterval(loadConversations, 10000)
+    return () => clearInterval(interval)
+  }, [isOpen, loadConversations])
+
   useEffect(() => {
     selectedConversationIdRef.current = selectedUser?.conversationId ?? null
   }, [selectedUser?.conversationId])

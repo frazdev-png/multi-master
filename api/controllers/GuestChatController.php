@@ -203,6 +203,18 @@ class GuestChatController {
             $this->db->prepare("UPDATE conversations SET updated_at = NOW() WHERE id = ?")
                 ->execute([$conv['id']]);
 
+            // Ensure at least one admin is a participant (in case conversation was created without one)
+            try {
+                $stmt = $this->db->prepare("SELECT id FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1");
+                $stmt->execute();
+                $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($admin) {
+                    $this->db->prepare(
+                        "INSERT IGNORE INTO conversation_participants (conversation_id, user_id, created_at) VALUES (?, ?, NOW())"
+                    )->execute([(int)$conv['id'], (int)$admin['id']]);
+                }
+            } catch (Exception $e) {}
+
             // Notify admin via realtime event
             try {
                 $stmt = $this->db->prepare("SELECT id, full_name FROM users WHERE role = 'admin' LIMIT 1");
@@ -277,7 +289,7 @@ class GuestChatController {
     public function adminGetGuestMessages($id = null) {
         require_once __DIR__ . '/../middleware/AuthMiddleware.php';
         $auth = new AuthMiddleware();
-        $auth->authenticate('admin');
+        $currentUser = $auth->authenticate('admin');
 
         if (!$id) {
             $this->jsonResponse(['error' => 'Conversation ID is required'], 400);
@@ -292,6 +304,13 @@ class GuestChatController {
             if (!$conv) {
                 $this->jsonResponse(['error' => 'Guest conversation not found'], 404);
             }
+
+            // Ensure current admin is participant (for reply access)
+            try {
+                $this->db->prepare(
+                    "INSERT IGNORE INTO conversation_participants (conversation_id, user_id, created_at) VALUES (?, ?, NOW())"
+                )->execute([(int)$id, (int)$currentUser['id']]);
+            } catch (Exception $e) {}
 
             $stmt = $this->db->prepare(
                 "SELECT m.id, m.sender_id, m.content, m.message_type, m.created_at,

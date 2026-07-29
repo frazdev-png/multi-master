@@ -260,6 +260,8 @@ class SettingsController {
         // Fix strict mode: MySQL 8+ doesn't allow DEFAULT on TEXT columns
         try { $conn->exec("ALTER TABLE website_settings MODIFY tagline VARCHAR(500) DEFAULT 'Your Premier Multi-Vendor Marketplace'"); } catch (Exception $e) {}
         try { $conn->exec("ALTER TABLE website_settings MODIFY address VARCHAR(500) DEFAULT '123 Business Street, City, Country'"); } catch (Exception $e) {}
+        try { $conn->exec("ALTER TABLE website_settings ADD COLUMN business_hours_weekdays VARCHAR(255) DEFAULT 'Monday - Friday: 9AM - 6PM'"); } catch (Exception $e) {}
+        try { $conn->exec("ALTER TABLE website_settings ADD COLUMN business_hours_saturday VARCHAR(255) DEFAULT 'Saturday: 10AM - 4PM'"); } catch (Exception $e) {}
     }
 
     private function getDefaultSettings() {

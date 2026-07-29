@@ -111,6 +111,8 @@ class SettingsController {
             $this->ensureColumnExists($conn, 'menu_settings', 'LONGTEXT NULL');
             $this->ensureColumnExists($conn, 'homepage_settings', 'LONGTEXT NULL');
             $this->ensureColumnExists($conn, 'cache_settings', 'LONGTEXT NULL');
+            $this->ensureColumnExists($conn, 'business_hours_weekdays', "VARCHAR(255) DEFAULT 'Monday - Friday: 9AM - 6PM'");
+            $this->ensureColumnExists($conn, 'business_hours_saturday', "VARCHAR(255) DEFAULT 'Saturday: 10AM - 4PM'");
             
             $stmt = $conn->prepare("SELECT * FROM website_settings LIMIT 1");
             $stmt->execute();
@@ -166,12 +168,15 @@ class SettingsController {
             $this->ensureColumnExists($conn, 'menu_settings', 'LONGTEXT NULL');
             $this->ensureColumnExists($conn, 'homepage_settings', 'LONGTEXT NULL');
             $this->ensureColumnExists($conn, 'cache_settings', 'LONGTEXT NULL');
+            $this->ensureColumnExists($conn, 'business_hours_weekdays', "VARCHAR(255) DEFAULT 'Monday - Friday: 9AM - 6PM'");
+            $this->ensureColumnExists($conn, 'business_hours_saturday', "VARCHAR(255) DEFAULT 'Saturday: 10AM - 4PM'");
             
             $allowed_fields = [
                 'website_name', 'tagline', 'currency', 'timezone', 
                 'email', 'phone', 'address', 'refund_policy', 
                 'return_policy', 'terms_conditions', 'logo_url', 'favicon_url',
-                'font_settings', 'seo_settings', 'menu_settings', 'cache_settings', 'homepage_settings'
+                'font_settings', 'seo_settings', 'menu_settings', 'cache_settings', 'homepage_settings',
+                'business_hours_weekdays', 'business_hours_saturday'
             ];
             
             $update_fields = [];
@@ -275,7 +280,9 @@ class SettingsController {
             'seo_settings' => [],
             'menu_settings' => [],
             'homepage_settings' => [],
-            'cache_settings' => []
+            'cache_settings' => [],
+            'business_hours_weekdays' => 'Monday - Friday: 9AM - 6PM',
+            'business_hours_saturday' => 'Saturday: 10AM - 4PM'
         ];
     }
 

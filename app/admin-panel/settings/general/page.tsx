@@ -17,6 +17,8 @@ interface GeneralSettings {
   email: string;
   phone: string;
   address: string;
+  businessHoursWeekdays: string;
+  businessHoursSaturday: string;
   refundPolicy: string;
   returnPolicy: string;
   termsConditions: string;
@@ -34,6 +36,8 @@ export default function GeneralSettings() {
     email: "",
     phone: "",
     address: "",
+    businessHoursWeekdays: "Monday - Friday: 9AM - 6PM",
+    businessHoursSaturday: "Saturday: 10AM - 4PM",
     refundPolicy: "",
     returnPolicy: "",
     termsConditions: "",
@@ -53,6 +57,8 @@ export default function GeneralSettings() {
         email: realtimeSettings.email || "",
         phone: realtimeSettings.phone || "",
         address: realtimeSettings.address || "",
+        businessHoursWeekdays: (realtimeSettings as any).business_hours_weekdays || "Monday - Friday: 9AM - 6PM",
+        businessHoursSaturday: (realtimeSettings as any).business_hours_saturday || "Saturday: 10AM - 4PM",
         refundPolicy: realtimeSettings.refund_policy || "",
         returnPolicy: realtimeSettings.return_policy || "",
         termsConditions: realtimeSettings.terms_conditions || ""
@@ -99,6 +105,8 @@ export default function GeneralSettings() {
       email: settings.email,
       phone: settings.phone,
       address: settings.address,
+      business_hours_weekdays: settings.businessHoursWeekdays,
+      business_hours_saturday: settings.businessHoursSaturday,
       refund_policy: settings.refundPolicy,
       return_policy: settings.returnPolicy,
       terms_conditions: settings.termsConditions
@@ -322,6 +330,26 @@ export default function GeneralSettings() {
               value={settings.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
               rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Business Hours (Weekdays)</label>
+            <Input
+              type="text"
+              value={settings.businessHoursWeekdays}
+              onChange={(e) => handleInputChange('businessHoursWeekdays', e.target.value)}
+              placeholder="Monday - Friday: 9AM - 6PM"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Business Hours (Saturday)</label>
+            <Input
+              type="text"
+              value={settings.businessHoursSaturday}
+              onChange={(e) => handleInputChange('businessHoursSaturday', e.target.value)}
+              placeholder="Saturday: 10AM - 4PM"
             />
           </div>
         </CardContent>

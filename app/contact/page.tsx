@@ -2,10 +2,40 @@
 
 import Link from "next/link"
 import { useRealtime } from "@/contexts/RealtimeContext"
-import { Mail, Phone, MapPin, Clock, MessageCircle } from "lucide-react"
+import { Mail, Phone, MapPin, Clock, Loader2, CheckCircle } from "lucide-react"
+import { useState } from "react"
 
 export default function ContactPage() {
   const { settings } = useRealtime()
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [subject, setSubject] = useState("")
+  const [message, setMessage] = useState("")
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim() || !message.trim()) return
+    setSending(true)
+    setError("")
+    try {
+      const res = await fetch("/api/backend/contact/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), subject: subject.trim(), message: message.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || "Failed to send")
+      setSent(true)
+      setName(""); setEmail(""); setSubject(""); setMessage("")
+    } catch (e: any) {
+      setError(e?.message || "Something went wrong")
+    } finally {
+      setSending(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -61,20 +91,33 @@ export default function ContactPage() {
 
           <div className="bg-card rounded-lg border border-border p-8">
             <h2 className="text-2xl font-semibold mb-6">Send Us a Message</h2>
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              {sent ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                  <p className="text-lg font-medium">Message Sent!</p>
+                  <p className="text-sm text-muted-foreground">We will get back to you soon.</p>
+                </div>
+              ) : (
+                <>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Name</label>
                   <input
                     type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     placeholder="Your name"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Email</label>
                   <input
                     type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     placeholder="Your email"
                   />
@@ -84,6 +127,8 @@ export default function ContactPage() {
                 <label className="block text-sm font-medium mb-1">Subject</label>
                 <input
                   type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   placeholder="Subject"
                 />
@@ -91,16 +136,24 @@ export default function ContactPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Message</label>
                 <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[150px]"
                   placeholder="Write your message..."
+                  required
                 />
               </div>
+              {error && <p className="text-sm text-red-500">{error}</p>}
               <button
                 type="submit"
-                className="bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium hover:opacity-90 transition-opacity"
+                disabled={sending || !name.trim() || !message.trim()}
+                className="bg-primary text-primary-foreground px-6 py-2 rounded-md font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
               >
+                {sending ? <Loader2 className="animate-spin inline mr-2" size={16} /> : null}
                 Send Message
               </button>
+                </>
+              )}
             </form>
           </div>
         </div>

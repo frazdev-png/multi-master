@@ -184,6 +184,11 @@ class Database {
                 "CREATE TABLE IF NOT EXISTS staff_permissions (staff_id INT NOT NULL, permission_id INT NOT NULL, PRIMARY KEY (staff_id, permission_id), FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE, FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE) ENGINE=InnoDB"
             );
 
+            $ensureTable(
+                'contact_messages',
+                "CREATE TABLE IF NOT EXISTS contact_messages (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, subject VARCHAR(255) NOT NULL DEFAULT '', message TEXT NOT NULL, is_read TINYINT(1) NOT NULL DEFAULT 0, created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_contact_read (is_read)) ENGINE=InnoDB"
+            );
+
             // Seed default roles & permissions if table is empty
             try {
                 $stmt = $conn->prepare('SELECT COUNT(*) FROM roles');

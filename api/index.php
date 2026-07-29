@@ -276,6 +276,11 @@ $routes = [
     '/api/settings/update' => ['controller' => 'SettingsController', 'method' => 'updateSettings', 'http_method' => 'POST'],
     '/api/settings/upload' => ['controller' => 'SettingsController', 'method' => 'uploadAsset', 'http_method' => 'POST'],
 
+    // Contact form endpoints
+    '/api/contact/submit' => ['controller' => 'ContactController', 'method' => 'submit', 'http_method' => 'POST'],
+    '/api/contact/messages' => ['controller' => 'ContactController', 'method' => 'list', 'http_method' => 'GET'],
+    '/api/contact/messages/{id}/read' => ['controller' => 'ContactController', 'method' => 'markRead', 'http_method' => 'PUT'],
+
 ];
 
 // Handle static files in uploads directory
